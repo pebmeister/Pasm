@@ -1,11 +1,6 @@
 #pragma once
 #include "sym.h"
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 // ***********************************************************************
 // Author           : Paul Baxter
 // ***********************************************************************
@@ -124,7 +119,3 @@ extern int generate_list_node(const parse_node_ptr p);
 
 extern parse_node_ptr head_node;
 extern parse_node_ptr current_node;
-
-#ifdef __cplusplus
-}
-#endif

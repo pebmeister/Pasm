@@ -1,9 +1,5 @@
 #pragma once
 #include <stdio.h>
-#ifdef __cplusplus
-extern "C"
-{
-#endif
 
 // flex bison functions and variables
 #ifndef YY_TYPEDEF_YY_SIZE_T
@@ -45,6 +41,3 @@ extern YY_BUFFER_STATE yy_create_buffer(FILE* file, int size);
 
 extern FILE* yyout;
 
-#ifdef __cplusplus
-}
-#endif

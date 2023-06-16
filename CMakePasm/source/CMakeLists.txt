@@ -1,3 +1,4 @@
+
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -9,54 +10,64 @@ endif()
 
 # Bison
 find_package(BISON REQUIRED)
-BISON_TARGET(Bison_Parser pasm.y ${CMAKE_CURRENT_BINARY_DIR}/pasm.tab.c
-             DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/pasm.tab.h)
+BISON_TARGET(Bison_Parser pasm.y ${CMAKE_CURRENT_BINARY_DIR}/pasm.tab.cc
+    COMPILE_FLAGS "-rall -Wnone"
+    DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/pasm.tab.h)
 
 # For win_flex turn on --wincompat
 find_package(FLEX REQUIRED)
 string(FIND "${FLEX_EXECUTABLE}" "win_flex.exe" IS_WIN_FLEX)
 
 if (NOT ${IS_WIN_FLEX} EQUAL -1)
-    FLEX_TARGET(Flex_Scanner pasm.l ${CMAKE_CURRENT_BINARY_DIR}/pasm.flex.c
+    FLEX_TARGET(Flex_Scanner pasm.l ${CMAKE_CURRENT_BINARY_DIR}/pasm.flex.cc
     COMPILE_FLAGS --wincompat)
 else()
-    FLEX_TARGET(Flex_Scanner pasm.l ${CMAKE_CURRENT_BINARY_DIR}/pasm.flex.c
+    FLEX_TARGET(Flex_Scanner pasm.l ${CMAKE_CURRENT_BINARY_DIR}/pasm.flex.cc
     )
 endif()
 
 # set flex bison dependency   
 ADD_FLEX_BISON_DEPENDENCY(Flex_Scanner Bison_Parser)
 
-# parser library
+# parser scanner library
 add_library(parser
         ${BISON_Bison_Parser_OUTPUTS}
         ${FLEX_Flex_Scanner_OUTPUTS}
     )
+    
+# engine
+add_library(engine 
+    dictionary.cc
+    error.cc 
+    expand.cc 
+    file.cc
+    genlist.cc
+    genoutput.cc
+    globals.cc
+    hash.cc
+    memory.cc
+    node.cc
+    opcodes.cc
+    parseargs.cc    
+    stacks.cc
+    str.cc
+    sym.cc)
  
-# executeable
+# executable
 add_executable(pasm 
-    dictionary.c 
-    error.c 
-    expand.c 
-    file.c
-    genlist.c
-    genoutput.c
-    globals.c
-    hash.c
-    main.c
-    memory.c
-    node.c
-    opcodes.c
-    parseargs.c    
-    stacks.c
-    str.c
-    sym.c)
+    main.cc)
 
-target_link_libraries(pasm parser)
+target_link_libraries(pasm parser engine)
 
-target_include_directories(parser PUBLIC "${CMAKE_CURRENT_LIST_DIR}"
-                                        "${CMAKE_CURRENT_BINARY_DIR}"
-)
+# include directory for main
 target_include_directories(pasm PUBLIC "${CMAKE_CURRENT_LIST_DIR}"
-                                        "${CMAKE_CURRENT_BINARY_DIR}"
-)
+                                        "${CMAKE_CURRENT_BINARY_DIR}")
+
+# include directory for parser
+target_include_directories(parser PUBLIC "${CMAKE_CURRENT_LIST_DIR}"
+                                        "${CMAKE_CURRENT_BINARY_DIR}")
+
+# include directory for engine
+target_include_directories(engine PUBLIC "${CMAKE_CURRENT_LIST_DIR}"
+                                        "${CMAKE_CURRENT_BINARY_DIR}")
+                                        

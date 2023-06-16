@@ -1,10 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 extern void warn(int err_num);
 extern void error(int err_num);
 extern void error2(int err_num, const char* parameter);
@@ -66,7 +61,3 @@ enum
     error_path_name_too_long,
     error_max
 };
-
-#ifdef __cplusplus
-}
-#endif

@@ -1,11 +1,9 @@
 #pragma once
 #include <stdbool.h>
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+
 
 #include "dictionary.h"
+#include "stacks.h"
 
 typedef struct plus_minus_sym
 {
@@ -51,7 +49,6 @@ extern void dump_changed_symbols(FILE* file);
 extern plus_minus_symbol* minus_symbol_table;
 extern plus_minus_symbol* plus_symbol_table;
 extern dictionary_ptr symbol_dictionary;
+extern stack_ptr macro_params_stack;
+extern int max_macro_param;
 
-#ifdef __cplusplus
-}
-#endif
