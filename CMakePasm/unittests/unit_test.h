@@ -39,7 +39,9 @@ extern ops_ptr cpu_6502_ops;
 #define HB(x)       (LB((x)>>8))
 #define WORD(x)     LB(x),HB(x)
 
+#ifndef _countof
 #define _countof(a) (sizeof((a))/sizeof(*(a)))
+#endif
 
 #define EXPECT_NULL(x)          EXPECT_EQ((x), nullptr)
 #define EXPECT_NOT_NULL(x)      EXPECT_NE((x), nullptr)

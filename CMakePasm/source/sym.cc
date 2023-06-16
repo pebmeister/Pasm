@@ -115,7 +115,7 @@ symbol_table_ptr add_symbol(char* name)
         return tmp_ptr;
     }
 
-    sym.name = STRDUP(name);
+    sym.name = (char*)STRDUP(name);
     if (sym.name == NULL)
     {
         error(error_out_of_memory);
@@ -124,7 +124,7 @@ symbol_table_ptr add_symbol(char* name)
 
     if (current_scope)
     {
-        sym.scope = STRDUP(current_scope);
+        sym.scope = (char*)STRDUP(current_scope);
         if (sym.scope == NULL)
         {
             error(error_out_of_memory);
@@ -144,7 +144,7 @@ symbol_table_ptr add_symbol(char* name)
     }
     else
     {
-        sym.fullname = STRDUP(sym.name);
+        sym.fullname = (char*)STRDUP(sym.name);
         if (sym.fullname == NULL)
         {
             error(error_out_of_memory);
@@ -343,7 +343,7 @@ void add_minus_symbol(const char* file, const int line, const int value)
         minus_symbol_table = temp_ptr;
     }
 
-    minus_symbol_table[minus_symbol_table_index].file = STRDUP(file);
+    minus_symbol_table[minus_symbol_table_index].file = (char*)STRDUP(file);
     minus_symbol_table[minus_symbol_table_index].line = line;
     minus_symbol_table[minus_symbol_table_index].value = value;
     ++minus_symbol_table_index;
@@ -371,7 +371,7 @@ void add_plus_symbol(const char* file, const int line, const int value)
         plus_symbol_table = temp_ptr;
     }
 
-    plus_symbol_table[plus_symbol_table_index].file = STRDUP(file);
+    plus_symbol_table[plus_symbol_table_index].file = (char*)STRDUP(file);
     plus_symbol_table[plus_symbol_table_index].line = line;
     plus_symbol_table[plus_symbol_table_index].value = value;
     ++plus_symbol_table_index;
@@ -480,8 +480,8 @@ void sanitize_symbol(const symbol_table_ptr symbol)
     while (symbol->name[len] != '.')
         len--;
     symbol->name[len] = 0;
-    char* temp_section = STRDUP(symbol->name);
-    char* temp_name = STRDUP(&symbol->name[len + 1]);
+    char* temp_section = (char*)STRDUP(symbol->name);
+    char* temp_name = (char*)STRDUP(&symbol->name[len + 1]);
     if (temp_name == NULL)
     {
         error(error_out_of_memory);
@@ -527,7 +527,7 @@ char* format_local_sym(char* name, const char* label)
     {
         sprintf(new_name, "%s__%s", label, name);
     }
-    name = STRDUP(new_name);
+    name = (char*)STRDUP(new_name);
     FREE(new_name);
     return name;
 }

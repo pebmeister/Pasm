@@ -282,18 +282,18 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
 ".C64"                      { output_file_format = c64; }
 ".PRINT"[ \t]"ON"           { return PRINTON; }
 ".PRINT"[ \t]"OFF"          { return PRINTOFF; }
-^"-"                        { yylval.strValue = STRDUP(yytext); return SYMBOL; }
-^"+"                        { yylval.strValue = STRDUP(yytext); return SYMBOL; }
+^"-"                        { yylval.strValue = (char*) STRDUP(yytext); return SYMBOL; }
+^"+"                        { yylval.strValue = (char*) STRDUP(yytext); return SYMBOL; }
 [\\][1-9]+[0-9]*            {
                                 if (in_macro_definition == 0)
                                     REJECT;
-                                yylval.strValue = STRDUP(yytext); 
+                                yylval.strValue = (char*)STRDUP(yytext); 
                                 return SYMBOL;
                             }
 [\+|\-]+                    {
                                 if (strlen(yytext) > 1)
                                 {
-                                    yylval.strValue = STRDUP(yytext); 
+                                    yylval.strValue = (char*)STRDUP(yytext); 
                                     return SYMBOL;
                                 }
                                 else
@@ -312,12 +312,12 @@ $[0-9A-Fa-f]*               INT(1, 16)
 0b[0-1]*                    INT(2, 2)
 [\'][\\][0-7]{3}[\']        INT(2, 8)
 
-{STRVALUE}					{ yylval.strValue = STRDUP(yytext); return STRING_LITERAL; }
+{STRVALUE}					{ yylval.strValue = (char*)STRDUP(yytext); return STRING_LITERAL; }
 "*"[ \t]*[=]                { unput('='); return PCASSIGN; }
 "*"[ \t]*".EQU"             { unput('='); return PCASSIGN; }
 "X"                         { return 'X'; }
 "Y"                         { return 'Y'; }
-{SYMB}:?                    { yylval.strValue = STRDUP(yytext); return SYMBOL; }
+{SYMB}:?                    { yylval.strValue = (char*)STRDUP(yytext); return SYMBOL; }
 "/*"                        { BEGIN(C_COMMENT); }
 <C_COMMENT>"*/"             { BEGIN(INITIAL); }
 <C_COMMENT>.|[\n]           { /* ignore comments */ }

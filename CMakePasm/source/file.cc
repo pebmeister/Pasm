@@ -117,7 +117,7 @@ file_line_node* read_file_lines(const char* file_name)
             }
             memset(file_node, 0, sizeof(file_line_node));
             // ReSharper disable once CppDeprecatedEntity
-            file_node->line_content = STRDUP(internal_buffer);
+            file_node->line_content = (char*)STRDUP(internal_buffer);
             file_node->line_number = line++;
         }
     }
@@ -150,7 +150,10 @@ int open_include_file(char* file)
 {
     if (final_pass) generate_list_node(NULL);
 
-    const file_line_stack_entry file_line = { .file = current_file_name, .line = yylineno };
+    file_line_stack_entry file_line;
+    file_line.file = current_file_name;
+    file_line.line = yylineno;
+    
     file_stack->push(file_stack->instance, &file_line);
 
     current_file_name = file;

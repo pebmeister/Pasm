@@ -120,7 +120,7 @@ parse_node_ptr string_node(const char* value)
 {
     const parse_node_ptr p = allocate_node(0);
 
-    char* str = STRDUP(value);
+    char* str = (char*)STRDUP(value);
 
     if (str == NULL || p == NULL)
     {
@@ -166,7 +166,7 @@ parse_node_ptr id_node_common(const char* name, const node_type_enum  node_type)
 
     /* copy information */
     p->type = node_type;
-    p->id.name = STRDUP(name);
+    p->id.name = (char*)STRDUP(name);
     if (p->id.name == NULL)
     {
         error( error_out_of_memory);
@@ -243,7 +243,7 @@ parse_node_ptr macro_expand_node(const char* name, const parse_node_ptr macro_pa
     /* copy information */
     p->type = type_macro_ex;
     p->macro.macro = macro_node_ptr;
-    p->macro.name = STRDUP(name);
+    p->macro.name = (char*)STRDUP(name);
     p->macro.macro_params = macro_params;
 
     return p;

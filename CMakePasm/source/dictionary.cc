@@ -161,7 +161,7 @@ void* dict_insert(dictionary_ptr* dd, void* key, void* value)
 
     if (d->key_type == 0)
     {
-        e->key = STRDUP((char*)key);
+        e->key = (char*) STRDUP((char*)key);
         if (e->key == NULL)
         {
             error(error_out_of_memory);

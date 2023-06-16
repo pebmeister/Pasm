@@ -66,7 +66,7 @@ long push(const instance_data_ptr stack_instance, const void* value)
             stack_instance->item_array = tmp;
         }
 #ifdef _DEBUG
-        uint8_t* item_ptr = stack_instance->item_array;
+        uint8_t* item_ptr = (uint8_t*)stack_instance->item_array;
         item_ptr += (size_t)(stack_instance->index + 1) * stack_instance->item_size;
         memset(item_ptr, 0xCC, (size_t)(stack_instance->stack_size - (stack_instance->index + 1)) * stack_instance->item_size);
 #endif

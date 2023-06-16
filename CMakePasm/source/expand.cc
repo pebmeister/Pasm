@@ -735,7 +735,7 @@ int expand_operator_section_node(const parse_node_ptr p)
     }
     else
     {
-        current_scope = STRDUP(name);  // NOLINT(clang-diagnostic-incompatible-pointer-types-discards-qualifiers)
+        current_scope = (char*) STRDUP(name);  // NOLINT(clang-diagnostic-incompatible-pointer-types-discards-qualifiers)
         if (current_scope == NULL)
         {
             error(error_out_of_memory);
@@ -1370,7 +1370,7 @@ int expand_macro_id_node(const parse_node_ptr p)
 
     char* temp = last_label;
     sprintf(internal_buffer, "%s::%8.8X", p->id.name, macro_dict_entry->times_executed);
-    last_label = STRDUP(internal_buffer);
+    last_label = (char*) STRDUP(internal_buffer);
 
     expand_id_node(p);
 
@@ -1405,7 +1405,7 @@ int expand_macro_expansion_node(const parse_node_ptr p)
 
     char* temp = last_label;
     sprintf(internal_buffer, "%s::%.4X", p->macro.name, macro_dict_entry->times_executed);
-    last_label = STRDUP(internal_buffer);
+    last_label = (char*) STRDUP(internal_buffer);
 
     if (p->macro.macro != NULL)
         expand_node((parse_node_ptr)p->macro.macro);

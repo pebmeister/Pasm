@@ -210,14 +210,14 @@ list_table_ptr add_list(const char* file, int line, const char* output)
     memset(var_ptr, 0, sizeof(list_table));
     var_ptr->print_state = print_list_state;
 
-    var_ptr->filename = STRDUP(file);
+    var_ptr->filename = (char*)STRDUP(file);
     if (var_ptr->filename == NULL)
     {
         error(error_out_of_memory);
         exit(-1);
     }
     var_ptr->line = line + 1;
-    var_ptr->output = STRDUP(output);
+    var_ptr->output = (char*)STRDUP(output);
     if (var_ptr->output == NULL)
     {
         error(error_out_of_memory);
