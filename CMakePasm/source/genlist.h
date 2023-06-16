@@ -3,11 +3,6 @@
 
 #include "file.h"
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 typedef struct list_table
 {
     int line;
@@ -34,7 +29,3 @@ extern int print_list_state;
 extern list_table_ptr list_head;
 
 #define SRC_LST_INDENT  25
-
-#ifdef __cplusplus
-}
-#endif

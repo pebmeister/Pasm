@@ -7,3 +7,6 @@ project(Pasm)
 #source code
 add_subdirectory(source)
  
+#unittests
+add_subdirectory(unittests)
+ 

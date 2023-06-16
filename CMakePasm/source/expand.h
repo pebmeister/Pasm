@@ -2,10 +2,6 @@
 
 #include "node.h"
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
 extern void init_expander(void);
 extern void destroy_expander(void);
 extern int expand_node(parse_node_ptr p);
@@ -22,7 +18,3 @@ extern int sym_value_changed;
 extern int print_list_state;
 extern int end_expansion;
 extern dictionary_ptr macro_dict;
-
-#ifdef __cplusplus
-}
-#endif

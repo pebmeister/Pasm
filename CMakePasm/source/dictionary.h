@@ -1,10 +1,5 @@
 #pragma once
 #include <stdio.h>
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 
 // ***********************************************************************
 // Author           : Paul Baxter
@@ -82,7 +77,3 @@ extern void dict_delete(dictionary_ptr, const void* key);
 typedef int (*print_element)(element_ptr e, FILE* file);
 
 extern void dump_dictionary(dictionary_ptr d,  print_element p, FILE* file);
-
-#ifdef __cplusplus
-}
-#endif

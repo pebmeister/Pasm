@@ -2,11 +2,6 @@
 
 #include <stdlib.h>
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 typedef struct instance_data
 {
     long index;
@@ -28,6 +23,3 @@ typedef struct stack
 extern stack_ptr create_stack(size_t item_size);
 extern void free_stack(stack_ptr sp);
 
-#ifdef __cplusplus
-}
-#endif

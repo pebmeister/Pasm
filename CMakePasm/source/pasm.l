@@ -336,7 +336,7 @@ $[0-9A-Fa-f]*               INT(1, 16)
                                 if (file_stack->instance->index >= 0)
                                 {
 
-                                    const file_line_stack_entry* file_line = file_stack->pop(file_stack->instance);
+                                    const file_line_stack_entry* file_line = (file_line_stack_entry*) file_stack->pop(file_stack->instance);
                                     current_file_name = file_line->file;
                                     yylineno = file_line->line;
 

@@ -2,11 +2,6 @@
 #include <stdbool.h>
 #include "stacks.h"
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 enum
 {
     max_line_len = 2048
@@ -62,6 +57,4 @@ extern FILE* output_file;
 extern FILE* list_file;
 extern FILE* console;
 extern FILE* console_error;
-#ifdef __cplusplus
-}
-#endif
+

@@ -1,9 +1,13 @@
 %no-lines
-%expect 2
-%glr-parser
-%expect-rr 27
-
 %{
+
+/*
+
+%expect 2
+%expect-rr 27
+%glr-parser
+
+*/
 
 // ***********************************************************************
 // Author           : Paul Baxter

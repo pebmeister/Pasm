@@ -1,10 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 // ReSharper disable CppClangTidyClangDiagnosticReservedIdentifier
 // ReSharper disable CppInconsistentNaming
 // ***********************************************************************
@@ -172,6 +167,4 @@ extern char* mode_to_string(int mode);
 
 extern int allow_illegal_op_codes;
 extern cpu cpu_mode;
-#ifdef __cplusplus
-}
-#endif
+
