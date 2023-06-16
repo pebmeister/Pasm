@@ -13,6 +13,10 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
+if (${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Windows")
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+endif()
+
 add_executable(
   unittest
   unit_test.cc
