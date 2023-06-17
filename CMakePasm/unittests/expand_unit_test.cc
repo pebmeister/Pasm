@@ -142,7 +142,9 @@ TEST(expand_unit_test, expand_id_node_test)
     const auto result = expand_node(id_node_ptr);
     EXPECT_EQ(0, result);
     EXPECT_NOT_NULL(id_node_ptr->id.name);
+
     auto str_result = stricmp( "test_id", id_node_ptr->id.name);
+
     EXPECT_EQ(0, str_result);
     const auto symbol_ptr = look_up_symbol( "test_id");
     EXPECT_NOT_NULL(symbol_ptr);

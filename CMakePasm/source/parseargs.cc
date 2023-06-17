@@ -42,16 +42,22 @@ void usage(void)
     fprintf(console, "         -?              print this help\n");
 }
 
-int parse_arguments(const int argc, char* argv[])
+int pre_parse()
 {
     console = stdout;
     console_error = stderr;
     yyout = console;
+    return 0;
+}
 
+int parse_arguments(const int argc, char* argv[])
+{
+  
     for (int arg = 0; arg < argc; arg++)
     {
         fprintf(console, "%s ", argv[arg]);
-    }
+    }  
+  
     fprintf(console, "\n");
 
     bool illegal_specified = false;

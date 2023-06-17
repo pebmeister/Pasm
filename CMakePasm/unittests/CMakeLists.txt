@@ -13,6 +13,10 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
+if (${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Windows")
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+endif()
+
 add_executable(
   unittest
   unit_test.cc
@@ -22,6 +26,9 @@ add_executable(
   expand_unit_test.cc
   file_unit_test.cc
 )
+
+#force flex/bison first
+add_dependencies(unittest parser engine) 
 
 target_link_libraries(
   unittest
@@ -37,4 +44,3 @@ gtest_discover_tests(unittest)
 target_include_directories(unittest PUBLIC "${CMAKE_CURRENT_LIST_DIR}"
                                         "${CMAKE_CURRENT_BINARY_DIR}")
                                         
-
