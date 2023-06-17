@@ -628,7 +628,14 @@ void print_node(parse_node_ptr p, FILE* file)
         print_indent(file);
         fprintf(file, "name %s\n", p->id.name);
         print_indent(file);
-        fprintf(file, "i    %p\n", (void*)p->id.i);
+        if (p->id.i == nullptr)
+        {
+            fprintf(file, "i    (nil)\n");
+        }
+        else
+        {
+            fprintf(file, "i    %p\n", (void*)p->id.i);
+        }
         if (p->id.i)
         {
             print_indent(file);

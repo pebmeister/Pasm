@@ -33,6 +33,7 @@ ADD_FLEX_BISON_DEPENDENCY(Flex_Scanner Bison_Parser)
 add_library(parser
     ${BISON_Bison_Parser_OUTPUTS}
     ${FLEX_Flex_Scanner_OUTPUTS}
+    parseargs.cc 
 )
     
 # engine
@@ -47,8 +48,7 @@ add_library(engine
     hash.cc
     memory.cc
     node.cc
-    opcodes.cc
-    parseargs.cc    
+    opcodes.cc       
     stacks.cc
     str.cc
     sym.cc
