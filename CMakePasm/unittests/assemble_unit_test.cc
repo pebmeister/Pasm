@@ -36,6 +36,7 @@ TEST(assemble_unit_test, program_statement_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -70,6 +71,7 @@ TEST(assemble_unit_test, program_symbol_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -107,6 +109,7 @@ TEST(assemble_unit_test, stmt_opcode_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -141,6 +144,7 @@ TEST(assemble_unit_test, stmt_directive_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -175,6 +179,7 @@ TEST(assemble_unit_test, stmt_symbol_value_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -213,6 +218,7 @@ TEST(assemble_unit_test, stmt_symbol_assign_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -254,6 +260,7 @@ TEST(assemble_unit_test, stmt_pc_assign_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -299,6 +306,7 @@ TEST(assemble_unit_test, stmt_ifexpr_unit_test)
         "* >= $1000";
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -355,6 +363,7 @@ TEST(assemble_unit_test, stmt_loopexpr_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -410,6 +419,7 @@ TEST(assemble_unit_test, stmt_regloopexpr_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -485,6 +495,7 @@ TEST(assemble_unit_test, stmt_macrodef_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -562,6 +573,7 @@ TEST(assemble_unit_test, stmt_macrocall_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -625,6 +637,7 @@ TEST(assemble_unit_test, stmt_vardef_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -678,6 +691,7 @@ TEST(assemble_unit_test, stmt_EOL_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -717,6 +731,7 @@ TEST(assemble_unit_test, stmt_list_stmt_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -754,6 +769,7 @@ TEST(assemble_unit_test, stmt_list_stmt_list_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -807,6 +823,7 @@ TEST(assemble_unit_test, ifexpr_if_else_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -858,6 +875,7 @@ TEST(assemble_unit_test, ifexpr_if_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -906,6 +924,7 @@ TEST(assemble_unit_test, loopexpr_repeat_unil_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -963,6 +982,7 @@ TEST(assemble_unit_test, loopexpr_do_while_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1020,6 +1040,7 @@ TEST(assemble_unit_test, loopexpr_while_wend_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1077,6 +1098,7 @@ TEST(assemble_unit_test, loopexpr_for_next_step_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1134,6 +1156,7 @@ TEST(assemble_unit_test, loopexpr_for_next_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1202,6 +1225,7 @@ TEST(assemble_unit_test, regloopexpr_for_regx_to_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1266,6 +1290,7 @@ TEST(assemble_unit_test, regloopexpr_for_regx_downto_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1330,6 +1355,7 @@ TEST(assemble_unit_test, regloopexpr_for_regy_to_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1394,6 +1420,7 @@ TEST(assemble_unit_test, regloopexpr_for_regy_downto_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1447,6 +1474,7 @@ TEST(assemble_unit_test, expr_list_subexpr_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1480,6 +1508,7 @@ TEST(assemble_unit_test, expr_list_string_literal_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1514,6 +1543,7 @@ TEST(assemble_unit_test, expr_list_expr_list_subexpr_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1551,6 +1581,7 @@ TEST(assemble_unit_test, expr_list_expr_list_string_literal_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1612,6 +1643,7 @@ TEST(assemble_unit_test, macro_def_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1694,6 +1726,7 @@ TEST(assemble_unit_test, macrocall_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1755,6 +1788,7 @@ TEST(assemble_unit_test, symbol_list_symbol_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1795,6 +1829,7 @@ TEST(assemble_unit_test, symbol_list_symbol_list_symbol_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1834,6 +1869,7 @@ TEST(assemble_unit_test, symbol_list_symbol_equals_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1871,6 +1907,7 @@ TEST(assemble_unit_test, symbol_list_symbol_list_symbol_equals_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1913,6 +1950,7 @@ TEST(assemble_unit_test, var_def_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1954,6 +1992,7 @@ TEST(assemble_unit_test, symbol_assign_equals_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -1992,6 +2031,7 @@ TEST(assemble_unit_test, symbol_assign_equ_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2034,6 +2074,7 @@ TEST(assemble_unit_test, pc_assign_equals_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2072,6 +2113,7 @@ TEST(assemble_unit_test, pc_assign_equ_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2113,6 +2155,7 @@ TEST(assemble_unit_test, symbol_value_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2152,6 +2195,7 @@ TEST(assemble_unit_test, opcode_opcode_i_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2185,6 +2229,7 @@ TEST(assemble_unit_test, opcode_opcode_I_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2218,6 +2263,7 @@ TEST(assemble_unit_test, opcode_opcode_a_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2251,6 +2297,7 @@ TEST(assemble_unit_test, opcode_opcode_ax_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2284,6 +2331,7 @@ TEST(assemble_unit_test, opcode_opcode_ay_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2317,6 +2365,7 @@ TEST(assemble_unit_test, opcode_opcode_ind_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2350,6 +2399,7 @@ TEST(assemble_unit_test, opcode_opcode_aix_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2383,6 +2433,7 @@ TEST(assemble_unit_test, opcode_opcode_izy_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2419,6 +2470,7 @@ TEST(assemble_unit_test, directive_org_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2457,6 +2509,7 @@ TEST(assemble_unit_test, directive_ds_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2493,6 +2546,7 @@ TEST(assemble_unit_test, directive_byte_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2535,6 +2589,7 @@ TEST(assemble_unit_test, directive_word_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2573,6 +2628,7 @@ TEST(assemble_unit_test, directive_str_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2612,6 +2668,7 @@ TEST(assemble_unit_test, directive_fill_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2650,6 +2707,7 @@ TEST(assemble_unit_test, directive_print_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2686,6 +2744,7 @@ TEST(assemble_unit_test, directive_print_expession_list_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2721,6 +2780,7 @@ TEST(assemble_unit_test, directive_printall_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2757,6 +2817,7 @@ TEST(assemble_unit_test, directive_printall_expession_list_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2806,6 +2867,7 @@ TEST(assemble_unit_test, directive_printon_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2857,6 +2919,7 @@ TEST(assemble_unit_test, directive_printoff_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2913,6 +2976,7 @@ TEST(assemble_unit_test, directive_section_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -2981,6 +3045,7 @@ TEST(assemble_unit_test, directive_endsection_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3033,6 +3098,7 @@ TEST(assemble_unit_test, directive_end_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3085,6 +3151,7 @@ TEST(assemble_unit_test, directive_inc_unit_test)
     fclose(inc_file);
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3143,6 +3210,7 @@ TEST(assemble_unit_test, directive_load_unit_test)
     fclose(load_file);
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3189,6 +3257,7 @@ TEST(assemble_unit_test, expr_integer_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3233,6 +3302,7 @@ TEST(assemble_unit_test, expr_symbol_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3274,6 +3344,7 @@ TEST(assemble_unit_test, expr_uminus_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3310,6 +3381,7 @@ TEST(assemble_unit_test, expr_tilda_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3344,6 +3416,7 @@ TEST(assemble_unit_test, expr_lobyte_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3377,6 +3450,7 @@ TEST(assemble_unit_test, expr_hibyte_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3412,6 +3486,7 @@ TEST(assemble_unit_test, expr_not_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3449,6 +3524,7 @@ TEST(assemble_unit_test, expr_or_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3486,6 +3562,7 @@ TEST(assemble_unit_test, expr_and_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3523,6 +3600,7 @@ TEST(assemble_unit_test, expr_shift_left_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3560,6 +3638,7 @@ TEST(assemble_unit_test, expr_shift_right_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3597,6 +3676,7 @@ TEST(assemble_unit_test, expr_less_than_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3634,6 +3714,7 @@ TEST(assemble_unit_test, expr_greater_than_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3671,6 +3752,7 @@ TEST(assemble_unit_test, expr_greater_than_equal_to_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3708,6 +3790,7 @@ TEST(assemble_unit_test, expr_less_than_equal_to_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3745,6 +3828,7 @@ TEST(assemble_unit_test, expr_equal_to_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3782,6 +3866,7 @@ TEST(assemble_unit_test, expr_not_equal_to_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3819,6 +3904,7 @@ TEST(assemble_unit_test, expr_bit_and_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3856,6 +3942,7 @@ TEST(assemble_unit_test, expr_bit_or_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3893,6 +3980,7 @@ TEST(assemble_unit_test, expr_bit_xor_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3930,6 +4018,7 @@ TEST(assemble_unit_test, expr_plus_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -3967,6 +4056,7 @@ TEST(assemble_unit_test, expr_minus_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -4004,6 +4094,7 @@ TEST(assemble_unit_test, expr_multiply_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -4041,6 +4132,7 @@ TEST(assemble_unit_test, expr_divide_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -4110,6 +4202,7 @@ TEST(assemble_unit_test, expr_back_branch_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -4198,6 +4291,7 @@ TEST(assemble_unit_test, expr_forward_branch_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -4257,6 +4351,7 @@ TEST(assemble_unit_test, subexpr_expr_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -4295,6 +4390,7 @@ TEST(assemble_unit_test, subexpr_program_counter_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -4333,6 +4429,7 @@ TEST(assemble_unit_test, subexpr_parenthesis_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -4371,6 +4468,7 @@ TEST(assemble_unit_test, expression_evaluator_unit_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
@@ -4434,6 +4532,7 @@ TEST(assemble_unit_test, program_counter_test)
     };
 
     const auto expect_list =
+        "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"

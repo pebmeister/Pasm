@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include "unit_test.h"
+#include "parseargs.h"
+#include "pass.h"
 
 ops_ptr cpu_6502_illegal_ops = new ops[21]
 {
@@ -915,7 +917,11 @@ size_t char_to_w_string(std::string s, std::wstring& ws)
 
 void execute_text(const char* text, const unsigned char* expected, const size_t count, const char* expected_text)
 {
-    FILE* temp_file = open_file("execute_text.a", "w");
+    const char* in_file_name =  (char*)"execute_text.a";
+    const char* out_file_name = (char*)"execute_text.bin";
+    const char* console_name =  (char*)"console.txt";
+    
+    FILE* temp_file = open_file((char*)in_file_name, "w");
     EXPECT_NOT_NULL(temp_file);
 
     fwrite(text, 1,  strlen(text), temp_file);
@@ -923,15 +929,25 @@ void execute_text(const char* text, const unsigned char* expected, const size_t 
 
     console = open_file("console.txt", "w");
     EXPECT_NOT_NULL(console);
+    console_error = console;
+    yyout = console;
+    
+    input_file_count = 0;
+    char* argv[] =
+    {
+        (char*)"pasm.exe",
+        (char*)"-v",
+        (char*)in_file_name,
+        (char*)"-o",
+        (char*)out_file_name
+    };
+    int argc = _countof(argv);
+    EXPECT_EQ(5, argc);
+    
+    int result = parse_arguments(argc, argv);
+    EXPECT_EQ(1, result);
 
-    input_file_count = 1;
-    input_files = static_cast<char**>(malloc(sizeof(FILE*) * 1));
-    input_files[input_file_count -1] = (char*)"execute_text.a";
-    verbose = true;
-    yylineno = 0; 
-    output_file_name = (char*)"execute_text.bin";
-
-    int result = assemble();
+    result = assemble();
 
     fflush(console);
     fclose(console);
@@ -944,7 +960,7 @@ void execute_text(const char* text, const unsigned char* expected, const size_t 
     {
         auto* buffer = static_cast<unsigned char*>(malloc(count));
         EXPECT_NOT_NULL(buffer);
-        output_file = open_file(output_file_name, "rb");
+        output_file = open_file(out_file_name, "rb");
         EXPECT_NOT_NULL(output_file);
 
         fseek(output_file, 0, SEEK_END);
@@ -993,290 +1009,9 @@ void execute_text(const char* text, const unsigned char* expected, const size_t 
     if (expected_text != nullptr)
     {
         console = stdout;
-        remove("console.txt");
     }
-    remove(input_files[0]);
-    remove(output_file_name);
-
+    remove(in_file_name);
+    remove(out_file_name);
+    input_file_count = 0;
     reset_lex();
 }
-
-const int max_passes = 20;
-
-int program_origin_default = 0x1000;
-
-/**
- * \brief Reset the Lexer for each pass
- */
-void reset_lex(void)
-{
-    error_count = 0;
-
-    last_label = NULL;
-
-    sym_value_changed = 0;
-
-    // reset the Program Counter
-    program_counter = program_origin_default;
-
-    // reset End flag
-    end_expansion = 0;
-
-    // reset Org flag
-    origin_specified = false;
-
-    if (internal_buffer == NULL)
-    {
-        internal_buffer = (char*)MALLOC(max_line_len);
-        if (internal_buffer == NULL)
-        {
-            error(error_out_of_memory);
-            exit(-1);
-        }
-    }
-
-    // reset the the head node
-    current_node = head_node = allocate_node(0);
-    if (current_node == NULL)
-    {
-        error(error_out_of_memory);
-        exit(-1);
-    }
-    head_node->type = type_head_node;
-
-    reset_macro_dict();
-
-    // initialize expander
-    init_expander();
-
-    if (changed_sym_stack == NULL)
-    {
-        changed_sym_stack = create_stack(sizeof(symbol_table));
-    }
-    else
-    {
-        changed_sym_stack->clear(changed_sym_stack->instance);
-    }
-    if (file_stack == NULL)
-    {
-        file_stack = create_stack(sizeof(file_line_stack_entry));
-    }
-    else
-    {
-        file_stack->clear(file_stack->instance);
-    }
-    if (ifdef_stack == NULL)
-    {
-        ifdef_stack = create_stack(sizeof(int));
-    }
-    else
-    {
-        ifdef_stack->clear(ifdef_stack->instance);
-    }
-    in_macro_definition = 0;
-
-
-}
-
-/**
- * \brief Parse one pass iterating through all files
- */
-void parse_pass(void)
-{
-    reset_lex();
-
-    // loop through each input line_content
-    for (int in_file_index = 0; in_file_index < input_file_count; in_file_index++)
-    {
-        // initialize line number and set line_content name
-        yylineno = 0;
-
-        current_file_name = input_files[in_file_index];
-        yyin = open_file(current_file_name, "r");
-        if (yyin == NULL)
-        {
-            error2(error_cant_open_input_file, current_file_name);
-            exit(-1);
-        }
-
-        if (log_file != NULL)
-        {
-            fprintf(log_file, "Current File %s\n", current_file_name);
-        }
-        if (verbose)
-        {
-            fprintf(console, "Current File %s\n", current_file_name);
-        }
-
-        // seek to start
-        fseek(yyin, 0, SEEK_SET);
-
-        // reset parser
-        yyrestart(yyin);
-
-        // parse the line_content
-        yyparse();
-
-        // close the line_content
-        fclose(yyin);
-
-        yyin = NULL;
-    }
-
-    // free the parse tree
-    free_parse_tree();
-
-    if (current_scope)
-    {
-        FREE(current_scope);
-        current_scope = NULL;
-    }
-}
-
-int assemble(void)
-{
-    error_count = 0;
-
-    delete_list_table();
-    delete_file_lines();
-
-    if (verbose)
-    {
-        fprintf(console, "\n");
-    }
-
-    // initialize line number and set line_content name
-    yylineno = 0;
-    final_pass = false;
-
-    pass = 1;
-
-    if (log_file_name != NULL)
-    {
-        log_file = open_file(log_file_name, "w");
-        if (log_file == NULL)
-        {
-            error(error_opening_log_file);
-            return -1;
-        }
-    }
-
-    int clean_pass_count = 0;
-    do
-    {
-        if (verbose)
-        {
-            fprintf(console, "Pass %d\n", pass);
-        }
-
-        parse_pass();
-
-        const int unresolved_count = unresolved_symbol_count();
-        if (error_count == 0 && sym_value_changed == 0 && unresolved_count == 0)
-            clean_pass_count++;
-        else
-            clean_pass_count = 0;
-
-        if (verbose && clean_pass_count == 0 && pass > 1)
-        {
-            fprintf(console, "%d unresolved symbols %d symbols value changed\n\n", unresolved_count, sym_value_changed);
-            if (unresolved_count > 0)
-            {
-                fprintf(console, "Unresolved symbols:\n");
-                dump_unresolved_symbols(console);
-            }
-            if (sym_value_changed > 0)
-            {
-                fprintf(console, "changed symbols:\n");
-                dump_changed_symbols(console);
-            }
-        }
-        pass++;
-    } while (pass < max_passes && clean_pass_count < 1);
-
-    if (pass >= max_passes)
-    {
-        if (sym_value_changed > 0)
-        {
-            fprintf(console, "check symbols:\n");
-            dump_changed_symbols(console);
-        }
-        error(error_maximum_number_of_passes_exceeded);
-        return -1;
-    }
-
-    if (error_count > 0)
-    {
-        fprintf(console_error, "%d error(s)\n", error_count);
-        return -1;
-    }
-
-    if (verbose)
-        fprintf(console, "Final Pass\n");
-
-    // set final pass flag
-    final_pass = true;
-
-    if (output_file_name != NULL)
-    {
-        output_file = fopen(output_file_name, "wb");
-        if (output_file == NULL)
-        {
-            error(error_opening_output_file);
-            return -1;
-        }
-    }
-
-    parse_pass();
-
-    // close output line_content
-    if (output_file != NULL)
-    {
-        fclose(output_file);
-        fprintf(console, "\n%d bytes written to %s\n\n", total_bytes_written, output_file_name);
-    }
-
-    // generate symbol line_content
-    if (sym_file_name != NULL)
-    {
-        sym_file = fopen(sym_file_name, "w");
-        if (sym_file == NULL)
-        {
-            error(error_opening_symbol_file);
-            return -1;
-        }
-
-        // display the symbols
-        dump_symbols(sym_file);
-
-        fclose(sym_file);
-    }
-
-    // generate the list file
-    if (list_file_name != NULL)
-    {
-        list_file = fopen(list_file_name, "w");
-        if (list_file == NULL)
-        {
-            error(error_opening_list_file);
-        }
-        else
-        {
-            generate_list_file(list_file);
-            fclose(list_file);
-        }
-    }
-
-    // generate verbose output
-    if (verbose)
-    {
-        dump_symbols(console);
-        reset_file_lines();
-        generate_list_file(console);
-    }
-
-    delete_list_table();
-
-    return 0;
-}
-

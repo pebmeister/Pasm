@@ -27,6 +27,9 @@ add_executable(
   file_unit_test.cc
 )
 
+#force flex/bison first
+add_dependencies(unittest parser engine) 
+
 target_link_libraries(
   unittest
   GTest::gtest_main
@@ -41,4 +44,3 @@ gtest_discover_tests(unittest)
 target_include_directories(unittest PUBLIC "${CMAKE_CURRENT_LIST_DIR}"
                                         "${CMAKE_CURRENT_BINARY_DIR}")
                                         
-

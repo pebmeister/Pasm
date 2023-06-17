@@ -31,9 +31,9 @@ ADD_FLEX_BISON_DEPENDENCY(Flex_Scanner Bison_Parser)
 
 # parser scanner library
 add_library(parser
-        ${BISON_Bison_Parser_OUTPUTS}
-        ${FLEX_Flex_Scanner_OUTPUTS}
-    )
+    ${BISON_Bison_Parser_OUTPUTS}
+    ${FLEX_Flex_Scanner_OUTPUTS}
+)
     
 # engine
 add_library(engine 
@@ -51,23 +51,31 @@ add_library(engine
     parseargs.cc    
     stacks.cc
     str.cc
-    sym.cc)
+    sym.cc
+    pass.cc)
  
 # executable
 add_executable(pasm 
     main.cc)
 
-target_link_libraries(pasm parser engine)
+# force flex/bison first
+add_dependencies(engine parser) 
+
+target_link_libraries(pasm 
+    parser 
+    engine)
 
 # include directory for main
-target_include_directories(pasm PUBLIC "${CMAKE_CURRENT_LIST_DIR}"
-                                        "${CMAKE_CURRENT_BINARY_DIR}")
+target_include_directories(pasm PUBLIC 
+    "${CMAKE_CURRENT_LIST_DIR}"
+    "${CMAKE_CURRENT_BINARY_DIR}")
 
 # include directory for parser
-target_include_directories(parser PUBLIC "${CMAKE_CURRENT_LIST_DIR}"
-                                        "${CMAKE_CURRENT_BINARY_DIR}")
+target_include_directories(parser PUBLIC 
+    "${CMAKE_CURRENT_LIST_DIR}"
+    "${CMAKE_CURRENT_BINARY_DIR}")
 
 # include directory for engine
-target_include_directories(engine PUBLIC "${CMAKE_CURRENT_LIST_DIR}"
-                                        "${CMAKE_CURRENT_BINARY_DIR}")
-                                        
+target_include_directories(engine PUBLIC 
+    "${CMAKE_CURRENT_LIST_DIR}"
+    "${CMAKE_CURRENT_BINARY_DIR}")
