@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include "unit_test.h"
 
+#pragma warning(disable: 4311 4090 4996 )
+
 static int test_num = 0;
 
 static void expand_unit_test_method_initialize()
@@ -84,9 +86,7 @@ static void expand_file_output_template(const unsigned char expected[], const si
             return;
         }
     }
-
-    
-
+  
     // ReSharper disable once CppCStyleCast
     free((void*)buffer);
 }
