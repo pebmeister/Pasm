@@ -2031,8 +2031,8 @@ TEST(expand_unit_test, expand_operator_equ_node_test)
             id_node("expand_operator_equ_node"),
             constant_node(program_counter, -1)),
 
-       data_node(data_word,
-operator_node(EXPRLIST, 1, id_node("expand_operator_equ_node")))
+        data_node(data_word,
+            operator_node(EXPRLIST, 1, id_node("expand_operator_equ_node")))
 
     };
 

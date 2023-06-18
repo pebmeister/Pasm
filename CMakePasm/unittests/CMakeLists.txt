@@ -27,6 +27,8 @@ add_executable(
   file_unit_test.cc
   hash_unit_test.cc
   node_unit_test.cc
+  opcode_unit_test.cc
+  str_unit_test.cc
 )
 
 #force flex/bison first

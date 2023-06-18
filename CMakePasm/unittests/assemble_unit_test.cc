@@ -21,7 +21,6 @@ static void assemble_unit_test_method_cleanup()
     destroy();
 }
 
-
 TEST(assemble_unit_test, program_statement_unit_test) 
 {
     assemble_unit_test_method_initialize();
