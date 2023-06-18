@@ -10,6 +10,7 @@ cmake --build PasmBuild
 
 The executable will be in the bin directory of PasmBuild
 To run the unit tests:
+
 cd PasmBuild\unittests\
 ctest
 
