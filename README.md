@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Pasm
 platform independent version of Pasm 6502 assemnler
 
@@ -21,5 +20,3 @@ To run the unit tests:
 
 cd PasmBuild\unittests\
 ctest
-
->>>>>>> origin/master
