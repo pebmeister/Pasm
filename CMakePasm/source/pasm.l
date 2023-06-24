@@ -323,8 +323,6 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
 ".C64"                      { SV_TOK output_file_format = c64; }
 ".PRINT"[ \t]"ON"           { P_TOK("PRINTON") SV_TOK return PRINTON; }
 ".PRINT"[ \t]"OFF"          { P_TOK("PRINTOFF") SV_TOK return PRINTOFF; }
-^"-"                        { P_TOK("LABEL") SV_TOK yylval.strValue = (char*) STRDUP(yytext); return LABEL; }
-^"+"                        { P_TOK("LABEL") SV_TOK yylval.strValue = (char*) STRDUP(yytext); return LABEL; }
 [\\][1-9]+[0-9]*            {
                                 P_TOK("SYMBOL")
                                 SV_TOK
@@ -334,6 +332,13 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
                                 return SYMBOL;
                             }
 [\+|\-]+                    {
+                                if (last_token != nullptr && *last_token == '\n')
+                                {
+                                    SV_TOK
+                                    P_TOK("LABEL")
+                                    yylval.strValue = (char*) STRDUP(yytext); return LABEL;; 
+                                    return LABEL;
+                                }
                                 SV_TOK
                                 if (strlen(yytext) > 1)
                                 {
@@ -343,8 +348,8 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
                                 }
                                 else
                                 {
-                                   P_C_TOK(*yytext)
-                                   return *yytext;
+                                    P_C_TOK(*yytext)
+                                    return *yytext;
                                 }
                             }
 [\'].[\']                   { SV_TOK INT_1BYTE }
