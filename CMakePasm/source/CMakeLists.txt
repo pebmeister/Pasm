@@ -11,7 +11,7 @@ endif()
 # Bison
 find_package(BISON REQUIRED)
 BISON_TARGET(Bison_Parser pasm.y ${CMAKE_CURRENT_BINARY_DIR}/pasm.tab.cc
-    COMPILE_FLAGS "-rall -Wnone"
+    COMPILE_FLAGS "-rall"
     DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/pasm.tab.h)
 
 # For win_flex turn on --wincompat

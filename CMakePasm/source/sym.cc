@@ -532,9 +532,14 @@ char* format_local_sym(char* name, const char* label)
     return name;
 }
 
-int print_symbol(const element_ptr e, FILE* file)
+int print_symbol_element(const element_ptr e, FILE* file)
 {
     const symbol_table_ptr sym = (symbol_table_ptr) e->value;
+    return print_symbol(sym, file);
+}
+
+int print_symbol(symbol_table_ptr sym, FILE* file)
+{
     fprintf(file, "\n");
     fprintf(file, "    name:           %s\n", sym->name);
     fprintf(file, "    fullname:       %s\n", sym->fullname);
@@ -549,6 +554,7 @@ int print_symbol(const element_ptr e, FILE* file)
     fprintf(file, "\n");
     return 0;
 }
+
 
 typedef struct sym_entry
 {

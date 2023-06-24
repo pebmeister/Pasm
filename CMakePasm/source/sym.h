@@ -29,6 +29,9 @@ typedef struct symbol_table
     void* macro_node;
 } symbol_table, * symbol_table_ptr;
 
+extern int print_symbol_element(const element_ptr e, FILE* file);
+extern int print_symbol(symbol_table_ptr sym, FILE* file);
+
 extern int find_minus_symbol(int depth, const char* file, int line);
 extern int find_plus_symbol(int depth, const char* file, int line);
 extern symbol_table_ptr look_up_symbol(const char*);
