@@ -24,6 +24,7 @@ typedef struct ops
     int* opcodes;
 } ops, * ops_ptr;
 
+extern void init_globals();
 extern void initialize();
 extern void destroy();
 extern char* escape_string(const char* str);

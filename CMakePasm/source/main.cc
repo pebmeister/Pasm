@@ -14,9 +14,10 @@ int main(const int argc, char* argv[])
     pre_parse();
     
     // parse the arguments
-    parse_arguments(argc, argv);
+    int result =  parse_arguments(argc, argv);
+    if (result < 1)
+        return result;
 
-    const int result = assemble();
-    
+    result = assemble();
     return result;
 }

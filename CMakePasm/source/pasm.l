@@ -64,96 +64,96 @@ LOGOR                       [|][|]
 BITOR                       [|]
 LOGAND                      [&][&]
 BITAND                      [&]
-STRVALUE					(\"([^"\\\n]|{ES})*\")+
+STRVALUE                    (\"([^"\\\n]|{ES})*\")+
 SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
 %%
 
-"ORA"                       { OP(ora) }
-"AND"                       { OP(and) }
-"EOR"                       { OP(eor) }
-"ADC"                       { OP(adc) }
-"SBC"                       { OP(sbc) }
-"CMP"                       { OP(cmp) }
-"CPX"                       { OP(cpx) }
-"CPY"                       { OP(cpy) }
-"DEC"                       { OP(dec) }
-"DEX"                       { OP(dex) }
-"DEY"                       { OP(dey) }
-"INC"                       { OP(inc) }
-"INX"                       { OP(inx) }
-"INY"                       { OP(iny) }
-"ASL"                       { OP(asl) }
-"ROL"                       { OP(rol) }
-"LSR"                       { OP(lsr) }
-"ROR"                       { OP(ror) }
-"LDA"                       { OP(lda) }
-"STA"                       { OP(sta) }
-"LDX"                       { OP(ldx) }
-"STX"                       { OP(stx) }
-"LDY"                       { OP(ldy) }
-"STY"                       { OP(sty) }
-"TAX"                       { OP(tax) }
-"TXA"                       { OP(txa) }
-"TAY"                       { OP(tay) }
-"TYA"                       { OP(tya) }
-"TSX"                       { OP(tsx) }
-"TXS"                       { OP(txs) }
-"PLA"                       { OP(pla) }
-"PHA"                       { OP(pha) }
-"PLP"                       { OP(plp) }
-"PHP"                       { OP(php) }
-"BPL"                       { OP(bpl) }
-"BMI"                       { OP(bmi) }
-"BVC"                       { OP(bvc) }
-"BVS"                       { OP(bvs) }
-"BCC"                       { OP(bcc) }
-"BCS"                       { OP(bcs) }
-"BNE"                       { OP(bne) }
-"BEQ"                       { OP(beq) }
-"BRK"                       { OP(brk) }
-"RTI"                       { OP(rti) }
-"JSR"                       { OP(jsr) }
-"RTS"                       { OP(rts) }
-"JMP"                       { OP(jmp) }
-"BIT"                       { OP(bit) }
-"CLC"                       { OP(clc) }
-"SEC"                       { OP(sec) }
-"CLD"                       { OP(cld) }
-"SED"                       { OP(sed) }
-"CLI"                       { OP(cli) }
-"SEI"                       { OP(sei) }
-"CLV"                       { OP(clv) }
-"NOP"                       { OP(nop) }
-"SLO"                       { OP_ILLEGAL(slo) }
-"RLA"                       { OP_ILLEGAL(rla) }
-"SRE"                       { OP_ILLEGAL(sre) }
-"RRA"                       { OP_ILLEGAL(rra) }
-"SAX"                       { OP_ILLEGAL(sax) }
-"LAX"                       { OP_ILLEGAL(lax) }
-"DCP"                       { OP_ILLEGAL(dcp) }
-"ISC"                       { OP_ILLEGAL(isc) }
-"ANC"                       { OP_ILLEGAL(anc) }
-"ANC2"                      { OP_ILLEGAL(anc2) }
-"ALR"                       { OP_ILLEGAL(alr) }
-"ARR"                       { OP_ILLEGAL(arr) }
-"XAA"                       { OP_ILLEGAL(xaa) }
-"AXS"                       { OP_ILLEGAL(axs) }
-"USBC"                      { OP_ILLEGAL(usbc) }
-"AHX"                       { OP_ILLEGAL(ahx) }
-"SHY"                       { OP_ILLEGAL(shy) }
-"SHX"                       { OP_ILLEGAL(shx) }
-"TAS"                       { OP_ILLEGAL(tas) }
-"LAS"                       { OP_ILLEGAL(las) }
-"BRA"                       { OP_65C02(bra) }
-"PHX"                       { OP_65C02(phx) }
-"PHY"                       { OP_65C02(phy) }
-"PLX"                       { OP_65C02(plx) }
-"PLY"                       { OP_65C02(ply) }
-"STZ"                       { OP_65C02(stz) }
-"TRB"                       { OP_65C02(trb) }
-"TSB"                       { OP_65C02(tsb) }
-"STP"                       { OP_65C02(stp) }
-"WAI"                       { OP_65C02(wai) }
+"ORA"                       { OP(ora)           }
+"AND"                       { OP(and)           }
+"EOR"                       { OP(eor)           }
+"ADC"                       { OP(adc)           }
+"SBC"                       { OP(sbc)           }
+"CMP"                       { OP(cmp)           }
+"CPX"                       { OP(cpx)           }
+"CPY"                       { OP(cpy)           }
+"DEC"                       { OP(dec)           }
+"DEX"                       { OP(dex)           }
+"DEY"                       { OP(dey)           }
+"INC"                       { OP(inc)           }
+"INX"                       { OP(inx)           }
+"INY"                       { OP(iny)           }
+"ASL"                       { OP(asl)           }
+"ROL"                       { OP(rol)           }
+"LSR"                       { OP(lsr)           }
+"ROR"                       { OP(ror)           }
+"LDA"                       { OP(lda)           }
+"STA"                       { OP(sta)           }
+"LDX"                       { OP(ldx)           }
+"STX"                       { OP(stx)           }
+"LDY"                       { OP(ldy)           }
+"STY"                       { OP(sty)           }
+"TAX"                       { OP(tax)           }
+"TXA"                       { OP(txa)           }
+"TAY"                       { OP(tay)           }
+"TYA"                       { OP(tya)           }
+"TSX"                       { OP(tsx)           }
+"TXS"                       { OP(txs)           }
+"PLA"                       { OP(pla)           }
+"PHA"                       { OP(pha)           }
+"PLP"                       { OP(plp)           }
+"PHP"                       { OP(php)           }
+"BPL"                       { OP(bpl)           }
+"BMI"                       { OP(bmi)           }
+"BVC"                       { OP(bvc)           }
+"BVS"                       { OP(bvs)           }
+"BCC"                       { OP(bcc)           }
+"BCS"                       { OP(bcs)           }
+"BNE"                       { OP(bne)           }
+"BEQ"                       { OP(beq)           }
+"BRK"                       { OP(brk)           }
+"RTI"                       { OP(rti)           }
+"JSR"                       { OP(jsr)           }
+"RTS"                       { OP(rts)           }
+"JMP"                       { OP(jmp)           }
+"BIT"                       { OP(bit)           }
+"CLC"                       { OP(clc)           }
+"SEC"                       { OP(sec)           }
+"CLD"                       { OP(cld)           }
+"SED"                       { OP(sed)           }
+"CLI"                       { OP(cli)           }
+"SEI"                       { OP(sei)           }
+"CLV"                       { OP(clv)           }
+"NOP"                       { OP(nop)           }
+"SLO"                       { OP_ILLEGAL(slo)   }
+"RLA"                       { OP_ILLEGAL(rla)   }
+"SRE"                       { OP_ILLEGAL(sre)   }
+"RRA"                       { OP_ILLEGAL(rra)   }
+"SAX"                       { OP_ILLEGAL(sax)   }
+"LAX"                       { OP_ILLEGAL(lax)   }
+"DCP"                       { OP_ILLEGAL(dcp)   }
+"ISC"                       { OP_ILLEGAL(isc)   }
+"ANC"                       { OP_ILLEGAL(anc)   }
+"ANC2"                      { OP_ILLEGAL(anc2)  }
+"ALR"                       { OP_ILLEGAL(alr)   }
+"ARR"                       { OP_ILLEGAL(arr)   }
+"XAA"                       { OP_ILLEGAL(xaa)   }
+"AXS"                       { OP_ILLEGAL(axs)   }
+"USBC"                      { OP_ILLEGAL(usbc)  }
+"AHX"                       { OP_ILLEGAL(ahx)   }
+"SHY"                       { OP_ILLEGAL(shy)   }
+"SHX"                       { OP_ILLEGAL(shx)   }
+"TAS"                       { OP_ILLEGAL(tas)   }
+"LAS"                       { OP_ILLEGAL(las)   }
+"BRA"                       { OP_65C02(bra)     }
+"PHX"                       { OP_65C02(phx)     }
+"PHY"                       { OP_65C02(phy)     }
+"PLX"                       { OP_65C02(plx)     }
+"PLY"                       { OP_65C02(ply)     }
+"STZ"                       { OP_65C02(stz)     }
+"TRB"                       { OP_65C02(trb)     }
+"TSB"                       { OP_65C02(tsb)     }
+"STP"                       { OP_65C02(stp)     }
+"WAI"                       { OP_65C02(wai)     }
 "BBR"[0-7]                  { OP_65C02_REL(bbr) }
 "BBS"[0-7]                  { OP_65C02_REL(bbs) }
 "RMB"[0-7]                  { OP_65C02_REL(rmb) }
@@ -252,48 +252,48 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
                                     BEGIN(IF_DEF);
                                 }
                             }
-".BYTE"                     { P_TOK("BYTE") SV_TOK return BYTE; }
-".DB"                       { P_TOK("BYTE") SV_TOK return BYTE; }
-".WORD"                     { P_TOK("WORD") SV_TOK return WORD; }
-".DW"                       { P_TOK("WORD") SV_TOK return WORD; }
-".DCW"                      { P_TOK("WORD") SV_TOK return WORD; }
-".DS"                       { P_TOK("DS")   SV_TOK return DS;   }
-".EQU"                      { P_TOK("EQU")  SV_TOK return EQU;  }
-"NOT"                       { P_TOK("NOT")  SV_TOK return NOT;  }
-">="                        { P_TOK("GE")   SV_TOK return GE;   }
-"<="                        { P_TOK("LE")   SV_TOK return LE;   }
-"=="                        { P_TOK("EQ")   SV_TOK return EQ;   }
-"!="                        { P_TOK("NE")   SV_TOK return NE;   }
-"<>"                        { P_TOK("NE")  SV_TOK return NE;   }
-"<<"                        { P_TOK("SHIFT_LEFT")  SV_TOK return SHIFT_LEFT;  }
-">>"                        { P_TOK("SHIFT_RIGHT") SV_TOK return SHIFT_RIGHT; }
-{LOGOR}                     { P_TOK("OR")          SV_TOK return OR; }
-{BITOR}                     { P_TOK("BIT_OR") SV_TOK return BIT_OR; }
-{LOGAND}                    { P_TOK("AND") SV_TOK return AND; }
-{BITAND}                    { P_TOK("BIT_AND") SV_TOK return BIT_AND; }
-".REPEAT"                   { P_TOK("REPEAT") SV_TOK return REPEAT; }
-".UNTIL"                    { P_TOK("UNTIL") SV_TOK return UNTIL; }
-".END"                      { P_TOK("END") SV_TOK return END;  }
-".PRINT"                    { P_TOK("PRINT") SV_TOK return PRINT; }
-"\?"                        { P_TOK("PRINT") SV_TOK return PRINT; }
-".PRINTALL"                 { P_TOK("PRINTALL") SV_TOK return PRINTALL; }
-"\?\?"                      { P_TOK("PRINTALL") SV_TOK return PRINTALL; }
-".FOR"                      { P_TOK("FOR") SV_TOK return FOR; }
-".NEXT"                     { P_TOK("NEXT") SV_TOK return NEXT; }
-".STEP"                     { P_TOK("STEP") SV_TOK return STEP; }
-".TO"                       { P_TOK("TO") SV_TOK return TO; }
-".DOWNTO"                   { P_TOK("DOWNTO") SV_TOK return DOWNTO; }
-".STR"						{ P_TOK("STR") SV_TOK return STR; }
-".TEXT"						{ P_TOK("STR") SV_TOK return STR; }
-".STRING"				    { P_TOK("STR") SV_TOK return STR; }
-".ORG"                      { P_TOK("ORG") SV_TOK return ORG; }
-".SECTION"                  { P_TOK("SECTION") SV_TOK return SECTION; }
-".ENDSECTION"               { P_TOK("ENDSECTION") SV_TOK return ENDSECTION; }
-".SECT"                     { P_TOK("SECTION") SV_TOK return SECTION; }
-".ENDS"                     { P_TOK("ENDSECTION") SV_TOK return ENDSECTION; }
-".INC"                      { P_TOK("INC") SV_TOK return INC; }
-".LOAD"                     { P_TOK("LOAD") SV_TOK return LOAD; }
-".FILL"                     { P_TOK("FILL") SV_TOK return FILL; }
+".BYTE"                     { P_TOK("BYTE")         SV_TOK return BYTE;         }
+".DB"                       { P_TOK("BYTE")         SV_TOK return BYTE;         }
+".WORD"                     { P_TOK("WORD")         SV_TOK return WORD;         }
+".DW"                       { P_TOK("WORD")         SV_TOK return WORD;         }
+".DCW"                      { P_TOK("WORD")         SV_TOK return WORD;         }
+".DS"                       { P_TOK("DS")           SV_TOK return DS;           }
+".EQU"                      { P_TOK("EQU")          SV_TOK return EQU;          }
+"NOT"                       { P_TOK("NOT")          SV_TOK return NOT;          }
+">="                        { P_TOK("GE")           SV_TOK return GE;           }
+"<="                        { P_TOK("LE")           SV_TOK return LE;           }
+"=="                        { P_TOK("EQ")           SV_TOK return EQ;           }
+"!="                        { P_TOK("NE")           SV_TOK return NE;           }
+"<>"                        { P_TOK("NE")           SV_TOK return NE;           }
+"<<"                        { P_TOK("SHIFT_LEFT")   SV_TOK return SHIFT_LEFT;   }
+">>"                        { P_TOK("SHIFT_RIGHT")  SV_TOK return SHIFT_RIGHT;  }
+{LOGOR}                     { P_TOK("OR")           SV_TOK return OR;           }
+{BITOR}                     { P_TOK("BIT_OR")       SV_TOK return BIT_OR;       }
+{LOGAND}                    { P_TOK("AND")          SV_TOK return AND;          }
+{BITAND}                    { P_TOK("BIT_AND")      SV_TOK return BIT_AND;      }
+".REPEAT"                   { P_TOK("REPEAT")       SV_TOK return REPEAT;       }
+".UNTIL"                    { P_TOK("UNTIL")        SV_TOK return UNTIL;        }
+".END"                      { P_TOK("END")          SV_TOK return END;          }
+".PRINT"                    { P_TOK("PRINT")        SV_TOK return PRINT;        }
+"\?"                        { P_TOK("PRINT")        SV_TOK return PRINT;        }
+".PRINTALL"                 { P_TOK("PRINTALL")     SV_TOK return PRINTALL;     }
+"\?\?"                      { P_TOK("PRINTALL")     SV_TOK return PRINTALL;     }
+".FOR"                      { P_TOK("FOR")          SV_TOK return FOR;          }
+".NEXT"                     { P_TOK("NEXT")         SV_TOK return NEXT;         }
+".STEP"                     { P_TOK("STEP")         SV_TOK return STEP;         }
+".TO"                       { P_TOK("TO")           SV_TOK return TO;           }
+".DOWNTO"                   { P_TOK("DOWNTO")       SV_TOK return DOWNTO;       }
+".STR"                      { P_TOK("STR")          SV_TOK return STR;          }
+".TEXT"                     { P_TOK("STR")          SV_TOK return STR;          }
+".STRING"                   { P_TOK("STR")          SV_TOK return STR;          }
+".ORG"                      { P_TOK("ORG")          SV_TOK return ORG;          }
+".SECTION"                  { P_TOK("SECTION")      SV_TOK return SECTION;      }
+".ENDSECTION"               { P_TOK("ENDSECTION")   SV_TOK return ENDSECTION;   }
+".SECT"                     { P_TOK("SECTION")      SV_TOK return SECTION;      }
+".ENDS"                     { P_TOK("ENDSECTION")   SV_TOK return ENDSECTION;   }
+".INC"                      { P_TOK("INC")          SV_TOK return INC;          }
+".LOAD"                     { P_TOK("LOAD")         SV_TOK return LOAD;         }
+".FILL"                     { P_TOK("FILL")         SV_TOK return FILL;         }
 ".WHILE"                    { 
                                 SV_TOK
                                 if (do_count > 0)
@@ -305,24 +305,24 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
                                 P_TOK("WHILE")
                                 return WHILE;
                             }
-".WEND"                     { P_TOK("WEND") SV_TOK return WEND; }
-".DO"                       { P_TOK("DO") SV_TOK ++do_count; return DO; }
-".MACRO"                    { P_TOK("MACRO") SV_TOK in_macro_definition++; return MACRO; }
-".MAC"                      { P_TOK("MACRO") SV_TOK in_macro_definition++; return MACRO; }
-".ENDMACRO"                 { P_TOK("ENDMACRO") SV_TOK in_macro_definition--; return ENDMACRO; }
-".ENDM"                     { P_TOK("ENDMACRO") SV_TOK in_macro_definition--; return ENDMACRO; }
-".REGX"                     { P_TOK("REGX") SV_TOK return REGX; }
-".REGY"                     { P_TOK("REGY") SV_TOK return REGY; }
-".VAR"                      { P_TOK("VAR") SV_TOK return VAR;  }
-".6502"[ \t]*"ON"           { SV_TOK cpu_mode = cpu_6502; }
-".65C02"[ \t]*"ON"          { SV_TOK cpu_mode = cpu_65C02; }
-".ILLEGAL"[ \t]*"ON"        { SV_TOK allow_illegal_op_codes = true; }
-".ILLEGAL"[ \t]*"OFF"       { SV_TOK allow_illegal_op_codes = false; } 
-".WARN"[ \t]*"ON"           { SV_TOK ignore_warnings = false; }
-".WARN"[ \t]*"OFF"          { SV_TOK ignore_warnings = true; }
-".C64"                      { SV_TOK output_file_format = c64; }
-".PRINT"[ \t]"ON"           { P_TOK("PRINTON") SV_TOK return PRINTON; }
-".PRINT"[ \t]"OFF"          { P_TOK("PRINTOFF") SV_TOK return PRINTOFF; }
+".WEND"                     { P_TOK("WEND")         SV_TOK return WEND;                             }
+".DO"                       { P_TOK("DO")           SV_TOK ++do_count; return DO;                   }
+".MACRO"                    { P_TOK("MACRO")        SV_TOK in_macro_definition++; return MACRO;     }
+".MAC"                      { P_TOK("MACRO")        SV_TOK in_macro_definition++; return MACRO;     }
+".ENDMACRO"                 { P_TOK("ENDMACRO")     SV_TOK in_macro_definition--; return ENDMACRO;  }
+".ENDM"                     { P_TOK("ENDMACRO")     SV_TOK in_macro_definition--; return ENDMACRO;  }
+".REGX"                     { P_TOK("REGX")         SV_TOK return REGX;                             }
+".REGY"                     { P_TOK("REGY")         SV_TOK return REGY;                             }
+".VAR"                      { P_TOK("VAR")          SV_TOK return VAR;                              }
+".6502"[ \t]*"ON"           {                       SV_TOK cpu_mode = cpu_6502;                     }
+".65C02"[ \t]*"ON"          {                       SV_TOK cpu_mode = cpu_65C02;                    }
+".ILLEGAL"[ \t]*"ON"        {                       SV_TOK allow_illegal_op_codes = true;           }
+".ILLEGAL"[ \t]*"OFF"       {                       SV_TOK allow_illegal_op_codes = false;          } 
+".WARN"[ \t]*"ON"           {                       SV_TOK ignore_warnings = false;                 }
+".WARN"[ \t]*"OFF"          {                       SV_TOK ignore_warnings = true;                  }
+".C64"                      {                       SV_TOK output_file_format = c64;                }
+".PRINT"[ \t]"ON"           {                       P_TOK("PRINTON") SV_TOK return PRINTON;         }
+".PRINT"[ \t]"OFF"          {                       P_TOK("PRINTOFF") SV_TOK return PRINTOFF;       }
 [\\][1-9]+[0-9]*            {
                                 P_TOK("SYMBOL")
                                 SV_TOK
@@ -363,7 +363,7 @@ $[0-9A-Fa-f]*               { SV_TOK INT(1, 16)}
 0b[0-1]*                    { SV_TOK INT(2, 2) }
 [\'][\\][0-7]{3}[\']        { SV_TOK INT(2, 8) }
 
-{STRVALUE}					{ P_TOK("STRING_LITERAL") SV_TOK yylval.strValue = (char*)STRDUP(yytext); return STRING_LITERAL; }
+{STRVALUE}                  { P_TOK("STRING_LITERAL") SV_TOK yylval.strValue = (char*)STRDUP(yytext); return STRING_LITERAL; }
 "*"[ \t]*[=]                { P_TOK("PCASSIGN") SV_TOK unput('='); return PCASSIGN; }
 "*"[ \t]*".EQU"             { P_TOK("PCASSIGN") SV_TOK unput('='); return PCASSIGN; }
 "X"                         { P_TOK("X") SV_TOK return 'X'; }

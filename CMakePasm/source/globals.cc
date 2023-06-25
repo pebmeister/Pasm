@@ -39,3 +39,37 @@ int pass = 0;
 int program_counter = 0;
 int data_size = 0;
 int input_file_count = 0;
+
+void init_globals()
+{
+    file_stack = NULL;
+    ifdef_stack = NULL;
+    changed_sym_stack = NULL;
+
+    log_file = NULL;
+    sym_file = NULL;
+    output_file = NULL;
+    list_file = NULL;
+    console = NULL;
+    console_error = NULL;
+    final_pass = false;
+    ignore_warnings = false;
+    origin_specified = false;
+    verbose = false;
+
+    input_files = NULL;
+    internal_buffer = NULL;
+    current_file_name = NULL;
+    directories = NULL;
+    output_file_name = NULL;
+    sym_file_name = NULL;
+    list_file_name = NULL;
+    log_file_name = NULL;
+
+    in_macro_definition = 0;
+    output_file_format = bin;
+    pass = 0;
+    program_counter = 0;
+    data_size = 0;
+    input_file_count = 0;
+}
