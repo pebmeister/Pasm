@@ -16,7 +16,6 @@
 #include "memory.h"
 #include "pasm.h"
 #include "pasm.tab.h"
-#include "parseargs.h"
 #include "stacks.h"
 
 const int max_passes = 20;
@@ -30,7 +29,7 @@ void reset_lex(void)
 {
     error_count = 0;
 
-    last_label = NULL;
+    last_label = nullptr;
 
     sym_value_changed = 0;
 
@@ -43,10 +42,10 @@ void reset_lex(void)
     // reset Org flag
     origin_specified = false;
 
-    if (internal_buffer == NULL)
+    if (internal_buffer == nullptr)
     {
         internal_buffer = (char*)MALLOC(max_line_len);
-        if (internal_buffer == NULL)
+        if (internal_buffer == nullptr)
         {
             error(error_out_of_memory);
             exit(-1);
@@ -55,7 +54,7 @@ void reset_lex(void)
 
     // reset the the head node
     current_node = head_node = allocate_node(0);
-    if (current_node == NULL)
+    if (current_node == nullptr)
     {
         error(error_out_of_memory);
         exit(-1);
@@ -67,7 +66,7 @@ void reset_lex(void)
     // initialize expander
     init_expander();
 
-    if (changed_sym_stack == NULL)
+    if (changed_sym_stack == nullptr)
     {
         changed_sym_stack = create_stack(sizeof(symbol_table));
     }
@@ -75,7 +74,7 @@ void reset_lex(void)
     {
         changed_sym_stack->clear(changed_sym_stack->instance);
     }
-    if (file_stack == NULL)
+    if (file_stack == nullptr)
     {
         file_stack = create_stack(sizeof(file_line_stack_entry));
     }
@@ -83,7 +82,7 @@ void reset_lex(void)
     {
         file_stack->clear(file_stack->instance);
     }
-    if (ifdef_stack == NULL)
+    if (ifdef_stack == nullptr)
     {
         ifdef_stack = create_stack(sizeof(int));
     }
@@ -110,13 +109,13 @@ void parse_pass(void)
 
         current_file_name = input_files[in_file_index];
         yyin = open_file(current_file_name, "r");
-        if (yyin == NULL)
+        if (yyin == nullptr)
         {
             error2(error_cant_open_input_file, current_file_name);
             exit(-1);
         }
 
-        if (log_file != NULL)
+        if (log_file != nullptr)
         {
             fprintf(log_file, "Current File %s\n", current_file_name);
         }
@@ -137,7 +136,7 @@ void parse_pass(void)
         // close the line_content
         fclose(yyin);
 
-        yyin = NULL;
+        yyin = nullptr;
     }
 
     // free the parse tree
@@ -146,7 +145,7 @@ void parse_pass(void)
     if (current_scope)
     {
         FREE(current_scope);
-        current_scope = NULL;
+        current_scope = nullptr;
     }
 }
 
@@ -168,10 +167,10 @@ int assemble(void)
 
     pass = 1;
 
-    if (log_file_name != NULL)
+    if (log_file_name != nullptr)
     {
         log_file = open_file(log_file_name, "w");
-        if (log_file == NULL)
+        if (log_file == nullptr)
         {
             error(error_opening_log_file);
             return -1;
@@ -209,7 +208,7 @@ int assemble(void)
             }
         }
         pass++;
-    } while (pass < max_passes && clean_pass_count < 1);
+    } while (error_count == 0 && pass < max_passes && clean_pass_count < 1);
 
     if (pass >= max_passes)
     {
@@ -234,10 +233,10 @@ int assemble(void)
     // set final pass flag
     final_pass = true;
 
-    if (output_file_name != NULL)
+    if (output_file_name != nullptr)
     {
         output_file = fopen(output_file_name, "wb");
-        if (output_file == NULL)
+        if (output_file == nullptr)
         {
             error(error_opening_output_file);
             return -1;
@@ -247,17 +246,17 @@ int assemble(void)
     parse_pass();
 
     // close output line_content
-    if (output_file != NULL)
+    if (output_file != nullptr)
     {
         fclose(output_file);
         fprintf(console, "\n%d bytes written to %s\n\n", total_bytes_written, output_file_name);
     }
 
     // generate symbol line_content
-    if (sym_file_name != NULL)
+    if (sym_file_name != nullptr)
     {
         sym_file = fopen(sym_file_name, "w");
-        if (sym_file == NULL)
+        if (sym_file == nullptr)
         {
             error(error_opening_symbol_file);
             return -1;
@@ -271,10 +270,10 @@ int assemble(void)
 
 
     // generate the list file
-    if (list_file_name != NULL)
+    if (list_file_name != nullptr)
     {
         list_file = fopen(list_file_name, "w");
-        if (list_file == NULL)
+        if (list_file == nullptr)
         {
             error(error_opening_list_file);
         }

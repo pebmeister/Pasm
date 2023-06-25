@@ -842,6 +842,8 @@ void initialize()
 {
     destroy();
 
+    init_globals();
+
     console = stdout;
     console_error = stdout;
     yyout = stdout;
