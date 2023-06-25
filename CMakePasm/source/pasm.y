@@ -40,7 +40,7 @@
 %union
 {
     int iValue;                 /* integer value */
-    char* strValue;      		/* string */
+    char* strValue;             /* string */
     char* sIndex;               /* symbol table pointer */
     struct parse_node *nPtr;    /* node pointer */
 };
@@ -112,18 +112,18 @@ ifexpr
     ;
 
 loopexpr
-    : REPEAT EOL stmt_list UNTIL subexpr                                        { B_TOK("loopexpr REPEAT") $$ = operator_node(REPEAT, 2, $3, $5);                    }
-    | DO stmt_list ENDDO subexpr                                                { B_TOK("loopexpr DO WHILE") $$ = operator_node(DO, 2, $2, $4);                        }
-    | WHILE subexpr EOL stmt_list WEND                                          { B_TOK("loopexpr WHILE DO") $$ = operator_node(WHILE, 2, $2, $4);                     }
-    | FOR symbol_assign TO subexpr EOL  stmt_list NEXT SYMBOL                   { B_TOK("loopexpr FOR NEXT") $$ = operator_node(FOR, 4, $2, $4, $6, id_node($8));      }
-    | FOR symbol_assign TO subexpr STEP subexpr EOL stmt_list NEXT SYMBOL       { B_TOK("loopexpr FOR NEXT STEP")$$ = operator_node(FOR, 5, $2, $4, $8, id_node($10), $6); }
+    : REPEAT EOL stmt_list UNTIL subexpr                                        { B_TOK("loopexpr REPEAT")          $$ = operator_node(REPEAT, 2, $3, $5);                    }
+    | DO stmt_list ENDDO subexpr                                                { B_TOK("loopexpr DO WHILE")        $$ = operator_node(DO, 2, $2, $4);                        }
+    | WHILE subexpr EOL stmt_list WEND                                          { B_TOK("loopexpr WHILE DO")        $$ = operator_node(WHILE, 2, $2, $4);                     }
+    | FOR symbol_assign TO subexpr EOL  stmt_list NEXT SYMBOL                   { B_TOK("loopexpr FOR NEXT")        $$ = operator_node(FOR, 4, $2, $4, $6, id_node($8));      }
+    | FOR symbol_assign TO subexpr STEP subexpr EOL stmt_list NEXT SYMBOL       { B_TOK("loopexpr FOR NEXT STEP")   $$ = operator_node(FOR, 5, $2, $4, $8, id_node($10), $6); }
     ;
 
 regloopexpr
-    : FOR REGX '=' subexpr TO subexpr EOL stmt_list NEXT 'X'                    { B_TOK("regloopexpr FOR REGX TO") $$ = operator_node(REGX, 4, $4, $6, $8, constant_node(1, 0));       }
-    | FOR REGX '=' subexpr DOWNTO subexpr EOL stmt_list NEXT 'X'                { B_TOK("regloopexpr FOR REGX DOWNTO") $$ = operator_node(REGX, 4, $4, $6, $8, constant_node(-1,0));       }
-    | FOR REGY '=' subexpr TO subexpr EOL stmt_list NEXT 'Y'                    { B_TOK("regloopexpr FOR REGY TO")$$ = operator_node(REGY, 4, $4, $6, $8, constant_node(1,0));        }
-    | FOR REGY '=' subexpr DOWNTO subexpr EOL  stmt_list NEXT 'Y'               { B_TOK("regloopexpr FOR REGX DOWNTO") $$ = operator_node(REGY, 4, $4, $6, $8, constant_node(-1,0));       }
+    : FOR REGX '=' subexpr TO subexpr EOL stmt_list NEXT 'X'                    { B_TOK("regloopexpr FOR REGX TO")      $$ = operator_node(REGX, 4, $4, $6, $8, constant_node(1, 0));   }
+    | FOR REGX '=' subexpr DOWNTO subexpr EOL stmt_list NEXT 'X'                { B_TOK("regloopexpr FOR REGX DOWNTO")  $$ = operator_node(REGX, 4, $4, $6, $8, constant_node(-1,0));   }
+    | FOR REGY '=' subexpr TO subexpr EOL stmt_list NEXT 'Y'                    { B_TOK("regloopexpr FOR REGY TO")      $$ = operator_node(REGY, 4, $4, $6, $8, constant_node(1,0));    }
+    | FOR REGY '=' subexpr DOWNTO subexpr EOL  stmt_list NEXT 'Y'               { B_TOK("regloopexpr FOR REGX DOWNTO")  $$ = operator_node(REGY, 4, $4, $6, $8, constant_node(-1,0));   }
     ;
 
 expr_list
@@ -201,7 +201,7 @@ directive
     | DS subexpr                        { B_TOK("directive DS")         $$ = operator_node(DS, 1, $2);                  }
     | BYTE expr_list                    { B_TOK("directive BYTE")       $$ = data_node(data_byte, $2);                  }
     | WORD expr_list                    { B_TOK("directive WORD")       $$ = data_node(data_word, $2);                  }
-    | STR expr_list					    { B_TOK("directive STR")        $$ = data_node(data_string, $2);	 			}
+    | STR expr_list                     { B_TOK("directive STR")        $$ = data_node(data_string, $2);                }
     | FILL subexpr ',' subexpr          { B_TOK("directive FILL")       $$ = operator_node(FILL, 2, $2, $4);            }
     | PRINT                             { B_TOK("directive PRINT")      $$ = operator_node(PRINT, 0);                   }
     | PRINT expr_list                   { B_TOK("directive PRINT")      $$ = operator_node(PRINT, 1, $2);               }
@@ -217,39 +217,39 @@ directive
     ;
 
 expr
-    : INTEGER                           { B_TOK("expr INTEGER") $$ = constant_node($1, false);                          }
-    | SYMBOL                            { B_TOK("expr SYMBOL") $$ = id_node($1);                                         }
-    | '-'  INTEGER %prec UMINUS         { B_TOK("expr INTEGER UMINUS") $$ = operator_node(UMINUS, 1, constant_node($2, false));                        }
-    | '-' '(' subexpr ')' %prec UMINUS  { B_TOK("expr subexpr UMINUS") $$ = operator_node(UMINUS, 1, $3);                        }
-    | '~' subexpr %prec UMINUS          { B_TOK("expr subexpr ~") $$ = operator_node('~', 1, $2);                           }
-    | '<' subexpr %prec UMINUS          { B_TOK("expr subexpr LOBYTE") $$ = operator_node(LOBYTE, 1, $2);                        }
-    | '>' subexpr %prec UMINUS          { B_TOK("expr subexpr HIBYTE") $$ = operator_node(HIBYTE, 1, $2);                        }
-    | NOT subexpr %prec UMINUS          { B_TOK("expr subexpr NOT") $$ = operator_node(NOT, 1, $2);                           }
-    | subexpr OR subexpr                { B_TOK("expr subexpr OR subexpr") $$ = operator_node(OR, 2, $1, $3);                        }
-    | subexpr AND subexpr               { B_TOK("expr subexpr AND subexpr") $$ = operator_node(AND, 2, $1, $3);                       }
-    | subexpr SHIFT_LEFT subexpr        { B_TOK("expr subexpr SHIFT_LEFT subexpr") $$ = operator_node(SHIFT_LEFT, 2, $1, $3);                }
-    | subexpr SHIFT_RIGHT subexpr       { B_TOK("expr subexpr SHIFT_RIGHT subexpr") $$ = operator_node(SHIFT_RIGHT, 2, $1, $3);               }
-    | subexpr '<' subexpr               { B_TOK("expr subexpr < subexpr") $$ = operator_node('<', 2, $1, $3);                       }
-    | subexpr '>' subexpr               { B_TOK("expr subexpr > subexpr") $$ = operator_node('>', 2, $1, $3);                       }
-    | subexpr GE subexpr                { B_TOK("expr subexpr GE subexpr") $$ = operator_node(GE, 2, $1, $3);                        }
-    | subexpr LE subexpr                { B_TOK("expr subexpr LE subexpr") $$ = operator_node(LE, 2, $1, $3);                        }
-    | subexpr NE subexpr                { B_TOK("expr subexpr NE subexpr") $$ = operator_node(NE, 2, $1, $3);                        }
-    | subexpr EQ subexpr                { B_TOK("expr subexpr EQ subexpr") $$ = operator_node(EQ, 2, $1, $3);                        }
-    | subexpr BIT_AND subexpr           { B_TOK("expr subexpr BIT_AND subexpr") $$ = operator_node(BIT_AND, 2, $1, $3);                   }
-    | subexpr BIT_OR subexpr            { B_TOK("expr subexpr BIT_OR subexpr")$$ = operator_node(BIT_OR, 2, $1, $3);                    }
-    | subexpr '^' subexpr               { B_TOK("expr subexpr ^ subexpr") $$ = operator_node('^', 2, $1, $3);                       }
-    | subexpr '+' subexpr               { B_TOK("expr subexpr + subexpr") $$ = operator_node('+', 2, $1, $3);                       }
-    | subexpr '-' subexpr               { B_TOK("expr subexpr - subexpr") $$ = operator_node('-', 2, $1, $3);                       }
-    | subexpr '*' subexpr               { B_TOK("expr subexpr * subexpr") $$ = operator_node('*', 2, $1, $3);                       }
-    | subexpr '/' subexpr               { B_TOK("expr subexpr / subexpr") $$ = operator_node('/', 2, $1, $3);                       }
-    | '-'                               { B_TOK("expr id_node -") $$ = id_node("-");                                        }
-    | '+'                               { B_TOK("expr id_node +") $$ = id_node("+");                                        }
+    : INTEGER                           { B_TOK("expr INTEGER")                     $$ = constant_node($1, false);                              }
+    | SYMBOL                            { B_TOK("expr SYMBOL")                      $$ = id_node($1);                                           }
+    | '-'  INTEGER %prec UMINUS         { B_TOK("expr INTEGER UMINUS")              $$ = operator_node(UMINUS, 1, constant_node($2, false));    }
+    | '-' '(' subexpr ')' %prec UMINUS  { B_TOK("expr subexpr UMINUS")              $$ = operator_node(UMINUS, 1, $3);                          }
+    | '~' subexpr %prec UMINUS          { B_TOK("expr subexpr ~")                   $$ = operator_node('~', 1, $2);                             }
+    | '<' subexpr %prec UMINUS          { B_TOK("expr subexpr LOBYTE")              $$ = operator_node(LOBYTE, 1, $2);                          }
+    | '>' subexpr %prec UMINUS          { B_TOK("expr subexpr HIBYTE")              $$ = operator_node(HIBYTE, 1, $2);                          }
+    | NOT subexpr %prec UMINUS          { B_TOK("expr subexpr NOT")                 $$ = operator_node(NOT, 1, $2);                             }
+    | subexpr OR subexpr                { B_TOK("expr subexpr OR subexpr")          $$ = operator_node(OR, 2, $1, $3);                          }
+    | subexpr AND subexpr               { B_TOK("expr subexpr AND subexpr")         $$ = operator_node(AND, 2, $1, $3);                         }
+    | subexpr SHIFT_LEFT subexpr        { B_TOK("expr subexpr SHIFT_LEFT subexpr")  $$ = operator_node(SHIFT_LEFT, 2, $1, $3);                  }
+    | subexpr SHIFT_RIGHT subexpr       { B_TOK("expr subexpr SHIFT_RIGHT subexpr") $$ = operator_node(SHIFT_RIGHT, 2, $1, $3);                 }
+    | subexpr '<' subexpr               { B_TOK("expr subexpr < subexpr")           $$ = operator_node('<', 2, $1, $3);                         }
+    | subexpr '>' subexpr               { B_TOK("expr subexpr > subexpr")           $$ = operator_node('>', 2, $1, $3);                         }
+    | subexpr GE subexpr                { B_TOK("expr subexpr GE subexpr")          $$ = operator_node(GE, 2, $1, $3);                          }
+    | subexpr LE subexpr                { B_TOK("expr subexpr LE subexpr")          $$ = operator_node(LE, 2, $1, $3);                          }
+    | subexpr NE subexpr                { B_TOK("expr subexpr NE subexpr")          $$ = operator_node(NE, 2, $1, $3);                          }
+    | subexpr EQ subexpr                { B_TOK("expr subexpr EQ subexpr")          $$ = operator_node(EQ, 2, $1, $3);                          }
+    | subexpr BIT_AND subexpr           { B_TOK("expr subexpr BIT_AND subexpr")     $$ = operator_node(BIT_AND, 2, $1, $3);                     }
+    | subexpr BIT_OR subexpr            { B_TOK("expr subexpr BIT_OR subexpr")      $$ = operator_node(BIT_OR, 2, $1, $3);                      }
+    | subexpr '^' subexpr               { B_TOK("expr subexpr ^ subexpr")           $$ = operator_node('^', 2, $1, $3);                         }
+    | subexpr '+' subexpr               { B_TOK("expr subexpr + subexpr")           $$ = operator_node('+', 2, $1, $3);                         }
+    | subexpr '-' subexpr               { B_TOK("expr subexpr - subexpr")           $$ = operator_node('-', 2, $1, $3);                         }
+    | subexpr '*' subexpr               { B_TOK("expr subexpr * subexpr")           $$ = operator_node('*', 2, $1, $3);                         }
+    | subexpr '/' subexpr               { B_TOK("expr subexpr / subexpr")           $$ = operator_node('/', 2, $1, $3);                         }
+    | '-'                               { B_TOK("expr id_node -")                   $$ = id_node("-");                                          }
+    | '+'                               { B_TOK("expr id_node +")                   $$ = id_node("+");                                          }
     ;
 
 subexpr
-    : expr                              { B_TOK("subexpr expr") $$ = $1;                                                  }
-    | '*'                               { B_TOK("subexpr PC") $$ = constant_node(program_counter, true);                }
-    | '(' subexpr ')'                   { B_TOK("subexpr ( subexpr )") $$ = $2;                                                  }
+    : expr                              { B_TOK("subexpr expr")         $$ = $1;                                    }
+    | '*'                               { B_TOK("subexpr PC")           $$ = constant_node(program_counter, true);  }
+    | '(' subexpr ')'                   { B_TOK("subexpr ( subexpr )")  $$ = $2;                                    }
     ;
 
 %%
