@@ -116,6 +116,7 @@ void parse_pass(void)
         }
 
         if (log_file.is_open())
+
         {
             log_file << "Current File " << current_file_name << std::endl;
         }
