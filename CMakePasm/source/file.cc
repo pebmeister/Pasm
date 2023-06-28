@@ -28,6 +28,42 @@ enum
 
 static char path[path_max] = { 0 };
 
+void open_file_stream(std::ofstream& file, const char* filename, const std::ios::openmode mode)
+{
+    file.open(filename, mode);
+    if (file.is_open())
+        return;
+
+    if (directories == nullptr) return;
+
+    for (char* directory = directories; *directory != 0;)
+    {
+        char* p = path;
+        int len = 0;
+        while (*directory != 0 && *directory != ';' && len < (path_max - 1))
+        {
+            ++len;
+            *p++ = *directory++;
+        }
+        *p = 0;
+        if (len + strlen(filename) + 2 >= path_max)
+        {
+            error2(error_path_name_too_long, path);
+            exit(-1);  // NOLINT(concurrency-mt-unsafe)
+        }
+        strcat(path, filename);
+        file.open(path, mode);
+        if (file.is_open())
+            return;
+
+        if (*directory == ';')
+            directory++;
+
+        while (*directory == ' ' || *directory == '\t')
+            directory++;
+    }
+}
+
 /**
  * \brief open a file. If directories is not NULL it will search them in order
  * \param file name of file to open

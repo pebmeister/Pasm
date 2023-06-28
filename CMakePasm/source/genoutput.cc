@@ -9,6 +9,7 @@
 
 #include "error.h"
 #include "expand.h"
+#include "file.h"
 #include "genoutput.h"
 #include "node.h"
 #include "opcodes.h"

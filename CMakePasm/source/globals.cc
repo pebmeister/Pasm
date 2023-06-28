@@ -3,35 +3,36 @@
 // ***********************************************************************
 
 // ReSharper disable CppClangTidyConcurrencyMtUnsafe
-#include <stdio.h>
-#include <stdlib.h>
+#include <fstream>
 
 #include "pasm.h"
 #include "stacks.h"
 
-stack_ptr file_stack = NULL;
-stack_ptr ifdef_stack = NULL;
-stack_ptr changed_sym_stack = NULL;
+stack_ptr file_stack = nullptr;
+stack_ptr ifdef_stack = nullptr;
+stack_ptr changed_sym_stack = nullptr;
 
-FILE* log_file = NULL;
-FILE* sym_file = NULL;
-FILE* output_file = NULL;
-FILE* list_file = NULL;
-FILE* console = NULL;
-FILE* console_error = NULL;
+std::ofstream log_file;
+
+FILE* sym_file = nullptr;
+FILE* output_file = nullptr;
+FILE* list_file = nullptr;
+FILE* console = nullptr;
+FILE* console_error = nullptr;
+
 bool final_pass = false;
 bool ignore_warnings = false;
 bool origin_specified = false;
 bool verbose = false;
 
-char** input_files = NULL;
-char* internal_buffer = NULL;
-char* current_file_name = NULL;
-char* directories = NULL;
-char* output_file_name = NULL;
-char* sym_file_name = NULL;
-char* list_file_name = NULL;
-char* log_file_name = NULL;
+char** input_files = nullptr;
+char* internal_buffer = nullptr;
+char* current_file_name = nullptr;
+char* directories = nullptr;
+char* output_file_name = nullptr;
+char* sym_file_name = nullptr;
+char* list_file_name = nullptr;
+char* log_file_name = nullptr;
 
 int in_macro_definition = 0;
 int output_file_format = bin;
@@ -42,29 +43,31 @@ int input_file_count = 0;
 
 void init_globals()
 {
-    file_stack = NULL;
-    ifdef_stack = NULL;
-    changed_sym_stack = NULL;
+    file_stack = nullptr;
+    ifdef_stack = nullptr;
+    changed_sym_stack = nullptr;
 
-    log_file = NULL;
-    sym_file = NULL;
-    output_file = NULL;
-    list_file = NULL;
-    console = NULL;
-    console_error = NULL;
+    if (log_file.is_open())
+        log_file.close();
+
+    sym_file = nullptr;
+    output_file = nullptr;
+    list_file = nullptr;
+    console = nullptr;
+    console_error = nullptr;
     final_pass = false;
     ignore_warnings = false;
     origin_specified = false;
     verbose = false;
 
-    input_files = NULL;
-    internal_buffer = NULL;
-    current_file_name = NULL;
-    directories = NULL;
-    output_file_name = NULL;
-    sym_file_name = NULL;
-    list_file_name = NULL;
-    log_file_name = NULL;
+    input_files = nullptr;
+    internal_buffer = nullptr;
+    current_file_name = nullptr;
+    directories = nullptr;
+    output_file_name = nullptr;
+    sym_file_name = nullptr;
+    list_file_name = nullptr;
+    log_file_name = nullptr;
 
     in_macro_definition = 0;
     output_file_format = bin;

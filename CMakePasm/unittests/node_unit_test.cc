@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
+
 #include "unit_test.h"
+
+
 
 // ReSharper disable CppStringLiteralToCharPointerConversion
 // ReSharper disable StringLiteralTypo
@@ -27,7 +30,7 @@ static void node_unit_test_method_initialize()
 
     free_parse_tree();
     reset_lex();
-    current_file_name = (char*)"test.a";
+    current_file_name = static_cast<char*>("test.a");
 }
 
 static void node_unit_test_method_cleanup()
@@ -396,7 +399,6 @@ TEST(node_unit_test, print_node_unit_test)
 "        type type_id\n",
 "        name left_node\n",
 "        i    (nil)\n",
-"\n",
 "    CHILD NODE [line 0]\n",
 "        allocated 1\n",
 "        type typeCon\n",
@@ -434,6 +436,7 @@ TEST(node_unit_test, print_node_unit_test)
 "    type typeCon\n",
 "    IsPC  0\n",
 "    value 0x00000055\n",
+"\n",
 "NODE [line 6]\n",
 "    allocated 1\n",
 "    type typeStr\n",
@@ -462,8 +465,8 @@ TEST(node_unit_test, print_node_unit_test)
 
     const auto test_file = "test_print.txt";
     remove(test_file);
-    log_file = fopen(test_file, "w");
-    EXPECT_NOT_NULL(log_file);
+    open_file_stream (log_file, test_file, std::ios::trunc | std::ios::out);
+    EXPECT_TRUE(log_file.is_open());
 
     yylineno = 0;
     current_node = operator_node('=', 2,
@@ -514,18 +517,16 @@ TEST(node_unit_test, print_node_unit_test)
     {
         current_node = current_node->next;
     }
+    if (log_file.is_open())
+        log_file.close();
 
-    fclose(log_file);
     auto lines = read_file_lines(test_file);
-
     auto current_file_line = lines;
     for (const auto a : expected_lines)
     {
         const char* b = lines->line_content;
-        auto cmp = strcmp(a, b);
-     
-        EXPECT_STREQ(a, b);
-        EXPECT_EQ(0, cmp);
+        if (strcmp(a, b) != 0)
+            EXPECT_STREQ(a, b);
         lines = lines->next;
     }
 

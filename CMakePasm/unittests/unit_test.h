@@ -1,3 +1,6 @@
+#include <iostream>
+#include <fstream>
+
 #include "dictionary.h"
 #include "error.h"
 #include "expand.h"
@@ -15,6 +18,8 @@
 #include "sym.h"
 
 #include "pasm.tab.h"
+
+extern void print_node(parse_node_ptr p, std::ofstream& file);
 
 typedef struct ops
 {
