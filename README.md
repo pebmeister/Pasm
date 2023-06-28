@@ -11,6 +11,7 @@ requires flex and bison to build
 To build:
 
 cmake -S CMakePasm -B PasmBuild
+
 cmake --build PasmBuild
 
 The executable will be in the bin directory of PasmBuild
