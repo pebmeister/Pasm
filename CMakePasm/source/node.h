@@ -111,7 +111,6 @@ extern parse_node_ptr print_state_node(int op);
 extern parse_node_ptr allocate_node(int number_of_ops);
 extern int is_valid_parse_node(parse_node_ptr p);
 extern int is_valid_parse_tree(void);
-extern void print_node(parse_node_ptr p, FILE* file);
 extern void remove_parse_node(parse_node_ptr p);
 extern void free_parse_node(parse_node_ptr p);
 extern void free_parse_tree(void);

@@ -866,7 +866,10 @@ void initialize()
     output_file_format = bin;
     pass = 0;
     current_file_name = nullptr;
-    log_file = stdout;
+
+    if (log_file.is_open())
+        log_file.close();
+
     yyin = nullptr;
     yylineno = 0;
     allow_illegal_op_codes = 1;

@@ -115,9 +115,10 @@ void parse_pass(void)
             exit(-1);
         }
 
-        if (log_file != nullptr)
+        if (log_file.is_open())
+
         {
-            fprintf(log_file, "Current File %s\n", current_file_name);
+            log_file << "Current File " << current_file_name << std::endl;
         }
         if (verbose)
         {
@@ -169,8 +170,8 @@ int assemble(void)
 
     if (log_file_name != nullptr)
     {
-        log_file = open_file(log_file_name, "w");
-        if (log_file == nullptr)
+        open_file_stream(log_file, log_file_name, std::ios::trunc | std::ios::out);
+        if (!log_file.is_open())
         {
             error(error_opening_log_file);
             return -1;

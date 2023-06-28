@@ -51,10 +51,5 @@ extern char* sym_file_name;
 extern char* list_file_name;
 extern char* log_file_name;
 
-extern FILE* log_file;
-extern FILE* sym_file;
-extern FILE* output_file;
-extern FILE* list_file;
 extern FILE* console;
 extern FILE* console_error;
-
