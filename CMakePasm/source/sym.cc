@@ -10,7 +10,6 @@
 // ReSharper disable CppPointerConversionDropsQualifiers
 // ReSharper disable CppClangTidyClangDiagnosticIncompatiblePointerTypesDiscardsQualifiers
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,6 +21,9 @@
 #include "pasm.h"
 #include "stacks.h"
 #include "sym.h"
+
+#include <flex.h>
+bool is_local_sym(const char* name);
 
 #pragma warning(disable: 4996 4267 4090 6386)
 
@@ -39,21 +41,21 @@ stack_ptr macro_params_stack = NULL;
 
 // must be less than PLUS_MINUS_TABLE_SIZE
 #define GROW_THRESHOLD 100
-#define PLUS_MINUS_TABLE_SIZE 1000
+#define PLUS_MINUS_TABLE_SIZE 5000
 
 int plus_symbol_table_index = 0;
 int plus_symbol_table_size = 0;
-struct plus_minus_sym * plus_symbol_table = NULL;
+plus_minus_sym * plus_symbol_table = NULL;
 
 int minus_symbol_table_index = 0;
 int minus_symbol_table_size = 0;
-struct plus_minus_sym* minus_symbol_table = NULL;
+plus_minus_sym* minus_symbol_table = NULL;
 
-static int compare_plus_minus_sym_value(const struct plus_minus_sym* a, const char* file, int line);
-static int compare_plus_minus_sym(const struct plus_minus_sym* a, const struct plus_minus_sym* b);
+static int compare_plus_minus_sym_value(const plus_minus_sym* a, const char* file, int line);
+static int compare_plus_minus_sym(const plus_minus_sym* a, const plus_minus_sym* b);
 static int plus_minus_sym_cmp_function(const void* a, const void* b);
 
-int compare_plus_minus_sym(const struct plus_minus_sym* a, const struct plus_minus_sym* b)
+int compare_plus_minus_sym(const plus_minus_sym* a, const plus_minus_sym* b)
 {
     const int result = stricmp(a->file, b->file);
     if (result != 0) return result;
@@ -62,20 +64,73 @@ int compare_plus_minus_sym(const struct plus_minus_sym* a, const struct plus_min
 
 int plus_minus_sym_cmp_function(const void* a, const void* b)
 {
-    return compare_plus_minus_sym((struct plus_minus_sym*)a, (struct plus_minus_sym*)b);
+    return compare_plus_minus_sym((plus_minus_sym*)a, (plus_minus_sym*)b);
 }
 
-int compare_plus_minus_sym_value(const struct plus_minus_sym* a, const char* file, const int line)
+int compare_plus_minus_sym_value(const plus_minus_sym* a, const char* file, const int line)
 {
-    const struct plus_minus_sym b = { file, line, 0 };
+    const plus_minus_sym b = { file, line, 0 };
     return compare_plus_minus_sym(a, &b);
+}
+
+symbol_table_ptr add_plus_minus_sym(char* name)
+{
+    const auto blank = "";
+
+    if (last_label == nullptr)
+        last_label = const_cast<char*>(&blank[0]);
+
+    symbol_table sym = { 0 };  // NOLINT(clang-diagnostic-missing-field-initializers)
+    char* temp_section = current_scope;
+
+    sym.is_plus_minus = true;
+    if (current_scope != nullptr)
+        sym.scope = (char*)STRDUP(current_scope);
+
+    sym.name = format_local_plus_minus_sym(name, last_label);
+
+    if (sym.scope != nullptr)
+    {
+        sym.fullname = static_cast<char*>(MALLOC(strlen(sym.scope) + strlen(sym.name) + 2));
+        sprintf(sym.fullname, "%s.%s", sym.scope, sym.name);
+    }
+    else
+        sym.fullname = (char*)STRDUP(sym.name);
+
+    current_scope = temp_section;
+    if (symbol_dictionary == NULL)
+    {
+        symbol_dictionary = dict_create(sizeof(symbol_table), 0);
+        if (symbol_dictionary == NULL)
+        {
+            error(error_out_of_memory);
+            exit(-1);
+        }
+    }
+    auto tmp_ptr = static_cast<symbol_table_ptr>(dict_insert(&symbol_dictionary, sym.fullname, &sym));
+    sanitize_symbol(tmp_ptr);
+
+    return tmp_ptr;
+}
+
+bool is_local_sym(const char* name)
+{
+    for (auto nm = name; *nm; nm++)
+    {
+        if (*nm == '@')
+            return true;
+    }
+
+    return false;
 }
 
 symbol_table_ptr add_symbol(char* name)
 {
     if (name == NULL) return NULL;
-    if (in_macro_definition > 0) return NULL;
     if (stricmp(name, "A") == 0) return NULL;
+
+    if (name[0] == '+' || name[0] == '-')
+        return add_plus_minus_sym(name);
 
     symbol_table sym = { 0 };
     char* temp_section = current_scope;
@@ -134,7 +189,7 @@ symbol_table_ptr add_symbol(char* name)
     if (sym.scope)
     {
         len = strlen(sym.name) + strlen(sym.scope) + 2;
-        sym.fullname = (char*) MALLOC(len);
+        sym.fullname = static_cast<char*>(MALLOC(len));
         if (sym.fullname == NULL)
         {
             error(error_out_of_memory);
@@ -154,12 +209,13 @@ symbol_table_ptr add_symbol(char* name)
 
     if (sym.name[0] == '@')
     {
+        sym.is_local = true;
         sym.is_initialized = true;
         sym.value = 0;
     }
 
     current_scope = temp_section;
-    tmp_ptr = (symbol_table_ptr)dict_insert(&symbol_dictionary, sym.fullname, &sym);
+    tmp_ptr = static_cast<symbol_table_ptr>(dict_insert(&symbol_dictionary, sym.fullname, &sym));
     sanitize_symbol(tmp_ptr);
 
     return tmp_ptr;
@@ -170,7 +226,7 @@ symbol_table_ptr look_up_macro_param(const int param_number)
     char macro_param_name[sizeof(int) + 5] = {0};
 
     sprintf(macro_param_name, "\\%d", param_number);
-    return (symbol_table_ptr) dict_search(symbol_dictionary, macro_param_name);
+    return static_cast<symbol_table_ptr>(dict_search(symbol_dictionary, macro_param_name));
 }
 
 /// <summary>
@@ -193,8 +249,8 @@ symbol_table_ptr look_up_symbol(const char* name)
 
     if (current_scope)
     {
-        const int len = (int)strlen(current_scope) + (int)strlen(name) + 2;
-        char* temp_name = (char*)MALLOC(len);
+        const int len = static_cast<int>(strlen(current_scope)) + static_cast<int>(strlen(name)) + 2;
+        char* temp_name = static_cast<char*>(MALLOC(len));
         if (temp_name == NULL)
         {
             error(error_out_of_memory);
@@ -202,7 +258,7 @@ symbol_table_ptr look_up_symbol(const char* name)
         }
         sprintf(temp_name, "%s.%s", current_scope, name);
         // ReSharper disable once CppLocalVariableMayBeConst
-        symbol_table_ptr tmp_ptr = (symbol_table_ptr)dict_search(symbol_dictionary, temp_name);
+        auto tmp_ptr = static_cast<symbol_table_ptr>(dict_search(symbol_dictionary, temp_name));
         FREE(temp_name);
         if (tmp_ptr)
         {
@@ -212,7 +268,7 @@ symbol_table_ptr look_up_symbol(const char* name)
     }
 
     // ReSharper disable once CppLocalVariableMayBeConst
-    symbol_table_ptr tmp_ptr = (symbol_table_ptr)dict_search(symbol_dictionary, name);
+    auto tmp_ptr = static_cast<symbol_table_ptr>(dict_search(symbol_dictionary, name));
     if (tmp_ptr)
         tmp_ptr->times_accessed++;
     return tmp_ptr;
@@ -330,15 +386,16 @@ void add_minus_symbol(const char* file, const int line, const int value)
     if (minus_symbol_table_size - minus_symbol_table_index < GROW_THRESHOLD)
     {
         minus_symbol_table_size += PLUS_MINUS_TABLE_SIZE;
-        struct plus_minus_sym* temp_ptr = (struct plus_minus_sym*)REALLOC(minus_symbol_table, sizeof(struct plus_minus_sym) * minus_symbol_table_size);
+        auto* temp_ptr = static_cast<struct plus_minus_sym*>(
+            REALLOC(minus_symbol_table, sizeof(struct plus_minus_sym) * minus_symbol_table_size));
         if (temp_ptr == NULL)
         {
             error(error_out_of_memory);
             exit(-1);
         }
         char* memory_clear_location = (char*)temp_ptr;
-        memory_clear_location += sizeof(struct plus_minus_sym) * (minus_symbol_table_size - PLUS_MINUS_TABLE_SIZE);
-        memset(memory_clear_location, 0, sizeof(struct plus_minus_sym) * PLUS_MINUS_TABLE_SIZE);
+        memory_clear_location += sizeof(plus_minus_sym) * (minus_symbol_table_size - PLUS_MINUS_TABLE_SIZE);
+        memset(memory_clear_location, 0, sizeof(plus_minus_sym) * PLUS_MINUS_TABLE_SIZE);
 
         minus_symbol_table = temp_ptr;
     }
@@ -348,7 +405,7 @@ void add_minus_symbol(const char* file, const int line, const int value)
     minus_symbol_table[minus_symbol_table_index].value = value;
     ++minus_symbol_table_index;
 
-    qsort(minus_symbol_table, minus_symbol_table_index, sizeof(struct plus_minus_sym), plus_minus_sym_cmp_function);
+    qsort(minus_symbol_table, minus_symbol_table_index, sizeof(plus_minus_sym), plus_minus_sym_cmp_function);
 }
 
 void add_plus_symbol(const char* file, const int line, const int value)
@@ -362,7 +419,7 @@ void add_plus_symbol(const char* file, const int line, const int value)
     if (plus_symbol_table_size - plus_symbol_table_index < GROW_THRESHOLD)
     {
         plus_symbol_table_size += PLUS_MINUS_TABLE_SIZE;
-        struct plus_minus_sym* temp_ptr = (struct plus_minus_sym*)REALLOC(plus_symbol_table, sizeof(struct plus_minus_sym) * plus_symbol_table_size);
+        auto* temp_ptr = static_cast<struct plus_minus_sym*>(REALLOC(plus_symbol_table, sizeof(struct plus_minus_sym) * plus_symbol_table_size));
         if (temp_ptr == NULL)
         {
             error(error_out_of_memory);
@@ -376,7 +433,7 @@ void add_plus_symbol(const char* file, const int line, const int value)
     plus_symbol_table[plus_symbol_table_index].value = value;
     ++plus_symbol_table_index;
 
-    qsort(plus_symbol_table, plus_symbol_table_index, sizeof(struct plus_minus_sym), plus_minus_sym_cmp_function);
+    qsort(plus_symbol_table, plus_symbol_table_index, sizeof(plus_minus_sym), plus_minus_sym_cmp_function);
 }
 
 /// <summary>
@@ -405,7 +462,7 @@ void push_macro_params(void)
     else
     {
         macro_stack_param_entry.num_nodes = max_macro + 1;
-        macro_stack_param_entry.values = (int*) MALLOC(((unsigned long long)max_macro + 1) * sizeof(long));
+        macro_stack_param_entry.values = static_cast<int*>(MALLOC(((unsigned long long)max_macro + 1) * sizeof(long)));
 
         macro_stack_param_entry.values[0] = 0;
         for (int index = 1; index <= max_macro; index++)
@@ -435,7 +492,7 @@ void pop_macro_params(void)
         exit(-1);
     }
 
-    macro_stack_entry* macro_stack_param_entry_ptr = (macro_stack_entry*)macro_params_stack->pop(macro_params_stack->instance);
+    auto* macro_stack_param_entry_ptr = static_cast<macro_stack_entry*>(macro_params_stack->pop(macro_params_stack->instance));
 
     for (int index = 1; index < macro_stack_param_entry_ptr->num_nodes; index++)
     {
@@ -476,7 +533,7 @@ void sanitize_symbol(const symbol_table_ptr symbol)
     if (strstr(symbol->name, ".") == NULL)
         return;
 
-    int len = (int)strlen(symbol->name);
+    int len = static_cast<int>(strlen(symbol->name));
     while (symbol->name[len] != '.')
         len--;
     symbol->name[len] = 0;
@@ -493,8 +550,8 @@ void sanitize_symbol(const symbol_table_ptr symbol)
     symbol->name = temp_name;
     if (symbol->scope)
     {
-        len = (int)strlen(symbol->scope) + (int)strlen(temp_section) + 2;
-        combined_section = (char*)MALLOC(len);
+        len = static_cast<int>(strlen(symbol->scope)) + static_cast<int>(strlen(temp_section)) + 2;
+        combined_section = static_cast<char*>(MALLOC(len));
         if (combined_section == NULL)
         {
             error(error_out_of_memory);
@@ -506,8 +563,8 @@ void sanitize_symbol(const symbol_table_ptr symbol)
     }
     else
     {
-        len = (int)strlen(temp_section) + 1;
-        combined_section = (char*)MALLOC(len);
+        len = static_cast<int>(strlen(temp_section)) + 1;
+        combined_section = static_cast<char*>(MALLOC(len));
         if (combined_section == NULL)
         {
             error(error_out_of_memory);
@@ -519,10 +576,32 @@ void sanitize_symbol(const symbol_table_ptr symbol)
     FREE(temp_section);
 }
 
+char* format_local_plus_minus_sym(char* name, char* label)
+{
+    const auto blank = "";
+    if (label == nullptr)
+        label = const_cast<char*>(&blank[0]);
+
+    char number_buffer[20] = { 0 };
+
+    sprintf(number_buffer, "%d", yylineno);
+
+    const int new_len = strlen(last_label) + 1 + strlen(name) + 1 + strlen(number_buffer) + 1 + 2 + 2;  // NOLINT(bugprone-narrowing-conversions, cppcoreguidelines-narrowing-conversions)
+
+    char* new_name = static_cast<char*>(MALLOC(new_len));
+    if (new_name)
+    {
+        sprintf(new_name, "%s__%s__%s", label, number_buffer, name);
+    }
+    name = (char*)STRDUP(new_name);
+    FREE(new_name);
+    return name;
+}
+
 char* format_local_sym(char* name, const char* label)
 {
     const int new_len = strlen(last_label) + 1 + strlen(name) + 1 + 2;  // NOLINT(bugprone-narrowing-conversions, cppcoreguidelines-narrowing-conversions)
-    char* new_name = (char*)MALLOC(new_len);
+    char* new_name = static_cast<char*>(MALLOC(new_len));
     if (new_name)
     {
         sprintf(new_name, "%s__%s", label, name);
@@ -534,7 +613,7 @@ char* format_local_sym(char* name, const char* label)
 
 int print_symbol_element(const element_ptr e, FILE* file)
 {
-    const symbol_table_ptr sym = (symbol_table_ptr) e->value;
+    const auto sym = static_cast<symbol_table_ptr>(e->value);
     return print_symbol(sym, file);
 }
 
@@ -550,11 +629,10 @@ int print_symbol(symbol_table_ptr sym, FILE* file)
     fprintf(file, "    is_initialized: %s\n", sym->is_initialized ? "true" : "false");
     fprintf(file, "    is_local:       %s\n", sym->is_local ? "true" : "false");
     fprintf(file, "    is_var:         %s\n", sym->is_var ? "true" : "false");
-    fprintf(file, "    is_minus:       %s\n", sym->is_minus ? "true" : "false");
+    fprintf(file, "    is_plus_minus:  %s\n", sym->is_plus_minus ? "true" : "false");
     fprintf(file, "\n");
     return 0;
 }
-
 
 typedef struct sym_entry
 {
@@ -577,7 +655,7 @@ void dump_symbols(FILE* file)
 
     const int sz = symbol_dictionary->number_elements;
     int count = 0;
-    sym_entry* entry_array = (sym_entry*)MALLOC(sz * sizeof(sym_entry));
+    auto* entry_array = static_cast<sym_entry*>(MALLOC(sz * sizeof(sym_entry)));
     if (entry_array == NULL)
     {
         error(error_out_of_memory);
@@ -588,10 +666,12 @@ void dump_symbols(FILE* file)
     {
         for (element_ptr element = symbol_dictionary->table[index]; element != 0; element = element->next)
         {
-            const symbol_table_ptr sym = (symbol_table_ptr)element->value;
-            if (sym->is_var == false && sym->is_macro_param == false && sym->is_macro_name == false)
+            const auto sym = static_cast<symbol_table_ptr>(element->value);
+            if (sym->is_var == false && sym->is_macro_param == false && 
+                sym->is_macro_name == false && sym->is_plus_minus == false && sym->is_local == false &&
+                pass * 2 <= sym->times_accessed && is_local_sym(sym->name) == false)
             {
-                current_entry->name = (char*)element->key;
+                current_entry->name = static_cast<char*>(element->key);
                 current_entry->value = sym->value;
                 current_entry++;
                 count++;
@@ -630,7 +710,7 @@ void dump_changed_symbols(FILE* file)
     int column = 1;
     for (int i = 0; i <= changed_sym_stack->instance->index; ++i)
     {
-        const symbol_table_ptr current_entry = (symbol_table_ptr) changed_sym_stack->item_at(changed_sym_stack->instance, i);
+        const auto current_entry = static_cast<symbol_table_ptr>(changed_sym_stack->item_at(changed_sym_stack->instance, i));
 
         const int columns = 5;
         const char* name = current_entry->name;
@@ -648,7 +728,6 @@ void dump_changed_symbols(FILE* file)
     }
     fprintf(file, "\n");
     fprintf(file, "\n");
-
 }
 
 void dump_unresolved_symbols(FILE* file)
@@ -658,7 +737,7 @@ void dump_unresolved_symbols(FILE* file)
 
     const int sz = symbol_dictionary->number_elements;
     int count = 0;
-    sym_entry* entry_array = (sym_entry*)MALLOC(sz * sizeof(sym_entry));
+    auto* entry_array = static_cast<sym_entry*>(MALLOC(sz * sizeof(sym_entry)));
     if (entry_array == NULL)
     {
         error(error_out_of_memory);
@@ -669,10 +748,10 @@ void dump_unresolved_symbols(FILE* file)
     {
         for (element_ptr element = symbol_dictionary->table[index]; element != 0; element = element->next)
         {
-            const symbol_table_ptr sym = (symbol_table_ptr)element->value;
-            if (sym->is_var == false  && sym->is_initialized == false)
+            const auto sym = static_cast<symbol_table_ptr>(element->value);
+            if (sym->is_var == false  && sym->is_initialized == false && sym->is_plus_minus == false)
             {
-                current_entry->name = (char*)element->key;
+                current_entry->name = static_cast<char*>(element->key);
                 current_entry->value = sym->value;
                 current_entry++;
                 count++;
@@ -717,10 +796,10 @@ int unresolved_symbol_count(void)
     {
         for (element_ptr elem = symbol_dictionary->table[index]; elem; elem = elem->next)
         {
-            const symbol_table_ptr sym = (symbol_table_ptr) elem->value;
+            const auto sym = static_cast<symbol_table_ptr>(elem->value);
 
             if (sym->is_initialized == false && sym->is_macro_name == false &&
-                sym->is_var == false && sym->is_macro_param == false)
+                sym->is_var == false && sym->is_plus_minus == false && sym->is_macro_param == false)
             {
                 count++;
             }

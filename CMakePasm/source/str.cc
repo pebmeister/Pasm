@@ -17,9 +17,9 @@
  */
 char* sanitize_string(char* str)
 {
-    const int len = (int)strlen(str) + 1;
+    const int len = static_cast<int>(strlen(str)) + 1;
 
-    char* out_str = (char*)MALLOC(len);
+    char* out_str = static_cast<char*>(MALLOC(len));
     char* tmp_str = out_str;
     unsigned char esc_char = 0;
 
@@ -82,7 +82,7 @@ char* sanitize_string(char* str)
                     char temp[3] = { 0 };
                     temp[0] = *str;
                     temp[1] = *(str + 1);
-                    *tmp_str++ = (char)(int)strtol(temp, NULL, 16);
+                    *tmp_str++ = static_cast<char>((int)strtol(temp, NULL, 16));
                     str += 2;
                 }
                 continue;
@@ -98,7 +98,7 @@ char* sanitize_string(char* str)
                 error(error_unrecognized_escape_sequence);
                 break;
             }
-            *tmp_str++ = (char)esc_char;
+            *tmp_str++ = static_cast<char>(esc_char);
             str++;
         }
         else if (*str)

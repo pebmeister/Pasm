@@ -17,21 +17,22 @@
 #include "pasm.h"
 
 #pragma warning(disable: 4090 4996)
+bool Debug_AddList = false;
 
-list_table_ptr list_head = NULL;
-file_entry* source_file_list = NULL;
+list_table_ptr list_head = nullptr;
+file_entry* source_file_list = nullptr;
 
 file_line_node* get_file_line(char* file, const int line)
 {
     file_entry* current_file_entry = source_file_list;
-    file_entry* prev = NULL;
+    file_entry* prev = nullptr;
 
-    for (; current_file_entry != NULL && stricmp(current_file_entry->filename, file) != 0; current_file_entry = current_file_entry->next)
+    for (; current_file_entry != nullptr && stricmp(current_file_entry->filename, file) != 0; current_file_entry = current_file_entry->next)
         prev = current_file_entry;
 
     if (!current_file_entry)
     {
-        current_file_entry = (file_entry*)MALLOC(sizeof(file_entry));
+        current_file_entry = static_cast<file_entry*>(MALLOC(sizeof(file_entry)));
         if (current_file_entry)
         {
             memset(current_file_entry, 0, sizeof(file_entry));
@@ -43,7 +44,7 @@ file_line_node* get_file_line(char* file, const int line)
     }
     if (current_file_entry)
     {
-        if (source_file_list == NULL)
+        if (source_file_list == nullptr)
             source_file_list = current_file_entry;
 
         if (stricmp(current_file_entry->filename, file) == 0)
@@ -55,7 +56,7 @@ file_line_node* get_file_line(char* file, const int line)
         }
     }
     error(error_opening_list_file);
-    return NULL;
+    return nullptr;
 }
 
 const char* source_indent_format = "%-45s%s";
@@ -72,23 +73,27 @@ void delete_list_table(void)
         FREE(list_node);
         list_node = next;
     }
-    list_head = NULL;
+    list_head = nullptr;
 }
 
 void generate_list_file(FILE* list_file)
 {
     list_table_ptr list_node = list_head;
-    current_file_name = NULL;
+    current_file_name = nullptr;
 
     int state = 1;  // NOLINT(clang-diagnostic-implicit-int)
     fprintf(list_file, "\n");
 
     current_file_name = list_head->filename;
-    fprintf(list_file, "Processing %s\n", current_file_name);
+    fprintf(list_file, "; Processing %s\n", current_file_name);
     for (int line = 1; line < list_head->line; ++line)
     {
         internal_buffer[0] = 0;
         file_line_node* source_list = get_file_line(list_node->filename, line);
+
+        if (list_node->list_directive)
+            continue;
+
         if (source_list->displayed == 0)
         {
             if (state)
@@ -103,15 +108,21 @@ void generate_list_file(FILE* list_file)
     // loop through all list  nodes
     for (; list_node; list_node = list_node->next)
     {
-        if (current_file_name == NULL || stricmp(current_file_name, list_node->filename))
+        if (current_file_name == nullptr || stricmp(current_file_name, list_node->filename))
         {
+
+
             current_file_name = list_node->filename;
-            fprintf(list_file, "Processing %s\n", current_file_name);
+            fprintf(list_file, "; Processing %s\n", current_file_name);
         }
 
         if (list_node->print_state != state)
         {
             state = list_node->print_state;
+            continue;
+        }
+        if (list_node->list_directive)
+        {
             continue;
         }
 
@@ -120,11 +131,15 @@ void generate_list_file(FILE* list_file)
 
         const int start_line = list_node->line;
         int end_line = start_line;
-        if (list_node->next && stricmp(list_node->filename, list_node->next->filename) == 0 && list_node->next->line > list_node->line)
+        if (list_node->next && stricmp(list_node->filename, list_node->next->filename) == 0 &&
+            list_node->next->line > list_node->line)
             end_line = list_node->next->line - 1;
 
+        if (end_line == 0)
+            continue;
+
         file_line_node* source_list = get_file_line(list_node->filename, start_line);
-        if (source_list == NULL)
+        if (source_list == nullptr)
             continue;
 
         internal_buffer[0] = 0;
@@ -174,9 +189,9 @@ void generate_list_file(FILE* list_file)
  */
 void reset_file_lines(void)
 {
-    for (const file_entry * file_entry = source_file_list; file_entry != NULL; file_entry = file_entry->next)
+    for (const file_entry * file_entry = source_file_list; file_entry != nullptr; file_entry = file_entry->next)
     {
-        for (file_line_node* file_line_ptr = file_entry->lines; file_line_ptr != NULL; file_line_ptr = file_line_ptr->next)
+        for (file_line_node* file_line_ptr = file_entry->lines; file_line_ptr != nullptr; file_line_ptr = file_line_ptr->next)
         {
             file_line_ptr->displayed = 0;
         }
@@ -185,7 +200,7 @@ void reset_file_lines(void)
 
 void delete_file_lines(void)
 {
-    source_file_list = NULL;
+    source_file_list = nullptr;
 }
 
 /**
@@ -197,12 +212,17 @@ void delete_file_lines(void)
  */
 list_table_ptr add_list(const char* file, int line, const char* output)
 {
+    if (Debug_AddList)
+    {
+        fprintf(console, "add_list (%s) (%d) \'%s'\n\n", file, line, output);
+    }
+
     // yylineno seems to be 1 off.
     --line;
 
     // ReSharper disable once CppLocalVariableMayBeConst
-    list_table_ptr var_ptr = (list_table_ptr) MALLOC(sizeof(list_table));
-    if (var_ptr == NULL)
+    auto var_ptr = static_cast<list_table_ptr>(MALLOC(sizeof(list_table)));
+    if (var_ptr == nullptr)
     {
         error(error_out_of_memory);
         exit(-1);
@@ -211,27 +231,27 @@ list_table_ptr add_list(const char* file, int line, const char* output)
     var_ptr->print_state = print_list_state;
 
     var_ptr->filename = (char*)STRDUP(file);
-    if (var_ptr->filename == NULL)
+    if (var_ptr->filename == nullptr)
     {
         error(error_out_of_memory);
         exit(-1);
     }
     var_ptr->line = line + 1;
-    var_ptr->output = (char*)STRDUP(output);
-    if (var_ptr->output == NULL)
+    var_ptr->output = (char*) STRDUP(output);
+    if (var_ptr->output == nullptr)
     {
         error(error_out_of_memory);
         exit(-1);
     }
     list_table_ptr tmp_ptr = list_head;
 
-    if (list_head == NULL)
+    if (list_head == nullptr)
     {
         list_head = var_ptr;
         return var_ptr;
     }
 
-    while (tmp_ptr->next != NULL)
+    while (tmp_ptr->next != nullptr)
         tmp_ptr = tmp_ptr->next;
 
     tmp_ptr->next = var_ptr;

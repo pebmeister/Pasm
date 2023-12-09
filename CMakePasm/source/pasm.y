@@ -6,7 +6,7 @@
 // Author           : Paul Baxter
 // ***********************************************************************
 
-#pragma warning(disable:4065 4996)
+#pragma warning(disable:4065 4996 4244)
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -20,20 +20,11 @@
 #include "node.h"
 #include "sym.h"
 
-// #define DEBUG_B_TOKEN
-// #define DEBUG_E_TOKEN
 
-#ifdef DEBUG_B_TOKEN
-#   define B_TOK(str)          { fprintf(console, "--------   BISON (%20s) --------- \n\n", str); }
-#else
-#   define B_TOK(str)
-#endif
+bool Debug_Bison = false;
 
-#ifdef DEBUG_E_TOKEN
-#   define E_TOK(str)          { fprintf(console, "--------   BISON (%20s) --------- \n\n", str); }
-#else
-#   define E_TOK(str)
-#endif
+#define B_TOK(str)          { if (Debug_Bison){ fprintf(console, "--------   BISON (%20s)    -------- \n\n", str);} }
+#define E_TOK(str)          { if (Debug_Bison) {fprintf(console, "--------   BISON EX (%20s) -------- \n\n", str); }}
 
 %}
 
@@ -143,7 +134,8 @@ macrodef
     ;
 
 macrocall
-    : MACSYMBOL expr_list               { B_TOK("macrocall MACSYMBOL")  $$ = macro_expand_node($1, $2);  }
+    : MACSYMBOL                         { B_TOK("macrocall MACSYMBOL")  $$ = macro_expand_node($1, NULL);  }
+    | MACSYMBOL expr_list               { B_TOK("macrocall MACSYMBOL")  $$ = macro_expand_node($1, $2);  }
     ;
 
 symbol_list
