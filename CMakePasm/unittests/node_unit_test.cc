@@ -30,7 +30,7 @@ static void node_unit_test_method_initialize()
 
     free_parse_tree();
     reset_lex();
-    current_file_name = static_cast<char*>("test.a");
+    current_file_name = const_cast<char*>(static_cast<const char*>("test.a"));
 }
 
 static void node_unit_test_method_cleanup()
@@ -404,7 +404,6 @@ TEST(node_unit_test, print_node_unit_test)
 "        type typeCon\n",
 "        IsPC  0\n",
 "        value 0x00004554\n",
-"\n",
 "NODE [line 1]\n",
 "    allocated 1\n",
 "    type typeOpCode\n",
@@ -412,41 +411,34 @@ TEST(node_unit_test, print_node_unit_test)
 "    mode          implied\n",
 "    opCode        EA\n",
 "    PC            0x00000000\n",
-"\n",
 "NODE [line 2]\n",
 "    allocated 1\n",
 "    type type_id\n",
 "    name test_id_node\n",
 "    i    (nil)\n",
-"\n",
 "NODE [line 3]\n",
 "    allocated 1\n",
 "    type type_label\n",
 "    name test_label_node\n",
 "    i    (nil)\n",
-"\n",
 "NODE [line 4]\n",
 "    allocated 1\n",
 "    type type_macro_id\n",
 "    name macro_id_node\n",
 "    i    (nil)\n",
-"\n",
 "NODE [line 5]\n",
 "    allocated 1\n",
 "    type typeCon\n",
 "    IsPC  0\n",
 "    value 0x00000055\n",
-"\n",
 "NODE [line 6]\n",
 "    allocated 1\n",
 "    type typeStr\n",
 "    allocated  string_node\n",
 "    len        0x0000000B\n",
 "    value string_node\n",
-"\n",
 "NODE [line 7]\n",
 "    allocated 1\n",
-"\n",
 "NODE [line 8]\n",
 "    allocated 1\n",
 "    type typeData\n",
@@ -456,10 +448,8 @@ TEST(node_unit_test, print_node_unit_test)
 "        type typeCon\n",
 "        IsPC  0\n",
 "        value 0x00000055\n",
-"\n",
 "NODE [line 9]\n",
 "    allocated 1\n",
-"\n",
     };
     constexpr int number_of_lines = _countof(expected_lines);
 
@@ -619,7 +609,7 @@ TEST(node_unit_test, free_parse_tree_unit_test)
         constant_node(0x4554, false));
     current_node = opcode_node(_nop, i, 0);
     current_node = id_node("test_id_node");
-    current_node = label_node((char*)"test_label_nod e");
+    current_node = label_node((char*)"test_label_node");
     current_node = macro_id_node("macro_id_node");
     current_node = constant_node(0x55, false);
     current_node = string_node("string_node");

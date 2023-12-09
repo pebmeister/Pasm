@@ -44,7 +44,7 @@ void reset_lex(void)
 
     if (internal_buffer == nullptr)
     {
-        internal_buffer = (char*)MALLOC(max_line_len);
+        internal_buffer = static_cast<char*>(MALLOC(max_line_len));
         if (internal_buffer == nullptr)
         {
             error(error_out_of_memory);
@@ -130,9 +130,18 @@ void parse_pass(void)
         // reset parser
         yyrestart(yyin);
 
+        if (final_pass)
+        {
+            generate_list_node(nullptr);
+        }
         // parse the line_content
         yyparse();
 
+        if (final_pass)
+        {
+            generate_list_node(nullptr);
+        }
+        
         // close the line_content
         fclose(yyin);
 
@@ -193,18 +202,13 @@ int assemble(void)
         else
             clean_pass_count = 0;
 
-        if (verbose && clean_pass_count == 0 && pass > 1)
+        if (verbose && clean_pass_count == 0 && pass > 3)
         {
             fprintf(console, "%d unresolved symbols %d symbols value changed\n\n", unresolved_count, sym_value_changed);
             if (unresolved_count > 0)
             {
                 fprintf(console, "Unresolved symbols:\n");
                 dump_unresolved_symbols(console);
-            }
-            if (sym_value_changed > 0)
-            {
-                fprintf(console, "changed symbols:\n");
-                dump_changed_symbols(console);
             }
         }
         pass++;

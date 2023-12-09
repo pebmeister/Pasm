@@ -1,7 +1,8 @@
-
+ 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CPACK_NSIS_MODIFY_PATH ON)
 
 # set _CRT_SECURE_NO_WARNINGS for Windows
 if (${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Windows")
@@ -55,23 +56,23 @@ add_library(engine
     pass.cc)
  
 # executable
-add_executable(pasm 
+add_executable(${PROJECT_NAME} 
     main.cc)
 
 # force flex/bison first
 add_dependencies(engine parser) 
 
-target_link_libraries(pasm 
+target_link_libraries(${PROJECT_NAME} 
     parser 
     engine)
 
 # include directory for main
-target_include_directories(pasm PUBLIC 
+target_include_directories(${PROJECT_NAME} PUBLIC 
     "${CMAKE_CURRENT_LIST_DIR}"
     "${CMAKE_CURRENT_BINARY_DIR}")
 
 # include directory for parser
-target_include_directories(parser PUBLIC 
+target_include_directories(parser PUBLIC
     "${CMAKE_CURRENT_LIST_DIR}"
     "${CMAKE_CURRENT_BINARY_DIR}")
 
@@ -79,3 +80,17 @@ target_include_directories(parser PUBLIC
 target_include_directories(engine PUBLIC 
     "${CMAKE_CURRENT_LIST_DIR}"
     "${CMAKE_CURRENT_BINARY_DIR}")
+
+# install
+install (TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
+
+if (${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Windows")
+    set(mypath $ENV{Path})    
+    string(FIND "${mypath}" "\\Pasm\\" HAS_PATH)    
+
+    if (${HAS_PATH} EQUAL -1)
+        execute_process(COMMAND "PowerShell" "setx PATH %PATH%\";%PROGRAMFILES\(x86\)%\\Pasm\\bin;\"")
+    endif()    
+    message(STATUS "Path is set to $ENV{Path}.")
+endif()
+

@@ -39,7 +39,7 @@ int write_data(FILE* file, const int data)
 {
     if (data_size == 1)
         // ReSharper disable once CppRedundantCastExpression
-        return write_byte(file, (char)data);
+        return write_byte(file, static_cast<char>(data));
     if (data_size == 2)
         return write_word(file, data);
 
@@ -49,7 +49,7 @@ int write_data(FILE* file, const int data)
 int write_byte(FILE* file, const unsigned char ch)
 {
     // ReSharper disable once CppRedundantCastExpression
-    const int bytes_written = (int) fwrite(&ch, 1, 1, file);
+    const int bytes_written = static_cast<int>(fwrite(&ch, 1, 1, file));
     if (bytes_written < 1)
     {
         error(error_writing_output_file);
@@ -75,8 +75,8 @@ int write_string(FILE* file, const char* str)
 {
     const size_t len = strlen(str);
     // ReSharper disable once CppRedundantCastExpression
-    const int bytes_written = (int)fwrite(str, 1, len, file);
-    if (bytes_written < (int) len)
+    const int bytes_written = static_cast<int>(fwrite(str, 1, len, file));
+    if (bytes_written < static_cast<int>(len))
     {
         error(error_writing_output_file);
         return 0;
@@ -110,7 +110,7 @@ int write_program_counter_pad(FILE* file, const int delta)
     while (delta + byte_delta > total_bytes_written)
     {
         const int bytes_written = write_byte(output_file, 0);
-        total_bytes_written += (int)bytes_written;
+        total_bytes_written += static_cast<int>(bytes_written);
         if (bytes_written == 0)
         {
             return -1;

@@ -2519,11 +2519,12 @@ TEST(expand_unit_test, expand_operator_minus_node_test)
     };
 
     yylineno = 3;
-    current_file_name = (char*)"test.a";
+    current_file_name = const_cast<char*>(static_cast<const char*>("test.a"));
     const parse_node_ptr nodes[] =
     {
         operator_node(ORG, 1, constant_node(0x1000, false)),
 
+        label_node(const_cast<char*>(static_cast<const char*>("MyLabel"))),
         opcode_node(_ldx, I, 1,
             constant_node(0xFF, 0)),
 
@@ -2534,7 +2535,8 @@ TEST(expand_unit_test, expand_operator_minus_node_test)
         opcode_node(_dex, i, 0),
 
         opcode_node(_bne, r, 1,
-            label_node((char*)"-"))
+                    // ReSharper disable once CppStringLiteralToCharPointerConversion
+                    label_node(const_cast<char*>(static_cast<const char*>("-"))))
     };
     expand_file_output_template(expected, _countof(expected), nodes, _countof(nodes));
     expand_unit_test_method_cleanup();

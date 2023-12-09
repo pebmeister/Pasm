@@ -23,8 +23,8 @@ void* item_at(const instance_data_ptr stack_instance, const long index)
     assert(index >= 0 && index < stack_instance->stack_size);
     assert(stack_instance->item_size >= 0);
 
-    uint8_t* item_ptr = (uint8_t*)stack_instance->item_array;
-    item_ptr += ((size_t)index) * stack_instance->item_size;
+    uint8_t* item_ptr = static_cast<uint8_t*>(stack_instance->item_array);
+    item_ptr += static_cast<size_t>(index) * stack_instance->item_size;
     return item_ptr;
 }
 
@@ -46,7 +46,7 @@ long push(const instance_data_ptr stack_instance, const void* value)
         if (stack_instance->stack_size == 0)
         {
             stack_instance->stack_size += clump_size;
-            void* tmp = MALLOC(((size_t)stack_instance->stack_size * stack_instance->item_size));
+            void* tmp = MALLOC((static_cast<size_t>(stack_instance->stack_size) * stack_instance->item_size));
             if (tmp == NULL)
             {
                 error2(error_out_of_memory, "Can't expand stack.");
@@ -57,7 +57,7 @@ long push(const instance_data_ptr stack_instance, const void* value)
         else
         {
             stack_instance->stack_size += clump_size;
-            void* tmp = REALLOC(stack_instance->item_array, ((size_t)stack_instance->stack_size * stack_instance->item_size));
+            void* tmp = REALLOC(stack_instance->item_array, (static_cast<size_t>(stack_instance->stack_size) * stack_instance->item_size));
             if (tmp == NULL)
             {
                 error2(error_out_of_memory, "Can't expand stack.");
@@ -66,15 +66,15 @@ long push(const instance_data_ptr stack_instance, const void* value)
             stack_instance->item_array = tmp;
         }
 #ifdef _DEBUG
-        uint8_t* item_ptr = (uint8_t*)stack_instance->item_array;
-        item_ptr += (size_t)(stack_instance->index + 1) * stack_instance->item_size;
-        memset(item_ptr, 0xCC, (size_t)(stack_instance->stack_size - (stack_instance->index + 1)) * stack_instance->item_size);
+        uint8_t* item_ptr = static_cast<uint8_t*>(stack_instance->item_array);
+        item_ptr += static_cast<size_t>(stack_instance->index + 1) * stack_instance->item_size;
+        memset(item_ptr, 0xCC, static_cast<size_t>(stack_instance->stack_size - (stack_instance->index + 1)) * stack_instance->item_size);
 #endif
 
     }
-    unsigned char* item_ptr = (unsigned char*)stack_instance->item_array;
+    unsigned char* item_ptr = static_cast<unsigned char*>(stack_instance->item_array);
     // item_ptr += (size_t)(stack_instance->index + 1) * stack_instance->item_size;
-    item_ptr += ((size_t)stack_instance->index + 1) * stack_instance->item_size;
+    item_ptr += (static_cast<size_t>(stack_instance->index) + 1) * stack_instance->item_size;
     memcpy(item_ptr, value, stack_instance->item_size);
     return ++(stack_instance->index);
 }
@@ -133,7 +133,7 @@ void clear_stack(const instance_data_ptr stack_instance)
  */
 stack_ptr create_stack(const size_t item_size)
 {
-    const instance_data_ptr data = (instance_data_ptr) MALLOC(sizeof(instance_data));
+    const instance_data_ptr data = static_cast<instance_data_ptr>(MALLOC(sizeof(instance_data)));
     if (data == NULL)
     {
         error2(error_out_of_memory, "Can't create stack.");
@@ -142,10 +142,10 @@ stack_ptr create_stack(const size_t item_size)
     memset(data, 0, sizeof(instance_data));
     data->index = -1;
     data->stack_size = 0;
-    data->item_size = (long)item_size;
+    data->item_size = static_cast<long>(item_size);
     data->item_array = NULL;
 
-    const stack_ptr sp = (stack_ptr)MALLOC(sizeof(stack));
+    const stack_ptr sp = static_cast<stack_ptr>(MALLOC(sizeof(stack)));
     if (sp == NULL)
     {
         error2(error_out_of_memory, "Can't create stack.");
@@ -175,7 +175,7 @@ void free_stack(const stack_ptr sp)
     if (sp->instance->item_array != NULL)
     {
 #ifdef _DEBUG
-        memset(sp->instance->item_array, 0xCC, (size_t)sp->instance->item_size * sp->instance->stack_size);
+        memset(sp->instance->item_array, 0xCC, static_cast<size_t>(sp->instance->item_size) * sp->instance->stack_size);
 #endif
         FREE(sp->instance->item_array);
         sp->instance->item_array = NULL;

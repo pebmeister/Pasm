@@ -1,7 +1,7 @@
 %option case-insensitive yylineno noyywrap
  
 %{
-#pragma warning(disable:6011 6387 4996 4090)
+#pragma warning(disable:6011 6387 4996 4090  4244)
 
 
 #include <stdbool.h>
@@ -18,18 +18,13 @@
 
 int do_count = 0;
 static char* last_token = nullptr;
+static bool Debug_Token = false;
+extern bool Debug_Bison;
+extern bool Debug_AddList;
 
-// #define DEBUG_TOKEN
 
-
-#ifdef DEBUG_TOKEN
-#define P_TOK(str)          { fprintf(console, "TOK (%10s) %s\n", (yytext[0] == '\n' ? "EOL" : yytext), (str)); if (yytext[0] == '\n') fprintf(console, "\n"); }
-#define P_C_TOK(ch)         { fprintf(console, "TOK (%10s) %c\n", yytext, ch ); }
-#else
-#define P_TOK(str)
-#define P_C_TOK(ch)
-#endif
-
+#define P_TOK(str)          { if (Debug_Token) { fprintf(console, "TOK (%10s) %s\n", (yytext[0] == '\n' ? "EOL" : yytext), (str)); if (yytext[0] == '\n') fprintf(console, "\n");}}
+#define P_C_TOK(ch)         { if (Debug_Token) { fprintf(console, "TOK (%10s) %c\n", yytext, ch ); }}
 
 
 #define SV_TOK              { if (last_token != nullptr) FREE(last_token); last_token = (char*)STRDUP(yytext); }
@@ -323,6 +318,15 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
 ".C64"                      {                       SV_TOK output_file_format = c64;                }
 ".PRINT"[ \t]"ON"           {                       P_TOK("PRINTON") SV_TOK return PRINTON;         }
 ".PRINT"[ \t]"OFF"          {                       P_TOK("PRINTOFF") SV_TOK return PRINTOFF;       }
+
+".DEBUG_TOKEN"[ \t]"ON"     { P_TOK("DEBUGTOKEN ON")       SV_TOK Debug_Token = true;               }
+".DEBUG_TOKEN"[ \t]"OFF"    { P_TOK("DEBUGTOKEN OFF")      SV_TOK Debug_Token = false;              }
+".DEBUG_BISON"[ \t]"ON"     { P_TOK("DEBUG_BISON ON")      SV_TOK Debug_Bison = true;               }
+".DEBUG_BISON"[ \t]"OFF"    { P_TOK("DEBUG_BISON OFF")     SV_TOK Debug_Bison = false;              }
+".DEBUG_ADDLIST"[ \t]"ON"   { P_TOK("DEBUG_ADDLIST ON")    SV_TOK Debug_AddList = true;             }
+".DEBUG_ADDLIST"[ \t]"OFF"  { P_TOK("DEBUG_ADDLIST OFF")   SV_TOK Debug_AddList = false;              }
+
+
 [\\][1-9]+[0-9]*            {
                                 P_TOK("SYMBOL")
                                 SV_TOK
@@ -384,7 +388,7 @@ $[0-9A-Fa-f]*               { SV_TOK INT(1, 16)}
                                 if (sym != NULL)
                                 {
                                     if (sym->is_macro_name)
-                                    {
+                                    { 
                                         P_TOK("MACSYMBOL")
                                         return MACSYMBOL;
                                     }
@@ -393,6 +397,11 @@ $[0-9A-Fa-f]*               { SV_TOK INT(1, 16)}
                                 {
                                     if (sym != nullptr)
                                         sym->is_label = true;
+                                    if (in_macro_definition > 0)
+                                    {
+                                        P_TOK("SYMBOL")
+                                        return SYMBOL;
+                                    }                                    
                                     P_TOK("LABEL")
                                     return LABEL;
                                 }

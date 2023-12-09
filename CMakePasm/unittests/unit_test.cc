@@ -975,6 +975,7 @@ void execute_text(const char* text, const unsigned char* expected, const size_t 
 
         fseek(output_file, 0, SEEK_SET);
         fread(buffer, 1, count, output_file);
+        fclose(output_file);
 
         for (size_t i = 0; i < count; ++ i)
         {
@@ -986,7 +987,6 @@ void execute_text(const char* text, const unsigned char* expected, const size_t 
             }
         }
 
-        fclose(output_file);
         free(buffer);
 
         if (expected_text != nullptr)
@@ -1003,8 +1003,21 @@ void execute_text(const char* text, const unsigned char* expected, const size_t 
             fread(buffer, 1, pos, console);
             fclose(console);
 
+
             EXPECT_TRUE(pos >= len);
             result = strncmp(expected_text, reinterpret_cast<char*>(buffer), len);
+            if (result != 0)
+            {
+                for (auto i = 0; i < len; ++i)
+                {
+                    auto e = expected_text[i];
+                    auto a = static_cast<char>(buffer[i]);
+                    if (e != a)
+                    {
+                        EXPECT_EQ(e, a);
+                    }
+                }
+            }
             EXPECT_EQ(0, result);
 
             free(buffer);

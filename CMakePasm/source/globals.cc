@@ -6,7 +6,7 @@
 #include <fstream>
 
 #include "pasm.h"
-#include "stacks.h"
+#include "sym.h"
 
 stack_ptr file_stack = nullptr;
 stack_ptr ifdef_stack = nullptr;
@@ -40,6 +40,10 @@ int pass = 0;
 int program_counter = 0;
 int data_size = 0;
 int input_file_count = 0;
+extern int plus_symbol_table_index;
+extern int minus_symbol_table_index;
+extern int plus_symbol_table_size;
+extern int minus_symbol_table_size;
 
 void init_globals()
 {
@@ -68,6 +72,17 @@ void init_globals()
     sym_file_name = nullptr;
     list_file_name = nullptr;
     log_file_name = nullptr;
+    minus_symbol_table = nullptr;
+    minus_symbol_table_index = 0;
+
+
+    plus_symbol_table_index = 0;
+    plus_symbol_table_size = 0;
+    plus_symbol_table = NULL;
+
+    minus_symbol_table_index = 0;
+    minus_symbol_table_size = 0;
+    minus_symbol_table = NULL;
 
     in_macro_definition = 0;
     output_file_format = bin;

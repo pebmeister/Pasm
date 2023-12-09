@@ -16,7 +16,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 
 #include "expand.h"
 #include "dictionary.h"
@@ -29,6 +28,9 @@
 #include "genoutput.h"
 #include "memory.h"
 #include "pasm.h"
+
+extern bool Debug_AddList;
+extern void print_node(parse_node_ptr p, std::ostream& file);
 
 enum
 {
@@ -48,7 +50,7 @@ int sym_value_changed = 0;
 // nest level of expand_node();
 int expand_level = 0;
 
-dictionary_ptr macro_dict = NULL;
+dictionary_ptr macro_dict = nullptr;
 
 int print_list_state = 1;
 
@@ -109,8 +111,8 @@ const int dec[] =
 };
 
 
-char* current_scope = NULL;
-char* last_label = NULL;
+char* current_scope = nullptr;
+char* last_label = nullptr;
 
 // 
 // function prototypes
@@ -199,17 +201,17 @@ int for_y_count = 0;
 //
 // node to inject a byte
 //
-static parse_node_ptr generate_byte_node = NULL;
-static parse_node_ptr generate_fill_node1 = NULL;
-static parse_node_ptr generate_fill_node2 = NULL;
+static parse_node_ptr generate_byte_node = nullptr;
+static parse_node_ptr generate_fill_node1 = nullptr;
+static parse_node_ptr generate_fill_node2 = nullptr;
 
 //
 // expansion type for expressions
 //
-static enum ExprExpansionType expansion_type = macro_parameter;
+static ExprExpansionType expansion_type = macro_parameter;
 
-dictionary_ptr expand_operator_table_dictionary = NULL;
-dictionary_ptr expand_table_dictionary = NULL;
+dictionary_ptr expand_operator_table_dictionary = nullptr;
+dictionary_ptr expand_table_dictionary = nullptr;
 
 /// <summary>
 /// Initialize expander
@@ -217,7 +219,7 @@ dictionary_ptr expand_table_dictionary = NULL;
 /// </summary>
 void init_expander(void)
 {
-    if (expand_operator_table_dictionary != NULL && expand_table_dictionary != NULL) return;
+    if (expand_operator_table_dictionary != nullptr && expand_table_dictionary != nullptr) return;
 
     op_table expand_operator_table[] =
     {
@@ -293,12 +295,12 @@ void destroy_expander(void)
     if (expand_table_dictionary)
     {
         dict_destroy(expand_table_dictionary);
-        expand_table_dictionary = NULL;
+        expand_table_dictionary = nullptr;
     }
     if (expand_operator_table_dictionary)
     {
         dict_destroy(expand_operator_table_dictionary);
-        expand_operator_table_dictionary = NULL;
+        expand_operator_table_dictionary = nullptr;
     }
 }
 
@@ -307,7 +309,7 @@ void destroy_expander(void)
 //
 int is_plus_minus_symbol_name_valid(char* name)
 {
-    if (name == NULL) return 0;
+    if (name == nullptr) return 0;
     if (name[0] != '-' && name[0] != '+') return 0;
 
     for (char* ptr = name; *ptr; ++ptr)
@@ -363,35 +365,40 @@ int expand_operator_fill_node(const parse_node_ptr p)
     if (final_pass) 
     {
         data_size = 0;
-        generate_fill_node2 = NULL;
-        generate_fill_node1 = NULL;
+        generate_fill_node2 = nullptr;
+        generate_fill_node1 = nullptr;
 
         while (count > 0)
         {
             if (count > 1)
             {
                 data_size = data_word;
-                if (generate_fill_node2 == NULL)
+                if (generate_fill_node2 == nullptr)
                 {
-                    const int val = (unsigned)byt << 8 | byt;
-                    generate_fill_node2 = constant_node(val, false);
+                    generate_fill_node2 = data_node(data_word, constant_node(byt << 8 | byt, false));
                 }
-                const int bytes = generate_output(output_file, generate_fill_node2);
+                int bytes = generate_output(output_file, generate_fill_node2);
+                if (bytes == 0)
+                    bytes = 2;
                 generate_list_node(generate_fill_node2);
                 program_counter += bytes;
                 count -= bytes;
+
             }
             else if (count == 1)
             {
                 data_size = data_byte;
-                if (generate_fill_node1 == NULL)
+                if (generate_fill_node1 == nullptr)
                 {
-                    generate_fill_node1 = constant_node(byt, false);
+                    generate_fill_node1 = data_node(data_byte, constant_node(byt, false));
                 }
-                const int bytes = generate_output(output_file, generate_fill_node1);
+                int bytes = generate_output(output_file, generate_fill_node1);
+                if (bytes == 0)
+                    bytes = 1;
                 generate_list_node(generate_fill_node1);
                 program_counter += bytes;
                 count -= bytes;
+
             }
         }
     }
@@ -409,7 +416,7 @@ int expand_operator_load_node(const parse_node_ptr p)
 {
     const char* file = p->op[0]->str.value;
     FILE* fd = open_file(file, "rb");
-    if (fd == NULL)
+    if (fd == nullptr)
     {
         error(error_cant_open_include_file);
     }
@@ -464,40 +471,41 @@ int expand_operator_variable_node(const parse_node_ptr p)
     return 0;
 }
 
+int expand_plus_minus_node(const parse_node_ptr p)
+{
+    if (!is_plus_minus_symbol_name_valid(p->id.name))
+    {
+        error(error_adding_symbol);
+        return 0;
+    }
+
+    const int index = p->id.name[0] == '-'
+        ? find_minus_symbol(strlen(p->id.name), current_file_name, yylineno)
+        : find_plus_symbol(strlen(p->id.name), current_file_name, yylineno);
+
+    const symbol_table_ptr sym = p->id.i == nullptr ? add_symbol(p->id.name) : p->id.i;
+    sym->is_plus_minus = true;
+    if (index >= 0)
+    {
+        sym->value = p->id.name[0] == '-'
+            ? minus_symbol_table[index].value
+            : plus_symbol_table[index].value;
+
+        sym->is_initialized = true;
+        sym->times_accessed++;
+    }
+    p->id.i = sym;
+
+    return sym->value;
+}
+
 //
 // symbol
 //
 int expand_id_node(const parse_node_ptr p)
 {
-    if (p->id.name[0] == '-')
-    {
-        if (!is_plus_minus_symbol_name_valid(p->id.name))
-        {
-            error(error_adding_symbol);
-            return 0;
-        }
-
-        const int index = find_minus_symbol(strlen(p->id.name), current_file_name, yylineno);
-        if (index >= 0)
-            return minus_symbol_table[index].value;
-
-        return 0;
-    }
-
-    if (p->id.name[0] == '+')
-    {
-        if (!is_plus_minus_symbol_name_valid(p->id.name))
-        {
-            error(error_adding_symbol);
-            return 0;
-        }
-
-        const int index = find_plus_symbol(strlen(p->id.name), current_file_name, yylineno);
-        if (index >= 0)
-            return plus_symbol_table[index].value;
-
-        return 0;
-    }
+    if (p->id.name[0] == '-' || p->id.name[0] == '+')
+        return expand_plus_minus_node(p);
 
     symbol_table_ptr sym = p->id.i;
     if (p->id.name[0] == '@')
@@ -505,11 +513,11 @@ int expand_id_node(const parse_node_ptr p)
         sym = add_symbol(p->id.name);
         p->id.i = sym;
     }
-    if (sym == NULL)
+    if (sym == nullptr)
     {
         sym = add_symbol(p->id.name);
         p->id.i = sym;
-        if (sym == NULL)
+        if (sym == nullptr)
         {
             // FatalError(error_out_of_memory);
             return 0;
@@ -523,42 +531,15 @@ int expand_id_node(const parse_node_ptr p)
 //
 int expand_label_node(const parse_node_ptr p)
 {
-    if (p->id.name[0] == '-')
-    {
-        if (!is_plus_minus_symbol_name_valid(p->id.name))
-        {
-            error(error_adding_symbol);
-            return 0;
-        }
-
-        const int index = find_minus_symbol(strlen(p->id.name), current_file_name, yylineno);
-        if (index >= 0)
-            return minus_symbol_table[index].value;
-
-        return 0;
-    }
-
-    if (p->id.name[0] == '+')
-    {
-        if (!is_plus_minus_symbol_name_valid(p->id.name))
-        {
-            error(error_adding_symbol);
-            return 0;
-        }
-
-        const int index = find_plus_symbol(strlen(p->id.name), current_file_name, yylineno);
-        if (index >= 0)
-            return plus_symbol_table[index].value;
-
-        return 0;
-    }
+    if (p->id.name[0] == '-' || p->id.name[0] == '+')
+        return expand_plus_minus_node(p);
 
     symbol_table_ptr symbol_ptr = p->id.i;
-    if (symbol_ptr == NULL)
+    if (symbol_ptr == nullptr)
     {
         p->id.i = add_symbol(p->id.name);
         symbol_ptr = p->id.i;
-        if (symbol_ptr == NULL)
+        if (symbol_ptr == nullptr)
         {
             error(error_out_of_memory);
             exit(-1);
@@ -578,7 +559,7 @@ int expand_operator_for_reg_node(const parse_node_ptr p)
     // must convert to 1 or 0
     const int is_reg_x = p->opr.opr == REGX ? 1 : 0;
 
-    parse_node_ptr loop_branch = NULL;
+    parse_node_ptr loop_branch = nullptr;
     const int cmp_op = cmp[is_reg_x];
     const int ld_op = ld[is_reg_x];
     int inc_op = inc[is_reg_x];
@@ -709,7 +690,7 @@ int expand_data_node(const parse_node_ptr p)
         expansion_type = data_strings;
         data_size = 0;
     }
-    const int result = expand_node((parse_node_ptr)(p->data.data));
+    const int result = expand_node(static_cast<parse_node_ptr>(p->data.data));
     return result;
 }
 
@@ -719,11 +700,11 @@ int expand_data_node(const parse_node_ptr p)
 int expand_operator_section_node(const parse_node_ptr p)
 {
     char* name = p->op[0]->id.name;
-    if (current_scope != NULL)
+    if (current_scope != nullptr)
     {
         const size_t len = strlen(current_scope) + strlen(name) + 2;
-        char* temp_name = (char*)MALLOC(len);
-        if (temp_name == NULL)
+        char* temp_name = static_cast<char*>(MALLOC(len));
+        if (temp_name == nullptr)
         {
             error(error_out_of_memory);
             exit(-1);
@@ -736,7 +717,7 @@ int expand_operator_section_node(const parse_node_ptr p)
     else
     {
         current_scope = (char*) STRDUP(name);  // NOLINT(clang-diagnostic-incompatible-pointer-types-discards-qualifiers)
-        if (current_scope == NULL)
+        if (current_scope == nullptr)
         {
             error(error_out_of_memory);
             return 0;
@@ -753,7 +734,7 @@ int expand_operator_section_node(const parse_node_ptr p)
 /// <returns>0 in all paths</returns>
 int expand_operator_end_section_node(parse_node_ptr p)
 {
-    if (current_scope == NULL)
+    if (current_scope == nullptr)
     {
         error(error_end_section_without_section);
         return 0;
@@ -767,7 +748,7 @@ int expand_operator_end_section_node(parse_node_ptr p)
     else
     {
         FREE(current_scope);
-        current_scope = NULL;
+        current_scope = nullptr;
     }
     return 0;
 }
@@ -826,7 +807,7 @@ int expand_op_code_node(const parse_node_ptr p)
         origin_specified = true;
 
     p->opcode.program_counter = program_counter;
-
+ 
     switch (p->opcode.mode)
     {
     default:
@@ -846,6 +827,9 @@ int expand_op_code_node(const parse_node_ptr p)
         break;
 
     case r:     /* relative             */
+        op_bytes = 2;
+        break;
+
     case a:     /* absolute             */
         op_bytes = 2;
         mode_check = zp;
@@ -883,16 +867,49 @@ int expand_op_code_node(const parse_node_ptr p)
             int op_value = expand_node(pp);
 
             // fix for local labels
-            if (op_value == 0 && p->opcode.mode == r && p->number_of_ops == 1 && pp->type == type_id && pp->id.name[0] == '@')
+            const char ch = (pp->type == type_id) ? pp->id.name[0] : 0;
+            if (op_value == 0 && p->opcode.mode == r && p->number_of_ops == 1 && pp->type == type_id 
+                && (ch == '@' || ch == '-' || ch =='+') )
                 op_value = program_counter;
 
             // ReSharper disable once CppRedundantParentheses
             large_op = large_op | ((op_value & ~0xFF) != 0);
 
             out_of_range = out_of_range | ((op_value & ~0xFFFF) != 0 || (op_bytes < 2 && large_op));
-            if (out_of_range)
+            if (out_of_range && op_bytes < 2 && (op_value & ~0xFFFF) == 0)
             {
-                error(error_value_out_of_range);
+                switch (p->opcode.mode)
+                {
+                case zp:
+                    mode_check = a;
+                    break;
+
+                case zpi:
+                    mode_check = ind;
+                    break;
+
+                case zpx:
+                    mode_check = ax;
+                    break;
+
+                case zpy:
+                    mode_check = ay;
+                    break;
+
+                default:
+                    error(error_value_out_of_range);
+                    break;
+                }
+                code2 = get_op_code(p->opcode.instruction, mode_check);
+                if (code2 != -1)
+                {
+                    p->opcode.mode = mode_check;
+                    p->opcode.opcode = code2;
+                }
+                else
+                {
+                    error(error_value_out_of_range);
+                }
                 break;
             }
 
@@ -939,7 +956,7 @@ int expand_op_code_node(const parse_node_ptr p)
                         const parse_node_ptr target = p->op[index];
                         const parse_node_ptr jmp = opcode_node(_jmp, a, 1, target);
 
-                        if (target == NULL || jmp == NULL)
+                        if (target == nullptr || jmp == nullptr)
                         {
                             error(error_out_of_memory);
                             exit(-1);
@@ -982,7 +999,7 @@ int expand_op_code_node(const parse_node_ptr p)
             }
         }
     }
-
+    
     if (final_pass)
     {
         generate_list_node(p);
@@ -1003,10 +1020,9 @@ int expand_print_state_node(const parse_node_ptr p)
     if (final_pass)
     {
         generate_list_node(p);
+
         if (p->pr.print_state)
-        {
-            generate_list_node(NULL);
-        }
+            generate_list_node(nullptr);
     }
     return 1;
 }
@@ -1076,14 +1092,12 @@ int expand_operator_program_counter_assign_node(const parse_node_ptr p)
         {
             if (final_pass)
             {
-                const int len = op - program_counter;
-                if (generate_byte_node == NULL)
+                if (generate_byte_node == nullptr)
                     generate_byte_node = data_node(data_byte, constant_node(0, 0));
                 data_size = 1;
                 while (program_counter < op)
                 {
-                    if (len < 20)
-                        generate_list_node(generate_byte_node);
+                    generate_list_node(generate_byte_node);
                     generate_output(output_file, generate_byte_node);
                     program_counter++;
                 }
@@ -1122,7 +1136,7 @@ int expand_operator_org_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_expression_list_node(const parse_node_ptr p)
 {
-    symbol_table_ptr symbol_ptr = NULL;
+    symbol_table_ptr symbol_ptr = nullptr;
     char sym_name[max_macro_param_name_len] = { 0 };
 
     for (int index = 0; index < p->number_of_ops; index++)
@@ -1145,11 +1159,11 @@ int expand_operator_expression_list_node(const parse_node_ptr p)
             case type_id:
             case type_label:
                 symbol_ptr = pp->id.i;
-                if (symbol_ptr == NULL)
+                if (symbol_ptr == nullptr)
                 {
                     pp->id.i = add_symbol(pp->id.name);
                     symbol_ptr = pp->id.i;
-                    if (symbol_ptr == NULL)
+                    if (symbol_ptr == nullptr)
                     {
                         error(error_adding_symbol);
                         break;
@@ -1161,10 +1175,10 @@ int expand_operator_expression_list_node(const parse_node_ptr p)
                 break;
 
             default:
-                if (symbol_ptr != NULL)
+                if (symbol_ptr != nullptr)
                 {
                     set_symbol_value(symbol_ptr, expand_node(pp));
-                    symbol_ptr = NULL;
+                    symbol_ptr = nullptr;
                 }
                 else
                 {
@@ -1177,7 +1191,7 @@ int expand_operator_expression_list_node(const parse_node_ptr p)
 
         case macro_parameter:
             switch (pp->type)  // NOLINT(clang-diagnostic-switch-enum)
-            {
+            { 
             case type_con:
             case type_id:
             case type_label:
@@ -1197,7 +1211,7 @@ int expand_operator_expression_list_node(const parse_node_ptr p)
 
             sprintf(sym_name, "\\%d", macro_parameter_index);
             symbol_ptr = add_symbol(sym_name);
-            if (symbol_ptr != NULL)
+            if (symbol_ptr != nullptr)
             {
                 set_symbol_value(symbol_ptr, expand_node(pp));
                 symbol_ptr->is_initialized = true;
@@ -1317,23 +1331,23 @@ struct macro_dict_entry
 /// <summary>
 /// Create a Macro entry
 /// </summary>
-struct macro_dict_entry* create_macro_entry(const char* name)
+macro_dict_entry* create_macro_entry(const char* name)
 {
     // ReSharper disable once CppTooWideScope
-    if (macro_dict == NULL)
-        macro_dict = dict_create(sizeof(struct macro_dict_entry*), 0);
+    if (macro_dict == nullptr)
+        macro_dict = dict_create(sizeof(macro_dict_entry*), 0);
 
-    struct macro_dict_entry* macro_dict_entry = (struct macro_dict_entry*) dict_search(macro_dict, name);
-    if (macro_dict_entry == NULL)
+    auto* macro_dict_entry = static_cast<struct macro_dict_entry*>(dict_search(macro_dict, name));
+    if (macro_dict_entry == nullptr)
     {
-        macro_dict_entry = (struct macro_dict_entry*)MALLOC(sizeof(struct macro_dict_entry));
-        if (macro_dict_entry == NULL)
+        macro_dict_entry = static_cast<struct macro_dict_entry*>(MALLOC(sizeof(struct macro_dict_entry)));
+        if (macro_dict_entry == nullptr)
         {
             error(error_out_of_memory);
             exit(-1);
         }
         macro_dict_entry->times_executed = 0;
-        dict_insert(&macro_dict, (char*)name, macro_dict_entry);
+        dict_insert(&macro_dict, const_cast<char*>(name), macro_dict_entry);
     }
     return macro_dict_entry;
 }
@@ -1345,15 +1359,15 @@ void reset_macro_dict(void)
 {
     code_generated = 0;
 
-    if (macro_dict == NULL)
+    if (macro_dict == nullptr)
     {
-        macro_dict = dict_create(sizeof(struct macro_dict_entry*), 0);
+        macro_dict = dict_create(sizeof(macro_dict_entry*), 0);
     }
     for (int index = 0; index < macro_dict->size; index++)
     {
-        for (element_ptr element = macro_dict->table[index]; element != 0; element = element->next)
+        for (element_ptr element = macro_dict->table[index]; element != nullptr; element = element->next)
         {
-            struct macro_dict_entry* entry = (struct macro_dict_entry*)element->value;
+            auto* entry = static_cast<struct macro_dict_entry*>(element->value);
             entry->times_executed = 0;
         }
     }
@@ -1366,11 +1380,11 @@ void reset_macro_dict(void)
 /// <returns>int.</returns>
 int expand_macro_id_node(const parse_node_ptr p)
 {
-    const struct macro_dict_entry* macro_dict_entry = create_macro_entry(p->id.name);
+    const macro_dict_entry* macro_dict_entry = create_macro_entry(p->id.name);
 
     char* temp = last_label;
     sprintf(internal_buffer, "%s::%8.8X", p->id.name, macro_dict_entry->times_executed);
-    last_label = (char*) STRDUP(internal_buffer);
+    last_label = const_cast<char*>(STRDUP(internal_buffer));
 
     expand_id_node(p);
 
@@ -1380,7 +1394,7 @@ int expand_macro_id_node(const parse_node_ptr p)
         last_label = temp;
         return 0;
     }
-    expand_node((parse_node_ptr)sym->macro_node);
+    expand_node(static_cast<parse_node_ptr>(sym->macro_node));
 
     last_label = temp;
 
@@ -1394,21 +1408,21 @@ int expand_macro_id_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_macro_expansion_node(const parse_node_ptr p)
 {
-    struct macro_dict_entry* macro_dict_entry = create_macro_entry(p->macro.name);
+    macro_dict_entry* macro_dict_entry = create_macro_entry(p->macro.name);
     push_macro_params();
 
     expansion_type = macro_parameter;
     macro_parameter_index = 0;
 
-    if (p->macro.macro_params != NULL)
-        expand_node((parse_node_ptr)p->macro.macro_params);
+    if (p->macro.macro_params != nullptr)
+        expand_node(static_cast<parse_node_ptr>(p->macro.macro_params));
 
     char* temp = last_label;
     sprintf(internal_buffer, "%s::%.4X", p->macro.name, macro_dict_entry->times_executed);
     last_label = (char*) STRDUP(internal_buffer);
 
-    if (p->macro.macro != NULL)
-        expand_node((parse_node_ptr)p->macro.macro);
+    if (p->macro.macro != nullptr)
+        expand_node(static_cast<parse_node_ptr>(p->macro.macro));
 
     macro_dict_entry->times_executed++;
 
@@ -1430,7 +1444,7 @@ int expand_operator_macro_definition_node(const parse_node_ptr p)
     create_macro_entry(macro_id->id.name);
 
     const symbol_table_ptr sym = add_symbol(macro_id->id.name);
-    if (sym == NULL)
+    if (sym == nullptr)
     {
         error(error_out_of_memory);
         exit(-1);
@@ -1510,7 +1524,7 @@ int expand_operator_do_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_for_node(const parse_node_ptr p)
 {
-    symbol_table_ptr start_sym = NULL;
+    symbol_table_ptr start_sym = nullptr;
     int step_val = 1;
 
     if (p->number_of_ops == 5)
@@ -1519,10 +1533,10 @@ int expand_operator_for_node(const parse_node_ptr p)
     const parse_node_ptr pp = p->op[0];
     if (pp->op[0]->type == type_id)
     {
-        if (pp->op[0]->id.i == NULL)
+        if (pp->op[0]->id.i == nullptr)
             pp->op[0]->id.i = add_symbol(pp->op[0]->id.name);
         start_sym = pp->op[0]->id.i;
-        if (start_sym == NULL)
+        if (start_sym == nullptr)
         {
             error(error_out_of_memory);
             exit(-1);
@@ -1530,11 +1544,11 @@ int expand_operator_for_node(const parse_node_ptr p)
     }
 
     expand_node(p->op[0]);
-    if (p->op[3]->id.i == NULL)
+    if (p->op[3]->id.i == nullptr)
         p->op[3]->id.i = add_symbol(p->op[3]->id.name);
 
     const symbol_table_ptr sym = p->op[3]->id.i;
-    if (sym == NULL)
+    if (sym == nullptr)
     {
         error(error_out_of_memory);
         exit(-1);
@@ -1640,14 +1654,14 @@ int expand_operator_ds_node(const parse_node_ptr p)
     }
     if (final_pass)
     {
-        generate_fill_node2 = NULL;
-        generate_fill_node1 = NULL;
+        generate_fill_node2 = nullptr;
+        generate_fill_node1 = nullptr;
         data_size = 0;
         while (count > 0)
         {
             if (count > 1)
             {
-                if (generate_fill_node2 == NULL)
+                if (generate_fill_node2 == nullptr)
                 {
                     generate_fill_node2 = data_node(data_word, constant_node(0, false));
                 }
@@ -1658,7 +1672,7 @@ int expand_operator_ds_node(const parse_node_ptr p)
             }
             else if (count == 1)
             {
-                if (generate_fill_node1 == NULL)
+                if (generate_fill_node1 == nullptr)
                 {
                     generate_fill_node1 = data_node(data_byte, constant_node(0, false));
                 }
@@ -1749,10 +1763,10 @@ int expand_operator_equ_node(const parse_node_ptr p)
         return op;
     }
 
-    if (p->op[0]->id.i == NULL || p->op[0]->id.name[0] == '@')
+    if (p->op[0]->id.i == nullptr || p->op[0]->id.name[0] == '@')
         p->op[0]->id.i = add_symbol(p->op[0]->id.name);
     symbol_table_ptr sym = p->op[0]->id.i;
-    if (sym == NULL)
+    if (sym == nullptr)
     {
         error(error_out_of_memory);
         exit(-1);
@@ -1763,8 +1777,8 @@ int expand_operator_equ_node(const parse_node_ptr p)
         if (!sym->scope && current_scope)
         {
             const int len = strlen(sym->name) + strlen(current_scope) + 2;
-            char* temp = (char*)MALLOC(len);
-            if (temp == NULL)
+            char* temp = static_cast<char*>(MALLOC(len));
+            if (temp == nullptr)
             {
                 error(error_out_of_memory);
                 exit(-1);
@@ -1968,7 +1982,7 @@ int expand_operator_less_than_or_equal_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_node(const parse_node_ptr p)
 {
-    const expr* fun = (expr*) dict_search(expand_operator_table_dictionary, (void*)(size_t)(p->opr.opr));
+    const expr* fun = static_cast<expr*>(dict_search(expand_operator_table_dictionary, (void*)static_cast<size_t>(p->opr.opr)));
 
     if (fun)
         return (*fun)(p);
@@ -1984,7 +1998,7 @@ int expand_operator_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_node(const parse_node_ptr p)
 {
-    if (p == NULL)
+    if (p == nullptr)
         return 0;
 
     expand_level++;
@@ -1995,12 +2009,12 @@ int expand_node(const parse_node_ptr p)
         return 0;
     }
 
-    if (expand_table_dictionary == NULL)
+    if (expand_table_dictionary == nullptr)
     {
         init_expander();
     }
 
-    const expr* fun = (expr*) dict_search(expand_table_dictionary, (void*)p->type);
+    const expr* fun = static_cast<expr*>(dict_search(expand_table_dictionary, (void*)p->type));
 
     if (fun)
     {
@@ -2024,7 +2038,7 @@ int is_uninitialized_symbol(const parse_node_ptr p)
 {
     if (p->type == type_label || p->type == type_id)
     {
-        if (p->id.i == NULL)
+        if (p->id.i == nullptr)
             return true;
         const symbol_table_ptr sym = p->id.i;
         if (sym->is_macro_param || sym->is_macro_name)
@@ -2054,7 +2068,7 @@ static dictionary_ptr create_op_table_dictionary(op_table table[], const size_t 
     dictionary_ptr dictionary = dict_create(sizeof(op_table), -1);
     for (size_t i = 0; i < size; ++i)
     {
-        dict_insert(&dictionary, (void*)(size_t)table[i].tag, &table[i].function);
+        dict_insert(&dictionary, (void*)static_cast<size_t>(table[i].tag), &table[i].function);
     }
     return dictionary;
 }
