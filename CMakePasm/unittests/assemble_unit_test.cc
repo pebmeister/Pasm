@@ -262,7 +262,7 @@ TEST(assemble_unit_test, stmt_directive_unit_test)
 
     const auto code =
         "   .org $1000\n"
-        "   .ds 1\n";
+        "   brk\n";
 
     constexpr unsigned char expected[] =
     {
@@ -282,7 +282,7 @@ TEST(assemble_unit_test, stmt_directive_unit_test)
         "\n"
         "; Processing execute_text.a\n"
         "                                                .org $1000\n"
-        "$1000: $00               .db $00                .ds 1\n"
+        "$1000: $00               brk                    brk\n"
         ;
     execute_text(code, expected, _countof(expected), expect_list);
 
@@ -364,7 +364,6 @@ TEST(assemble_unit_test, stmt_symbol_assign_unit_test)
         ;
 
     execute_text(code, expected, _countof(expected), expect_list);
-
     assemble_unit_test_method_cleanup();
 }
 
@@ -373,16 +372,20 @@ TEST(assemble_unit_test, stmt_pc_assign_unit_test)
     assemble_unit_test_method_initialize();
 
     const auto code =
+        "   * = $300\n"
+        "   here\n"
+        "   * = $500\n"
+        "   there\n"
         "   .org $1000\n"
         "   .word *\n"
-        "   * = $1004\n"
-        "   .word *\n";
+        "   .word here\n"
+        "   .word there\n";
 
     constexpr unsigned char expected[] =
     {
         WORD(0x1000),
-        WORD(0x0000),
-        WORD(0x1004)
+        WORD(0x0300),
+        WORD(0x0500)
     };
 
     const auto expect_list =
@@ -390,18 +393,24 @@ TEST(assemble_unit_test, stmt_pc_assign_unit_test)
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
+        "Pass 2\n"
+        "Current File execute_text.a\n"
         "Final Pass\n"
         "Current File execute_text.a\n"
         "\n"
         "6 bytes written to execute_text.bin\n"
         "\n"
+        "           here $0300            there $0500  \n"
         "\n"
         "; Processing execute_text.a\n"
+        "                                                * = $300\n"
+        "                                                here\n"
+        "                                                * = $500\n"
+        "                                                there\n"
         "                                                .org $1000\n"
         "$1000: $00 $10           .db $00, $10           .word *\n"
-        "$1002: $00               .db $00                * = $1004\n"
-        "$1003: $00               .db $00             \n"
-        "$1004: $04 $10           .db $04, $10           .word *\n"
+        "$1002: $00 $03           .db $00, $03           .word here\n"
+        "$1004: $00 $05           .db $00, $05           .word there\n"
         ;
 
     execute_text(code, expected, _countof(expected), expect_list);
@@ -538,10 +547,7 @@ TEST(assemble_unit_test, stmt_regloopexpr_unit_test)
         0x9d, 0x0c, 0x10,
         0xe8,
         0xe0, 0x0b,
-        0x90, 0xf8,
-        0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00
+        0x90, 0xf8
     };
 
     const auto expect_list =
@@ -554,7 +560,7 @@ TEST(assemble_unit_test, stmt_regloopexpr_unit_test)
         "Final Pass\n"
         "Current File execute_text.a\n"
         "\n"
-        "23 bytes written to execute_text.bin\n"
+        "12 bytes written to execute_text.bin\n"
         "\n"
         "           data $100C  \n"
         "\n"
@@ -570,12 +576,7 @@ TEST(assemble_unit_test, stmt_regloopexpr_unit_test)
         "$1008: $E0 $0B           cpx #$0B            \n"
         "$100A: $90 $F8           bcc $1004           \n"
         "                                             \n"
-        "$100C: $00 $00           .db $00, $00            data .ds 11\n"
-        "$100E: $00 $00           .db $00, $00        \n"
-        "$1010: $00 $00           .db $00, $00        \n"
-        "$1012: $00 $00           .db $00, $00        \n"
-        "$1014: $00 $00           .db $00, $00        \n"
-        "$1016: $00               .db $00             \n"
+        "                                                 data .ds 11\n"
         ;
 
     execute_text(code, expected, _countof(expected), expect_list);
@@ -603,7 +604,7 @@ TEST(assemble_unit_test, stmt_macrodef_unit_test)
         "\n"
         "AAA     .word $1234\n"
         "BBB     .word $4567\n"
-        "RESULT  .ds 2\n"
+        "RESULT  .word 0\n"
         ;
 
     constexpr unsigned char expected[] =
@@ -658,10 +659,11 @@ TEST(assemble_unit_test, stmt_macrodef_unit_test)
         "                                             \n"
         "$1013: $34 $12           .db $34, $12        AAA     .word $1234\n"
         "$1015: $67 $45           .db $67, $45        BBB     .word $4567\n"
-        "$1017: $00 $00           .db $00, $00        RESULT  .ds 2\n"
+        "$1017: $00 $00           .db $00, $00        RESULT  .word 0\n"
         ;
 
     execute_text(code, expected, _countof(expected), expect_list);
+    assemble_unit_test_method_cleanup();
 }
 
 TEST(assemble_unit_test, stmt_macrocall_unit_test)
@@ -683,7 +685,7 @@ TEST(assemble_unit_test, stmt_macrocall_unit_test)
         "\n"
         "AAA     .word $1234\n"
         "BBB     .word $4567\n"
-        "RESULT  .ds 2\n"
+        "RESULT  .word 0\n"
         ;
 
     constexpr unsigned char expected[] =
@@ -738,7 +740,7 @@ TEST(assemble_unit_test, stmt_macrocall_unit_test)
         "                                             \n"
         "$1013: $34 $12           .db $34, $12        AAA     .word $1234\n"
         "$1015: $67 $45           .db $67, $45        BBB     .word $4567\n"
-        "$1017: $00 $00           .db $00, $00        RESULT  .ds 2\n"
+        "$1017: $00 $00           .db $00, $00        RESULT  .word 0\n"
         ;
 
     execute_text(code, expected, _countof(expected), expect_list);
@@ -1349,9 +1351,6 @@ TEST(assemble_unit_test, regloopexpr_for_regx_to_unit_test)
         0xe8,
         0xe0, 0x0b,
         0x90, 0xf8,
-        0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00
     };
 
     const auto expect_list =
@@ -1364,7 +1363,7 @@ TEST(assemble_unit_test, regloopexpr_for_regx_to_unit_test)
         "Final Pass\n"
         "Current File execute_text.a\n"
         "\n"
-        "23 bytes written to execute_text.bin\n"
+        "12 bytes written to execute_text.bin\n"
         "\n"
         "           data $100C  \n"
         "\n"
@@ -1380,12 +1379,7 @@ TEST(assemble_unit_test, regloopexpr_for_regx_to_unit_test)
         "$1008: $E0 $0B           cpx #$0B            \n"
         "$100A: $90 $F8           bcc $1004           \n"
         "                                             \n"
-        "$100C: $00 $00           .db $00, $00            data .ds 11\n"
-        "$100E: $00 $00           .db $00, $00        \n"
-        "$1010: $00 $00           .db $00, $00        \n"
-        "$1012: $00 $00           .db $00, $00        \n"
-        "$1014: $00 $00           .db $00, $00        \n"
-        "$1016: $00               .db $00             \n"
+        "                                                 data .ds 11\n"
         ;
 
     execute_text(code, expected, _countof(expected), expect_list);
@@ -1404,7 +1398,7 @@ TEST(assemble_unit_test, regloopexpr_for_regx_downto_unit_test)
         "        sta data, x\n"
         "    .next X\n"
         "\n"
-        "    data .ds 11\n"
+        "    data\n"
         ;
 
     constexpr unsigned char expected[] =
@@ -1413,10 +1407,7 @@ TEST(assemble_unit_test, regloopexpr_for_regx_downto_unit_test)
         0xa2, 0x0a,
         0x9d, 0x0a, 0x10,
         0xca,
-        0xb0, 0xfa,
-        0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00
+        0xb0, 0xfa
     };
 
     const auto expect_list =
@@ -1429,7 +1420,7 @@ TEST(assemble_unit_test, regloopexpr_for_regx_downto_unit_test)
         "Final Pass\n"
         "Current File execute_text.a\n"
         "\n"
-        "21 bytes written to execute_text.bin\n"
+        "10 bytes written to execute_text.bin\n"
         "\n"
         "           data $100A  \n"
         "\n"
@@ -1444,12 +1435,7 @@ TEST(assemble_unit_test, regloopexpr_for_regx_downto_unit_test)
         "$1007: $CA               dex                 \n"
         "$1008: $B0 $FA           bcs $1004           \n"
         "                                             \n"
-        "$100A: $00 $00           .db $00, $00            data .ds 11\n"
-        "$100C: $00 $00           .db $00, $00        \n"
-        "$100E: $00 $00           .db $00, $00        \n"
-        "$1010: $00 $00           .db $00, $00        \n"
-        "$1012: $00 $00           .db $00, $00        \n"
-        "$1014: $00               .db $00             \n"
+        "                                                 data\n"
         ;
 
     execute_text(code, expected, _countof(expected), expect_list);
@@ -1468,7 +1454,7 @@ TEST(assemble_unit_test, regloopexpr_for_regy_to_unit_test)
         "        sta data, y\n"
         "    .next Y\n"
         "\n"
-        "    data .ds 11\n"
+        "    data\n"
         ;
 
     constexpr unsigned char expected[] =
@@ -1478,10 +1464,7 @@ TEST(assemble_unit_test, regloopexpr_for_regy_to_unit_test)
         0x99, 0x0c, 0x10,
         0xc8,
         0xc0, 0x0b,
-        0x90, 0xf8,
-        0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00
+        0x90, 0xf8
     };
 
     const auto expect_list =
@@ -1494,7 +1477,7 @@ TEST(assemble_unit_test, regloopexpr_for_regy_to_unit_test)
         "Final Pass\n"
         "Current File execute_text.a\n"
         "\n"
-        "23 bytes written to execute_text.bin\n"
+        "12 bytes written to execute_text.bin\n"
         "\n"
         "           data $100C  \n"
         "\n"
@@ -1510,12 +1493,7 @@ TEST(assemble_unit_test, regloopexpr_for_regy_to_unit_test)
         "$1008: $C0 $0B           cpy #$0B            \n"
         "$100A: $90 $F8           bcc $1004           \n"
         "                                             \n"
-        "$100C: $00 $00           .db $00, $00            data .ds 11\n"
-        "$100E: $00 $00           .db $00, $00        \n"
-        "$1010: $00 $00           .db $00, $00        \n"
-        "$1012: $00 $00           .db $00, $00        \n"
-        "$1014: $00 $00           .db $00, $00        \n"
-        "$1016: $00               .db $00             \n"
+        "                                                 data\n"
         ;
 
     execute_text(code, expected, _countof(expected), expect_list);
@@ -1543,10 +1521,7 @@ TEST(assemble_unit_test, regloopexpr_for_regy_downto_unit_test)
         0xa0, 0x0a,
         0x99, 0x0a, 0x10,
         0x88,
-        0xb0, 0xfa,
-        0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00
+        0xb0, 0xfa
     };
 
     const auto expect_list =
@@ -1559,7 +1534,7 @@ TEST(assemble_unit_test, regloopexpr_for_regy_downto_unit_test)
         "Final Pass\n"
         "Current File execute_text.a\n"
         "\n"
-        "21 bytes written to execute_text.bin\n"
+        "10 bytes written to execute_text.bin\n"
         "\n"
         "           data $100A  \n"
         "\n"
@@ -1574,12 +1549,7 @@ TEST(assemble_unit_test, regloopexpr_for_regy_downto_unit_test)
         "$1007: $88               dey                 \n"
         "$1008: $B0 $FA           bcs $1004           \n"
         "                                             \n"
-        "$100A: $00 $00           .db $00, $00            data .ds 11\n"
-        "$100C: $00 $00           .db $00, $00        \n"
-        "$100E: $00 $00           .db $00, $00        \n"
-        "$1010: $00 $00           .db $00, $00        \n"
-        "$1012: $00 $00           .db $00, $00        \n"
-        "$1014: $00               .db $00             \n"
+        "                                                 data .ds 11\n"
         ;
 
     execute_text(code, expected, _countof(expected), expect_list);
@@ -1768,8 +1738,7 @@ TEST(assemble_unit_test, macro_def_unit_test)
         0x6d, 0x16, 0x10,
         0x8d, 0x18, 0x10,
         0x34, 0x12,
-        0x67, 0x45,
-        0x00, 0x00
+        0x67, 0x45
     };
 
     const auto expect_list =
@@ -1784,7 +1753,7 @@ TEST(assemble_unit_test, macro_def_unit_test)
         "Final Pass\n"
         "Current File execute_text.a\n"
         "\n"
-        "25 bytes written to execute_text.bin\n"
+        "23 bytes written to execute_text.bin\n"
         "\n"
         "            AAA $1013              BBB $1015           RESULT $1017  \n"
         "\n"
@@ -1810,7 +1779,7 @@ TEST(assemble_unit_test, macro_def_unit_test)
         "                                             \n"
         "$1013: $34 $12           .db $34, $12        AAA     .word $1234\n"
         "$1015: $67 $45           .db $67, $45        BBB     .word $4567\n"
-        "$1017: $00 $00           .db $00, $00        RESULT  .ds 2\n"
+        "                                             RESULT  .ds 2\n"
         ;
 
     execute_text(code, expected, _countof(expected), expect_list);
@@ -1853,8 +1822,7 @@ TEST(assemble_unit_test, macrocall_unit_test)
         0x6d, 0x16, 0x10,
         0x8d, 0x18, 0x10,
         0x34, 0x12,
-        0x67, 0x45,
-        0x00, 0x00
+        0x67, 0x45
     };
 
     const auto expect_list =
@@ -1869,7 +1837,7 @@ TEST(assemble_unit_test, macrocall_unit_test)
         "Final Pass\n"
         "Current File execute_text.a\n"
         "\n"
-        "25 bytes written to execute_text.bin\n"
+        "23 bytes written to execute_text.bin\n"
         "\n"
         "            AAA $1013              BBB $1015           RESULT $1017  \n"
         "\n"
@@ -1895,7 +1863,7 @@ TEST(assemble_unit_test, macrocall_unit_test)
         "                                             \n"
         "$1013: $34 $12           .db $34, $12        AAA     .word $1234\n"
         "$1015: $67 $45           .db $67, $45        BBB     .word $4567\n"
-        "$1017: $00 $00           .db $00, $00        RESULT  .ds 2\n"
+        "                                             RESULT  .ds 2\n"
         ;
 
     execute_text(code, expected, _countof(expected), expect_list);
@@ -2196,15 +2164,17 @@ TEST(assemble_unit_test, pc_assign_equals_unit_test)
     assemble_unit_test_method_initialize();
 
     const auto  code =
-        "   .org $1000\n"
+        "   * = $300\n"
+        "here\n"
         "   * = * + 2\n"
-        "   .word $2341\n"
+        "there\n"
+        "   .org $1000\n"
+        "   .word there\n"
         ;
 
     constexpr unsigned char expected[] =
     {
-        WORD(0x0000),
-        WORD(0x2341)
+        WORD(0x0302)
     };
 
     const auto expect_list =
@@ -2212,17 +2182,22 @@ TEST(assemble_unit_test, pc_assign_equals_unit_test)
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
+        "Pass 2\n"
+        "Current File execute_text.a\n"
         "Final Pass\n"
         "Current File execute_text.a\n"
         "\n"
-        "4 bytes written to execute_text.bin\n"
+        "2 bytes written to execute_text.bin\n"
         "\n"
+        "          there $0302  \n"
         "\n"
         "; Processing execute_text.a\n"
+        "                                                * = $300\n"
+        "                                             here\n"
+        "                                                * = * + 2\n"
+        "                                             there\n"
         "                                                .org $1000\n"
-        "$1000: $00               .db $00                * = * + 2\n"
-        "$1001: $00               .db $00             \n"
-        "$1002: $41 $23           .db $41, $23           .word $2341\n"
+        "$1000: $02 $03           .db $02, $03           .word there\n"
         ;
 
     execute_text(code, expected, _countof(expected), expect_list);
@@ -2234,16 +2209,15 @@ TEST(assemble_unit_test, pc_assign_equ_unit_test)
     assemble_unit_test_method_initialize();
 
     const auto  code =
+        "   * .equ $0300\n"
+        "   here\n"
         "   .org $1000\n"
-        "   * .equ * + 4\n"
-        "   .word $1234\n"
+        "   .word here\n"
         ;
 
     constexpr unsigned char expected[] =
     {
-        WORD(0x0000),
-        WORD(0x0000),
-        WORD(0x1234)
+        WORD(0x0300)
     };
 
     const auto expect_list =
@@ -2251,19 +2225,20 @@ TEST(assemble_unit_test, pc_assign_equ_unit_test)
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
+        "Pass 2\n"
+        "Current File execute_text.a\n"
         "Final Pass\n"
         "Current File execute_text.a\n"
         "\n"
-        "6 bytes written to execute_text.bin\n"
+        "2 bytes written to execute_text.bin\n"
         "\n"
+        "           here $0300  \n"
         "\n"
         "; Processing execute_text.a\n"
+        "                                                * .equ $0300\n"
+        "                                                here\n"
         "                                                .org $1000\n"
-        "$1000: $00               .db $00                * .equ * + 4\n"
-        "$1001: $00               .db $00             \n"
-        "$1002: $00               .db $00             \n"
-        "$1003: $00               .db $00             \n"
-        "$1004: $34 $12           .db $34, $12           .word $1234\n"
+        "$1000: $00 $03           .db $00, $03           .word here\n"
         ;
 
     execute_text(code, expected, _countof(expected), expect_list);
@@ -2629,18 +2604,17 @@ TEST(assemble_unit_test, directive_ds_unit_test)
     assemble_unit_test_method_initialize();
 
     const auto  code =
+        "   * = $100\n"
+        "here .ds 2\n"
         "   .org $1000\n"
         "   .dw *\n"
-        "   .ds 4\n"
-        "   .dw *\n"
+        "   .dw here\n"
         ;
 
     constexpr unsigned char expected[] =
     {
         WORD(0x1000),
-        WORD(0x0000),
-        WORD(0x0000),
-        WORD(0x1006)
+        WORD(0x0100)
     };
 
     const auto expect_list =
@@ -2648,18 +2622,21 @@ TEST(assemble_unit_test, directive_ds_unit_test)
         "\n"
         "Pass 1\n"
         "Current File execute_text.a\n"
+        "Pass 2\n"
+        "Current File execute_text.a\n"
         "Final Pass\n"
         "Current File execute_text.a\n"
         "\n"
-        "8 bytes written to execute_text.bin\n"
+        "4 bytes written to execute_text.bin\n"
         "\n"
+        "           here $0100  \n"
         "\n"
         "; Processing execute_text.a\n"
+        "                                                * = $100\n"
+        "                                             here .ds 2\n"
         "                                                .org $1000\n"
         "$1000: $00 $10           .db $00, $10           .dw *\n"
-        "$1002: $00 $00           .db $00, $00           .ds 4\n"
-        "$1004: $00 $00           .db $00, $00        \n"
-        "$1006: $06 $10           .db $06, $10           .dw *\n"
+        "$1002: $00 $01           .db $00, $01           .dw here\n"
         ;
 
     execute_text(code, expected, _countof(expected), expect_list);

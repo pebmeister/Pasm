@@ -40,6 +40,7 @@ enum
 static int program_counter_assigned = 0;
 static int code_generated = 0;
 int max_macro_param = 0;
+extern int origin;
 
 // for 6502 and 65C02
 int max_address = 0xFFFF;
@@ -1078,32 +1079,8 @@ int expand_operator_hi_byte_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_program_counter_assign_node(const parse_node_ptr p)
 {
-
     program_counter_assigned++;
     const int op = expand_node(p->op[0]);
-
-    if (origin_specified)
-    {
-        if (op < program_counter)
-        {
-            error(error_value_out_of_range);
-        }
-        else if (op > program_counter)
-        {
-            if (final_pass)
-            {
-                if (generate_byte_node == nullptr)
-                    generate_byte_node = data_node(data_byte, constant_node(0, 0));
-                data_size = 1;
-                while (program_counter < op)
-                {
-                    generate_list_node(generate_byte_node);
-                    generate_output(output_file, generate_byte_node);
-                    program_counter++;
-                }
-            }
-        }
-    }
 
     program_counter = op;
     return 0;
@@ -1125,6 +1102,7 @@ int expand_operator_org_node(const parse_node_ptr p)
     }
     const int op = expand_node(p->op[0]);
     program_counter = op;
+    origin = op;
     origin_specified = true;
     return 0;
 }
@@ -1652,41 +1630,12 @@ int expand_operator_ds_node(const parse_node_ptr p)
         error(error_value_out_of_range);
         exit(-1);
     }
+
     if (final_pass)
-    {
-        generate_fill_node2 = nullptr;
-        generate_fill_node1 = nullptr;
-        data_size = 0;
-        while (count > 0)
-        {
-            if (count > 1)
-            {
-                if (generate_fill_node2 == nullptr)
-                {
-                    generate_fill_node2 = data_node(data_word, constant_node(0, false));
-                }
-                const int bytes = generate_output(output_file, generate_fill_node2);
-                generate_list_node(generate_fill_node2);
-                program_counter += bytes;
-                count -= bytes;
-            }
-            else if (count == 1)
-            {
-                if (generate_fill_node1 == nullptr)
-                {
-                    generate_fill_node1 = data_node(data_byte, constant_node(0, false));
-                }
-                const int bytes = generate_output(output_file, generate_fill_node1);
-                generate_list_node(generate_fill_node1);
-                program_counter += bytes;
-                count -= bytes;
-            }
-        }
-    }
-    else
     {
         program_counter += count > 0 ? count : 1;
     }
+    
     return op;
 }
 
