@@ -1081,8 +1081,10 @@ int expand_operator_program_counter_assign_node(const parse_node_ptr p)
 {
     program_counter_assigned++;
     const int op = expand_node(p->op[0]);
+    origin_specified = true;
 
     program_counter = op;
+    origin = op;
     return 0;
 }
 
@@ -1095,7 +1097,7 @@ int expand_operator_org_node(const parse_node_ptr p)
 {
     program_counter_assigned++;
 
-    if (origin_specified)
+    if (org_origin_specified)
     {
         error(error_org_specified_more_than_once);
         return 0;
@@ -1104,6 +1106,7 @@ int expand_operator_org_node(const parse_node_ptr p)
     program_counter = op;
     origin = op;
     origin_specified = true;
+    org_origin_specified = true;
     return 0;
 }
 

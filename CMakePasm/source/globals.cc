@@ -22,7 +22,9 @@ FILE* console_error = nullptr;
 
 bool final_pass = false;
 bool ignore_warnings = false;
+bool org_origin_specified = false;
 bool origin_specified = false;
+
 bool verbose = false;
 
 char** input_files = nullptr;
@@ -62,6 +64,7 @@ void init_globals()
     final_pass = false;
     ignore_warnings = false;
     origin_specified = false;
+    org_origin_specified = false;
     verbose = false;
 
     input_files = nullptr;
