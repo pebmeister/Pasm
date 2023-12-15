@@ -77,7 +77,7 @@ void* pasm_realloc(void* memory, const size_t size, const char* function, const 
         alloc_dict = dict_create(sizeof(memory_entry), -1);
     }
 
-    memory_entry* old_entry = (memory_entry*) dict_search(alloc_dict, memory);
+    memory_entry* old_entry = static_cast<memory_entry*>(dict_search(alloc_dict, memory));
     memory_entry entry;
     if (old_entry)
     {
@@ -122,7 +122,7 @@ void pasm_free(void* memory)
         error(error_free_without_malloc);
         exit(-1);
     }
-    memory_entry* entry = (memory_entry*)dict_search(alloc_dict, memory);
+    memory_entry* entry = static_cast<memory_entry*>(dict_search(alloc_dict, memory));
     if (entry)
     {
         if (entry->times_deleted == 0)
@@ -147,17 +147,17 @@ void pasm_free(void* memory)
 const char* pasm_strdup(const char* str, const char* function, const int line)
 {
     const size_t len = strlen(str);
-    char* dup = (char*)pasm_malloc(len + 1, function, line);
+    char* dup = static_cast<char*>(pasm_malloc(len + 1, function, line));
     strcpy(dup, str);
     return dup;
 }
 
 int print_memory(const element_ptr e, FILE* file)
 {
-    const memory_entry* me = (memory_entry*)e->value;
+    const memory_entry* me = static_cast<memory_entry*>(e->value);
     if (stricmp(me->function, "allocate_node") == 0 && me->size == sizeof(parse_node))
     {
-        const parse_node_ptr p = (parse_node_ptr)me->memory;
+        const parse_node_ptr p = static_cast<parse_node_ptr>(me->memory);
         if (!p->allocated)
             return 0;
     }

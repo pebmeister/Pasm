@@ -99,7 +99,7 @@ TEST(expand_unit_test, expand_constant_node_test)
         0x11
     };
     parse_node_ptr nodes[] =
-    {
+     {
         operator_node(ORG, 1, 
             constant_node(0x1000, false)),
 
@@ -122,6 +122,7 @@ TEST(expand_unit_test, expand_data_node_test)
 
     parse_node_ptr nodes[] =
     {
+        operator_node(ORG, 1, constant_node(0x1000, false)),
         data_node(0, operator_node(EXPRLIST, 1, string_node("expand_data_node_test"))),
     };
 
@@ -1930,7 +1931,7 @@ TEST(expand_unit_test, expand_operator_ds_node_test)
     fclose(output_file);
     output_file = nullptr;
     remove(output_file_name);
-    EXPECT_EQ(static_cast<size_t>(22), pos);
+    EXPECT_EQ(static_cast<size_t>(0), pos);
     expand_unit_test_method_cleanup();
 }
 
@@ -2079,7 +2080,10 @@ TEST(expand_unit_test, expand_operator_expression_list_node_test)
 
     const parse_node_ptr nodes[] =
     {
-        data_node(data_word,
+        operator_node(ORG, 1,
+            constant_node(0x1000, false)),
+
+            data_node(data_word,
             operator_node(EXPRLIST, 1, constant_node(0x3020, 0))),
 
         data_node(data_byte,
@@ -2103,6 +2107,8 @@ TEST(expand_unit_test, expand_string_node_test)
 
     const parse_node_ptr nodes[] =
     {
+        operator_node(ORG, 1,
+            constant_node(0x1000, false)),
         data_node(data_string, operator_node(EXPRLIST, 1, string_node("expand_string_node_test")))
     };
 
@@ -2519,11 +2525,12 @@ TEST(expand_unit_test, expand_operator_minus_node_test)
     };
 
     yylineno = 3;
-    current_file_name = (char*)"test.a";
+    current_file_name = const_cast<char*>(static_cast<const char*>("test.a"));
     const parse_node_ptr nodes[] =
     {
         operator_node(ORG, 1, constant_node(0x1000, false)),
 
+        label_node(const_cast<char*>(static_cast<const char*>("MyLabel"))),
         opcode_node(_ldx, I, 1,
             constant_node(0xFF, 0)),
 
@@ -2534,7 +2541,8 @@ TEST(expand_unit_test, expand_operator_minus_node_test)
         opcode_node(_dex, i, 0),
 
         opcode_node(_bne, r, 1,
-            label_node((char*)"-"))
+                    // ReSharper disable once CppStringLiteralToCharPointerConversion
+                    label_node(const_cast<char*>(static_cast<const char*>("-"))))
     };
     expand_file_output_template(expected, _countof(expected), nodes, _countof(nodes));
     expand_unit_test_method_cleanup();
@@ -2822,24 +2830,21 @@ TEST(expand_unit_test, expand_operator_print_node_test)
 TEST(expand_unit_test, expand_operator_program_counter_assign_node_test)
 {
     expand_unit_test_method_initialize();
-    constexpr unsigned char expected[] =
-    {
-        WORD(0x0000),
-        WORD(0X0000),
-        WORD(0x0000),
-        WORD(0X0000)
-    };
 
     parse_node_ptr nodes[] =
     {
+        operator_node(PCASSIGN, 1,
+            constant_node(0x1008, false)),
+
         operator_node(ORG, 1,
             constant_node(0x1000, false)),
 
-        operator_node(PCASSIGN, 1,
-            constant_node(0x1008, false))
+        operator_node(DS, 2,
+            constant_node(0x1008, false)),
+
     };
 
-    expand_file_output_template(expected, _countof(expected), nodes, _countof(nodes));
+    expand_file_output_template(nullptr, 0, nodes, _countof(nodes));
     expand_unit_test_method_cleanup();
 }
 

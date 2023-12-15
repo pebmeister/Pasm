@@ -21,8 +21,8 @@ typedef struct symbol_table
     bool is_macro_param;
     bool is_label;
     bool is_local;
+    bool is_plus_minus;
     bool is_var;
-    bool is_minus;
     char* scope;
     char* name;
     char* fullname;
@@ -36,6 +36,7 @@ extern int find_minus_symbol(int depth, const char* file, int line);
 extern int find_plus_symbol(int depth, const char* file, int line);
 extern symbol_table_ptr look_up_symbol(const char*);
 extern char* format_local_sym(char* name, const char* label);
+extern char* format_local_plus_minus_sym(char* name, char* label);
 extern symbol_table_ptr add_symbol(char* name);
 extern symbol_table_ptr set_symbol_value(symbol_table_ptr sym, int value);
 extern void add_minus_symbol(const char* file, int line, int value);

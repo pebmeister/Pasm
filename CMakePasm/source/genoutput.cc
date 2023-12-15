@@ -18,7 +18,7 @@
 // number of byte written to output file
 int total_bytes_written = 0;
 static int byte_delta = 0;
-static int origin = 0;
+int origin = 0;
 
 int write_byte(FILE* file, unsigned char ch);
 int write_word(FILE* file, int word);
@@ -39,7 +39,7 @@ int write_data(FILE* file, const int data)
 {
     if (data_size == 1)
         // ReSharper disable once CppRedundantCastExpression
-        return write_byte(file, (char)data);
+        return write_byte(file, static_cast<char>(data));
     if (data_size == 2)
         return write_word(file, data);
 
@@ -49,7 +49,7 @@ int write_data(FILE* file, const int data)
 int write_byte(FILE* file, const unsigned char ch)
 {
     // ReSharper disable once CppRedundantCastExpression
-    const int bytes_written = (int) fwrite(&ch, 1, 1, file);
+    const int bytes_written = static_cast<int>(fwrite(&ch, 1, 1, file));
     if (bytes_written < 1)
     {
         error(error_writing_output_file);
@@ -75,8 +75,8 @@ int write_string(FILE* file, const char* str)
 {
     const size_t len = strlen(str);
     // ReSharper disable once CppRedundantCastExpression
-    const int bytes_written = (int)fwrite(str, 1, len, file);
-    if (bytes_written < (int) len)
+    const int bytes_written = static_cast<int>(fwrite(str, 1, len, file));
+    if (bytes_written < static_cast<int>(len))
     {
         error(error_writing_output_file);
         return 0;
@@ -87,8 +87,10 @@ int write_string(FILE* file, const char* str)
 int write_header(FILE* file)
 {
     int bytes_written = 0;
-    origin = program_counter;
     byte_delta = 0;
+
+    if (!origin_specified)
+        origin = program_counter;
 
     // write header if c64
     if (output_file_format == c64)
@@ -110,7 +112,7 @@ int write_program_counter_pad(FILE* file, const int delta)
     while (delta + byte_delta > total_bytes_written)
     {
         const int bytes_written = write_byte(output_file, 0);
-        total_bytes_written += (int)bytes_written;
+        total_bytes_written += static_cast<int>(bytes_written);
         if (bytes_written == 0)
         {
             return -1;
@@ -272,17 +274,11 @@ int generate_output(FILE* file, const parse_node_ptr p)
         }
     }
 
-    // program counter pad
-    // need if user does
-    // .ORG XXXX
-    // * = $XXXX + N
-    // it fills the memory from previous program counter
-    // to the new program counter with 0's
-    const int delta = program_counter - origin;
-    bytes_written = write_program_counter_pad(output_file, delta);
-    if (bytes_written < 0)
+    const int delta = program_counter - (origin + total_bytes_written);
+    if (delta > 0)
     {
-        return 0;
+        error(error_value_out_of_range);
+        exit(-1);        
     }
 
     if (p == NULL)

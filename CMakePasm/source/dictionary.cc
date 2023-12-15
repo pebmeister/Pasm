@@ -44,7 +44,7 @@ enum
 /// <returns>Dictionary.</returns>
 dictionary_ptr internal_dict_create(const int size, const int element_size, const int key_type)
 {
-    const dictionary_ptr dictionary = (dictionary_ptr) MALLOC(sizeof (dict));
+    const dictionary_ptr dictionary = static_cast<dictionary_ptr>(MALLOC(sizeof (dict)));
 
     if (dictionary == NULL)
     {
@@ -57,7 +57,7 @@ dictionary_ptr internal_dict_create(const int size, const int element_size, cons
     dictionary->size = size;
     dictionary->element_size = element_size;
     dictionary->key_type = key_type;
-    dictionary->table = (element_ptr*)MALLOC(sizeof(element_ptr) * dictionary->size);
+    dictionary->table = static_cast<element_ptr*>(MALLOC(sizeof(element_ptr) * dictionary->size));
     if (dictionary->table == NULL)
     {
         error(error_out_of_memory);
@@ -150,7 +150,7 @@ void* dict_insert(dictionary_ptr* dd, void* key, void* value)
     dictionary_ptr d = *dd;
 
     // ReSharper disable once CppLocalVariableMayBeConst
-    element_ptr e =  (element_ptr)MALLOC(sizeof(element));
+    element_ptr e =  static_cast<element_ptr>(MALLOC(sizeof(element)));
     if (e == NULL)
     {
         error(error_out_of_memory);
@@ -161,7 +161,7 @@ void* dict_insert(dictionary_ptr* dd, void* key, void* value)
 
     if (d->key_type == 0)
     {
-        e->key = (char*) STRDUP((char*)key);
+        e->key = (char*) STRDUP(static_cast<char*>(key));
         if (e->key == NULL)
         {
             error(error_out_of_memory);
@@ -182,7 +182,7 @@ void* dict_insert(dictionary_ptr* dd, void* key, void* value)
     memcpy(e->value, value, d->element_size);
     if (d->key_type == 0)
     {
-        const unsigned long h = hash_function((const char*)(e->key)) % d->size;
+        const unsigned long h = hash_function(static_cast<const char*>(e->key)) % d->size;
         e->next = d->table[h];
         if (e->next)
             d->collisions++;
@@ -201,7 +201,7 @@ void* dict_insert(dictionary_ptr* dd, void* key, void* value)
         d->number_elements++;
     }
     /* grow table if there is not enough room */
-    if (d->number_elements >= (long) ((double)d->size * MAX_LOAD_FACTOR))
+    if (d->number_elements >= static_cast<long>((double)d->size * MAX_LOAD_FACTOR))
     {
         *dd = grow(d);
         return dict_search(*dd, key);
@@ -221,10 +221,10 @@ void* dict_search(const dictionary_ptr d, const void* key)
 {
     if (d->key_type == 0)
     {
-        const unsigned long h = hash_function((const char*)key) % d->size;
+        const unsigned long h = hash_function(static_cast<const char*>(key)) % d->size;
         for (element_ptr e = d->table[h]; e != 0; e = e->next)
         {
-            if (!stricmp((char*)e->key, (char*)key))
+            if (!stricmp(static_cast<char*>(e->key), (char*)key))
             {
                 /* got it */
                 return e->value;
@@ -260,13 +260,13 @@ void dict_delete(const dictionary_ptr d, const void* key)
 
         for (element_ptr* prev = &d->table[h]; *prev != 0; prev = &(*prev)->next)
         {
-            if (!stricmp((char*)((*prev)->key), (char*)key))
+            if (!stricmp(static_cast<char*>((*prev)->key), (char*)key))
             {
                 const element_ptr e = *prev;
                 *prev = e->next;
 
                 // ReSharper disable once CppPointerConversionDropsQualifiers
-                char* p = (char*)e->key;  // NOLINT(clang-diagnostic-cast-qual)
+                char* p = static_cast<char*>(e->key);  // NOLINT(clang-diagnostic-cast-qual)
                 // ReSharper disable once CppPointerConversionDropsQualifiers
                 FREE(p);  // NOLINT(clang-diagnostic-incompatible-pointer-types-discards-qualifiers)
                 FREE(e->value);
@@ -322,14 +322,14 @@ void dump_dictionary(const dictionary_ptr d, const print_element p, FILE* file)
 
                 if (d->key_type == 0)
                 {
-                    fprintf(file, "    Key   %s\n", (char*)element->key);
+                    fprintf(file, "    Key   %s\n", static_cast<char*>(element->key));
                 }
                 else
                 {
                     fprintf(file, "    Key   %8p\n", element->key);
                 }
                 fprintf(file, "    Value %8p\n", element->value);
-                fprintf(file, "    Next %8p\n\n", (void*)element->next);
+                fprintf(file, "    Next %8p\n\n", static_cast<void*>(element->next));
                 fprintf(file, "\n");
             }
             next = element->next;

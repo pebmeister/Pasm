@@ -9,6 +9,7 @@ typedef struct list_table
     char* filename;
     char* output;
     int print_state;
+    bool list_directive;
     struct list_table* next;
 } list_table, * list_table_ptr;
 

@@ -333,6 +333,7 @@ int parse_arguments(const int argc, char* argv[])
             {
                 set_symbol_value(sym, sym_val);
                 sym->is_initialized = true;
+                sym->times_accessed = 1000;
             }
             arg_index++;
             continue;
