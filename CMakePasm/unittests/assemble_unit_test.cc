@@ -194,7 +194,7 @@ TEST(assemble_unit_test, branch_list_unit_text)
         0xC8,
         0xD0, 0xE4
     };
-
+  
     const auto expect_list =
         "pasm.exe -v execute_text.a -o execute_text.bin \n"
         "\n"
@@ -402,7 +402,7 @@ TEST(assemble_unit_test, stmt_pc_assign_unit_test)
         "\n"
         "           here $0300            there $0500  \n"
         "\n"
-        "; Processing execute_text.a\n"
+        "; Processing execute_text.a\n
         "                                                * = $300\n"
         "                                                here\n"
         "                                                * = $500\n"
@@ -2191,7 +2191,7 @@ TEST(assemble_unit_test, pc_assign_equals_unit_test)
         "\n"
         "          there $0302  \n"
         "\n"
-        "; Processing execute_text.a\n"
+        "; Processing execute_text.a\n"0
         "                                                * = $300\n"
         "                                             here\n"
         "                                                * = * + 2\n"
@@ -2235,6 +2235,7 @@ TEST(assemble_unit_test, pc_assign_equ_unit_test)
         "           here $0300  \n"
         "\n"
         "; Processing execute_text.a\n"
+
         "                                                * .equ $0300\n"
         "                                                here\n"
         "                                                .org $1000\n"
