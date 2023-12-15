@@ -9,3 +9,7 @@ add_subdirectory(source)
 
 #unittests
 add_subdirectory(unittests)
+
+#eolcoonvert
+add_subdirectory(eolconvert)
+
