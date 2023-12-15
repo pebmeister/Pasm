@@ -10,7 +10,6 @@
  */
 int main(const int argc, char* argv[])
 {
-
     pre_parse();
     
     // parse the arguments

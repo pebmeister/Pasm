@@ -28,6 +28,7 @@ extern int assemble(void);
 extern bool final_pass;
 extern bool ignore_warnings;
 extern bool origin_specified;
+extern bool org_origin_specified;
 extern bool verbose;
 
 extern int data_size;

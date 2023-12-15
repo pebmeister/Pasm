@@ -324,7 +324,8 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
 ".DEBUG_BISON"[ \t]"ON"     { P_TOK("DEBUG_BISON ON")      SV_TOK Debug_Bison = true;               }
 ".DEBUG_BISON"[ \t]"OFF"    { P_TOK("DEBUG_BISON OFF")     SV_TOK Debug_Bison = false;              }
 ".DEBUG_ADDLIST"[ \t]"ON"   { P_TOK("DEBUG_ADDLIST ON")    SV_TOK Debug_AddList = true;             }
-".DEBUG_ADDLIST"[ \t]"OFF"  { P_TOK("DEBUG_ADDLIST OFF")   SV_TOK Debug_AddList = false;              }
+
+".DEBUG_ADDLIST"[ \t]"OFF"  { P_TOK("DEBUG_ADDLIST OFF")   SV_TOK Debug_AddList = false;            }
 
 
 [\\][1-9]+[0-9]*            {

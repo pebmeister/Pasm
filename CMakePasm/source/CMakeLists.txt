@@ -9,6 +9,10 @@ if (${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Windows")
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif()
 
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "v")
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 # Bison
 find_package(BISON REQUIRED)
 BISON_TARGET(Bison_Parser pasm.y ${CMAKE_CURRENT_BINARY_DIR}/pasm.tab.cc
@@ -59,13 +63,22 @@ add_library(engine
 add_executable(${PROJECT_NAME} 
     main.cc)
 
-# force flex/bison first
+# make this first
+add_dependencies(${PROJECT_NAME} eolconvert) 
+
+add_dependencies(parser eolconvert) 
+
+add_dependencies(engine eolconvert) 
+
+add_dependencies(${PROJECT_NAME} execute_eolconvert)
+
+# force flex/bison
 add_dependencies(engine parser) 
 
 target_link_libraries(${PROJECT_NAME} 
     parser 
     engine)
-
+    
 # include directory for main
 target_include_directories(${PROJECT_NAME} PUBLIC 
     "${CMAKE_CURRENT_LIST_DIR}"
@@ -93,4 +106,3 @@ if (${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Windows")
     endif()    
     message(STATUS "Path is set to $ENV{Path}.")
 endif()
-

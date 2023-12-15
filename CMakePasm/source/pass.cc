@@ -41,6 +41,7 @@ void reset_lex(void)
 
     // reset Org flag
     origin_specified = false;
+    org_origin_specified = false;
 
     if (internal_buffer == nullptr)
     {

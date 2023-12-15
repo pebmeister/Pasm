@@ -1,0 +1,65 @@
+.print off
+TEXT    = $0286
+IERROR  = $0300
+IMAIN   = $0302
+IGONE   = $0308
+
+CIAICR  = $DC0D
+CIACRA  = $DC0E
+CI2ICR  = $DD0D
+CI2CRA  = $DD0E
+
+LOAD    = $FFD5
+RESTOR  = $FF8A
+SETLFS  = $FFBA
+SETNAM  = $FFBD
+
+POLY1   = $E043
+POLY2   = $E059
+RMULC   = $E08D
+RADDC   = $E092
+RND     = $E097
+SYS     = $E12A
+SAVE    = $E156
+VERIFY  = $E165
+LOAD_   = $E168
+OPEN    = $E1BE
+CLOSE   = $E1C7
+COS     = $E264
+SIN     = $E26B
+TAN     = $E2B4
+PI2     = $E2E0
+TWOPI   = $E2E5
+FR4     = $E2EA
+SINCON  = $E2EF
+ATN     = $E30E
+ATNCON  = $E33E
+WARM    = $E37B
+COLD    = $E394
+INITAT  = $E3A2
+INIT    = $E3BF
+WORDS   = $E460
+IOBASE  = $E500
+SCREEN  = $E505
+PLOT    = $E50A
+LP2     = $E5B4
+SCNKEY  = $EA87
+TALK    = $ED09
+LISTEN  = $ED0C
+SECOND  = $EDB9
+TKSA    = $EDC7
+CIOUT   = $EDDD
+UNTLK   = $EDFE
+ACPTR   = $EE13
+GETIN   = $F13E
+CHRIN   = $F157
+_CHROUT = $F1CA                         ;   pointed to by CHROUT $FFD2
+
+CHROUT  = $FFD2
+
+BORDER  = $D020
+SCREENC = $D021
+
+
+.print on
+

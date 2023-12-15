@@ -18,7 +18,7 @@
 // number of byte written to output file
 int total_bytes_written = 0;
 static int byte_delta = 0;
-static int origin = 0;
+int origin = 0;
 
 int write_byte(FILE* file, unsigned char ch);
 int write_word(FILE* file, int word);
@@ -87,8 +87,10 @@ int write_string(FILE* file, const char* str)
 int write_header(FILE* file)
 {
     int bytes_written = 0;
-    origin = program_counter;
     byte_delta = 0;
+
+    if (!origin_specified)
+        origin = program_counter;
 
     // write header if c64
     if (output_file_format == c64)
@@ -272,17 +274,11 @@ int generate_output(FILE* file, const parse_node_ptr p)
         }
     }
 
-    // program counter pad
-    // need if user does
-    // .ORG XXXX
-    // * = $XXXX + N
-    // it fills the memory from previous program counter
-    // to the new program counter with 0's
-    const int delta = program_counter - origin;
-    bytes_written = write_program_counter_pad(output_file, delta);
-    if (bytes_written < 0)
+    const int delta = program_counter - (origin + total_bytes_written);
+    if (delta > 0)
     {
-        return 0;
+        error(error_value_out_of_range);
+        exit(-1);        
     }
 
     if (p == NULL)
