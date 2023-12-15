@@ -24,6 +24,7 @@ int process_file(const fs::path& path, const fs::path& source_root, const fs::pa
 
 bool is_eol(uint8_t ch);
 int replace_eol(const fs::path& path, const fs::path& out_path);
+bool is_text_file(const fs::path& path);
 
 fs::path base_path(const fs::path& path, const fs::path& source_root, const fs::path& install_path);
 
@@ -99,20 +100,9 @@ int process_file(const fs::path& path, const fs::path& source_root, const fs::pa
     auto result = 0;
     if (exists(path))        
     {
-        if (const auto extension = path.extension().string();
-            extension == ".asm" ||
-            extension == ".bas" ||
-            extension == ".c"   ||
-            extension == ".cc"  ||
-            extension == ".cpp" ||
-            extension == ".txt" ||
-            extension == ".md"
-            )
-        {
-            const auto out_path = base_path(path, source_root, install_path);
-            replace_eol(path, out_path);
-            result++;
-        }
+        const auto out_path = base_path(path, source_root, install_path);
+        replace_eol(path, out_path);
+        result++;
     }
 
     return result;
@@ -172,18 +162,29 @@ int replace_eol(const fs::path& path, const fs::path& out_path)
     {
         cout << out_path.string().c_str() << '\n';
 
-        ifstream file; 
+        if (auto is_text = is_text_file(path); !is_text)
+        {
+            if (exists(out_path))
+            {
+                filesystem::remove(out_path);
+            }
+            copy_file(path, out_path);
+            return 1;
+        }
+
+        ifstream file;
         file.open(path.string().c_str(), ios::binary);
+        vector<uint8_t> in_buf((istreambuf_iterator(file)), (istreambuf_iterator<char>()));
+        file.close();
 
-        vector<uint8_t> in_buf((istreambuf_iterator<char>(file)), (istreambuf_iterator<char>()));
         stringstream ss;
-
         size_t index = 0;
         auto sz = in_buf.size();
         uint8_t last_eol = 0;
         auto count = 0;
         while (index < sz)
         {
+
             if (auto ch = in_buf[index++]; !is_eol(ch))
             {
                 ss << ch;
@@ -218,6 +219,7 @@ int replace_eol(const fs::path& path, const fs::path& out_path)
             outfile.close();
         }
     }
+
     return 1;
 }
 
@@ -265,3 +267,18 @@ fs::path base_path(const fs::path& path, const fs::path& source_root, const fs::
     return path;
 }
 
+bool is_text_file(const fs::path& path)
+{
+    if (exists(path))
+    {
+        ifstream file;
+        file.open(path.string().c_str(), ios::binary);
+        const vector<uint8_t> in_buf((istreambuf_iterator(file)), (istreambuf_iterator<char>()));
+        file.close();
+
+        return (std::all_of(in_buf.cbegin(), in_buf.cend(), [](const uint8_t ch)
+            { return isprint(ch) || is_eol(ch); }));
+    }
+
+    return false;
+}
