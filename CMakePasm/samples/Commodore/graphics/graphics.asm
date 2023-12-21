@@ -54,7 +54,6 @@
         XMAX = BLNCT
         SRCM = BSOUR
 
-
         ;************************************
         ; The values below are globals must
         ; not be modified by basic
@@ -65,38 +64,53 @@
         IGONE_SV = BSOUR
         COLOR = CMP0
 
-        .org $C000
+        .org $8000
 
-;********************************************
-;*                                          *
-;*  INSTALL                                 *
-;*                                          *
-;*   Installs Basic Wedge                   *
-;*                                          *
-;********************************************
-INSTALL
-        cli
+
+        .WORD	@COLD_START		; Cartridge cold-start vector
+        .WORD	@WARM_START	    ; Cartridge warm-start vector
+        .BYTE	$C3, $C2, $CD, $38, $30		; CBM8O - Autostart key
+
+@COLD_START
+;	KERNAL RESET ROUTINE
+        STX $D016				; Turn on VIC for PAL / NTSC check
+        JSR $FDA3				; IOINIT - Init CIA chips
+        JSR $FD50				; RANTAM - Clear/test system RAM
+        JSR $FD15				; RESTOR - Init KERNAL RAM vectors
+        JSR $FF5B				; CINT   - Init VIC and screen editor
+ 
+
+;	BASIC RESET  Routine
+
+        JSR $E453				; Init BASIC RAM vectors
+        JSR $E3BF				; Main BASIC RAM Init routine
+        JSR $E422				; Power-up message / NEW command
+        LDX #$FB
+        TXS					    ; Reduce stack pointer for BASIC
+
+	
+@WARM_START
+    ;	START YOUR PROGRAM HERE
+
+        LDA #5		            ; CHANGE BORDER COLOUR TO 
+        STA BORDER		        ; 
+        LDA #147		        ; PRINT CHR$(147) TO CLEAR
+        JSR CHROUT		        ; SCREEN
 
         ;
         ;   install wedge
         ;
-        MOVE16 IGONE,IGONE_SV
+               
+@SETWEDGE        
+        
+        MOVE16 IGONE, IGONE_SV
         MOVE16I IGONE, WEDGE
 
-        MOVE16I TXTTAB,2049
-        MOVE16I VARTAB,2051
+        CLI					    ; Re-enable IRQ interrupts
+        jmp (IGONE_SV)
 
-        lda #0
-        ldy #3
--
-        sta (TXTTAB),y
-        dey
-        bne -
-
-        sei
-
-        jmp WARM
-
+        JMP WARM
+        
 ;********************************************
 ;*                                          *
 ;*  WEDGE                                   *
