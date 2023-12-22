@@ -52,7 +52,9 @@
         StartX = DSCPNT
         YMAX = OLDLIN
         XMAX = BLNCT
-        SRCM = BSOUR
+
+        IGONE_SV .equ $C000
+        
 
         ;************************************
         ; The values below are globals must
@@ -61,11 +63,9 @@
         ; not use tape
         ;************************************
         CIRJUMP = CNTDN
-        IGONE_SV = BSOUR
         COLOR = CMP0
 
         .org $8000
-
 
         .WORD	@COLD_START		; Cartridge cold-start vector
         .WORD	@WARM_START	    ; Cartridge warm-start vector
@@ -92,7 +92,7 @@
 @WARM_START
     ;	START YOUR PROGRAM HERE
 
-        LDA #5		            ; CHANGE BORDER COLOUR TO 
+        LDA #5		            ; CHANGE BORDER COLOUR 
         STA BORDER		        ; 
         LDA #147		        ; PRINT CHR$(147) TO CLEAR
         JSR CHROUT		        ; SCREEN
@@ -101,15 +101,23 @@
         ;   install wedge
         ;
                
-@SETWEDGE        
+@SETWEDGE 
+        NEWBYTES .equ  3
+        sei
         
         MOVE16 IGONE, IGONE_SV
         MOVE16I IGONE, WEDGE
 
-        CLI					    ; Re-enable IRQ interrupts
-        jmp (IGONE_SV)
+        lda #0                  ; peform a NEW for basic
+        ldy #NEWBYTES
+-
+        sta (TXTTAB),y
+        dey
+        bne -
 
-        JMP WARM
+        cli
+        
+        jmp WARM
         
 ;********************************************
 ;*                                          *
@@ -230,7 +238,6 @@ _Commands
         .byte " HGR", 0
         .byte " HCIR", 0
         .byte " HFCIR", 0
-        .byte " HSRCMODE", 0
         .byte 0
 
  ; offsets to commands
@@ -1408,17 +1415,6 @@ RangeCheckCircle
         ADD168 CX,R,XCOORD
         jmp RangeCheckXY
 
-;********************************************
-;
-;  HSourceMode
-;
-;  Set source plotmode
-;
-;*******************************************
-HSourceMode
-        jsr GETBYTC
-        stx SRCM
-        rts
 
 ;----------------------------------------------
 
@@ -1444,7 +1440,7 @@ MaskData
         .byte %11111111 ; 7
 
 MaskDataEnd
-        .byte %00000000 ; 0
+        .byte %00000000
         .byte %10000000 ; 1
         .byte %11000000 ; 2
         .byte %11100000 ; 3
@@ -1454,3 +1450,5 @@ MaskDataEnd
         .byte %11111110 ; 7
         .byte %11111111 ; 8
 
+        
+        

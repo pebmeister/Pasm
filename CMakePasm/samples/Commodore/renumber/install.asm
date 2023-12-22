@@ -12,14 +12,20 @@
 ;*                                          *
 ;********************************************
 INSTALL
-
-        cli
-
         ;
         ;   install wedge
         ;
-        MOVE16 IGONE,IGONE_SV
-        MOVE16I IGONE,WEDGE
+        sei
+        
+        MOVE16 IGONE, IGONE_SV
+        MOVE16I IGONE, WEDGE
+
+        lda #0                  ; peform a NEW for basic
+        ldy #NEWBYTES
+-
+        sta (TXTTAB),y
+        dey
+        bne -
 
         ;
         ;   set NXTLN
@@ -31,16 +37,6 @@ INSTALL
         sta NXTLN + 1
         sta STREND + 1
 
-        lda #0                  ; peform a NEW for basic
-        ldy #NEWBYTES
--
-        sta (NXTLN),y
-        dey
-        bne -
-
-        ADD16I STREND,2,STREND
-        MOVE16 MEMSIZ,FRETOP
-
         lda STREND
         sta VARTAB
         sta ARYTAB
@@ -48,7 +44,7 @@ INSTALL
         sta VARTAB + 1
         sta ARYTAB + 1
 
-        sei
-
+        cli
+        
         jmp WARM
-
+        

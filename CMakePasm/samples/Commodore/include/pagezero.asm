@@ -58,7 +58,7 @@ R6510   = $01
 ; Bit 3: Cassette Data Output line.
 ; Bit 4: Cassette Switch Sense. Reads 0 if a button is pressed, 1 if not.
 ; Bit 5: Cassette Motor Control. A 1 turns the motor on, a 0 turns it off.
-; Bits 6-7: Not connectedÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âno function presently defined.
+; Bits 6-7: Not connected
 ;
 ; The chief function of this register is to determine which blocks of
 ; RAM and ROM the 6510 microprocessor will address. The Commodore 64
@@ -358,8 +358,7 @@ LINNUM  = $14
 ; The target line number for GOTO, LIST, ON, and GOSUB is stored
 ; here in low-byte, high-byte integer format, as is the number of a
 ; BASIC line that is to be added or replaced.
-; LIST saves the highest line number to list (or 65535ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â$FFFF if
-; program is to be listed to the end) at this location. < 1
+; LIST saves the highest line number to list (or 65535; program is to be listed to the end) at this location. < 1
 ; GOTO tests the target line number to see if it is greater than the
 ; line number currently being executed. If it is greater, GOTO starts its
 ; search for the target line at the current line number. If it is not J
