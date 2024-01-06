@@ -42,5 +42,3 @@ NAME    .str "RENUM",0          ;   enter name of prg-to-load here
 
                                 ;   now comes the smart part:
         .fill $01, $200-*
-
-

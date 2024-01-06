@@ -1,0 +1,24 @@
+       NEWBYTES $0003   ILLEGALQUANITY $000E        WEDGE_TMP $0014           LINNUM $0014           XCOORD $0014  
+             _X $0014            XDIST $0022            INDEX $0022            YDIST $0024            RESHO $0026  
+      BASICTEXT $0026               _Y $0026           TXTTAB $002B               PK $003B               K1 $003B  
+           YMAX $003B           OLDLIN $003B               X0 $0049           FORPNT $0049               X1 $004B  
+          OPPTR $004B           StartX $0050           DSCPNT $0050          CMDJUMP $0057          COUNTER $0057  
+            LOC $0057          UNUSED2 $0057         CMDTABLE $0057              TMP $0059           CHRGET $0073  
+         CHRGOT $0079           TXTPTR $007A             PRTY $009B               Y0 $009B           MSGFLG $009D  
+             Y1 $009D             YCOL $009E               XD $009E             PTR1 $009E          TMPDATA $00A3  
+       COLORPTR $00A3            CNTDN $00A5          CIRJUMP $00A5               DY $00A8             CURX $00A8  
+          BITCI $00A8               CX $00AA           RIDATA $00AA               XS $00AA           RIPRTY $00AB  
+             CY $00AC               YS $00AC            COLOR $00B0             CMP0 $00B0               DX $00B4  
+         CURLOC $00B4            BITTS $00B4          FRE_TOK $00B8            BLNCT $00CD             XMAX $00CD  
+         FREKZP $00FB               K2 $00FB             _CMD $00FB                R $00FB               _D $00FD  
+           CURY $00FD            IGONE $0308         IGONE_SV $03FC        COLORBASE $0400       BITMAPBASE $2000  
+          WEDGE $804D        _Commands $80ED            _Jump $813D            HGROn $8155           HGRCls $8166  
+      HGRBColor $81D5        HGRFColor $81E6       ClearColor $81FB           HGROff $8214          HGRPlot $8225  
+          _Plot $8231    CalcColorByte $8251         CalcPlot $82AB          HGRLine $82FB            _Line $8324  
+         _Line2 $834E    CalcPlotHLine $8363    NotHorizontal $8382       HCPlotLine $8505  HGRHorizontalLine $8575  
+    HGRFillRect $85E7          HGRRect $8638    SetCircleJump $86B0       JumpCircle $86BE        JumpTable $86C1  
+  HGRFillCircle $86C5        HGRCircle $86D5       HGRCircle2 $86DA       HGRCircle3 $86F5  PlotCirclePixels $87AA  
+ PlotFillCircle $8852     RangeCheckXY $88F2       RangeError $8901  RangeCheckCircle $8906        MaskStart $8929  
+       MaskData $8931      MaskDataEnd $8939           HGRBez $8942        FIX16_MUL $8DCC            ERROR $A437  
+         CHKCOM $AEFD          GETBYTC $B79B           GETNUM $B7EB           FixedA $CF00           FixedB $CF04  
+         FixedC $CF08           BORDER $D020  

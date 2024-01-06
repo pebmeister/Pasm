@@ -6,8 +6,8 @@
         .inc "kernal.asm"
 
 ;********************************************
-        BITMAPBASE = 4096 * 2
-        COLORBASE = 1024
+        BITMAPBASE = $2000
+        COLORBASE = $0400
 
         ; Some zero page has multiple uses
 
@@ -53,8 +53,7 @@
         YMAX = OLDLIN
         XMAX = BLNCT
 
-        IGONE_SV .equ $C000
-        
+        IGONE_SV .equ $3FC
 
         ;************************************
         ; The values below are globals must
@@ -73,34 +72,29 @@
 
 @COLD_START
 ;	KERNAL RESET ROUTINE
-        STX $D016				; Turn on VIC for PAL / NTSC check
-        JSR $FDA3				; IOINIT - Init CIA chips
-        JSR $FD50				; RANTAM - Clear/test system RAM
-        JSR $FD15				; RESTOR - Init KERNAL RAM vectors
-        JSR $FF5B				; CINT   - Init VIC and screen editor
+        stx $D016				; Turn on VIC for PAL / NTSC check
+        jsr $FDA3				; IOINIT - Init CIA chips
+        jsr $FD50				; RANTAM - Clear/test system RAM
+        jsr $FD15				; RESTOR - Init KERNAL RAM vectors
+        jsr $FF5B				; CINT   - Init VIC and screen editor
  
 
 ;	BASIC RESET  Routine
-
-        JSR $E453				; Init BASIC RAM vectors
-        JSR $E3BF				; Main BASIC RAM Init routine
-        JSR $E422				; Power-up message / NEW command
-        LDX #$FB
-        TXS					    ; Reduce stack pointer for BASIC
-
+        jsr $E453				; Init BASIC RAM vectors
+        jsr $E3BF				; Main BASIC RAM Init routine
+        jsr $E422				; Power-up message / NEW command
+        ldx #$FB
+        txs					    ; Reduce stack pointer for BASIC
 	
 @WARM_START
-    ;	START YOUR PROGRAM HERE
+;	START YOUR PROGRAM HERE
 
-        LDA #5		            ; CHANGE BORDER COLOUR 
-        STA BORDER		        ; 
-        LDA #147		        ; PRINT CHR$(147) TO CLEAR
-        JSR CHROUT		        ; SCREEN
-
+        lda #5		            ; CHANGE BORDER COLOUR 
+        sta BORDER		        ; 
+ 
         ;
         ;   install wedge
-        ;
-               
+        ;  
 @SETWEDGE 
         NEWBYTES .equ  3
         sei
@@ -117,7 +111,7 @@
 
         cli
         
-        jmp WARM
+        jmp (IGONE_SV)
         
 ;********************************************
 ;*                                          *
@@ -238,6 +232,7 @@ _Commands
         .byte " HGR", 0
         .byte " HCIR", 0
         .byte " HFCIR", 0
+        .byte " HBEZ", 0
         .byte 0
 
  ; offsets to commands
@@ -253,7 +248,7 @@ _Jump
         .word HGROn
         .word HGRCircle
         .word HGRFillCircle
-        .word HSourceMode
+        .word HGRBez
 
 ;********************************************
 ;*                                          *
@@ -275,7 +270,7 @@ HGROn
 
 ;********************************************
 ;*                                          *
-;*  HGRCls                                  *
+;*  HGRClS                                  *
 ;*                                          *
 ;*  Clear graphics bitmap and colors        *
 ;*                                          *
@@ -283,44 +278,17 @@ HGROn
 HGRCls
         ldx #0
         lda #0
+        .var n = 8000/255, i
 @_ClrLoop
-        sta BITMAPBASE + ($0100 * 0),x
-        sta BITMAPBASE + ($0100 * 1),x
-        sta BITMAPBASE + ($0100 * 2),x
-        sta BITMAPBASE + ($0100 * 3),x
-        sta BITMAPBASE + ($0100 * 4),x
-        sta BITMAPBASE + ($0100 * 5),x
-        sta BITMAPBASE + ($0100 * 6),x
-        sta BITMAPBASE + ($0100 * 7),x
-        sta BITMAPBASE + ($0100 * 8),x
-        sta BITMAPBASE + ($0100 * 9),x
-        sta BITMAPBASE + ($0100 * 10),x
-        sta BITMAPBASE + ($0100 * 11),x
-        sta BITMAPBASE + ($0100 * 12),x
-        sta BITMAPBASE + ($0100 * 13),x
-        sta BITMAPBASE + ($0100 * 14),x
-        sta BITMAPBASE + ($0100 * 15),x
-        sta BITMAPBASE + ($0100 * 16),x
-        sta BITMAPBASE + ($0100 * 17),x
-        sta BITMAPBASE + ($0100 * 18),x
-        sta BITMAPBASE + ($0100 * 19),x
-        sta BITMAPBASE + ($0100 * 20),x
-        sta BITMAPBASE + ($0100 * 21),x
-        sta BITMAPBASE + ($0100 * 22),x
-        sta BITMAPBASE + ($0100 * 23),x
-        sta BITMAPBASE + ($0100 * 24),x
-        sta BITMAPBASE + ($0100 * 25),x
-        sta BITMAPBASE + ($0100 * 26),x
-        sta BITMAPBASE + ($0100 * 27),x
-        sta BITMAPBASE + ($0100 * 28),x
-        sta BITMAPBASE + ($0100 * 29),x
-        sta BITMAPBASE + ($0100 * 30),x
+        .for i = 0 .to n -1
+            sta BITMAPBASE + ($0100 * i),x
+        .next i
         inx
         bne @_ClrLoop
 @_ClrLoop2
-        sta BITMAPBASE + ($0100 * 31),x
+        sta BITMAPBASE + ($0100 * n),x
         inx
-        cpx #8000-31*255
+        cpx #8000-n*255
         bne @_ClrLoop2
 
         jmp ClearColor
@@ -528,7 +496,7 @@ CalcPlot
         ADD16 TMP, LOC, LOC
 
 ;-----------------------------------------------
-        ; given: x (0 - 7)
+        ; given: x (0 - 7) 
         ; x = 7 - x
         MOVE8I TMP, 7
         stx TMP + 1
@@ -572,14 +540,15 @@ HGRLine
 ;    X1 - end X
 ;    Y1 - end Y
 ;
+;    X0 must be less than X1
 ; optimized for horizontal lines
 ;********************************************
-_Line
+_Line   
         ldx Y0
         cpx Y1
         bne NotHorizontal
 
-;---------------------------------------
+;---------------------------------------        
         lda X0 + 1
         cmp X1 + 1
         bcc _Line2
@@ -590,6 +559,7 @@ _Line
 ;---------------------------------------
         MOVE16 X1, XCOORD
         SUB16 X0, X1, XDIST
+                
         jmp CalcPlotHLine
 
 ;********************************************
@@ -607,6 +577,13 @@ _Line
 _Line2
         MOVE16 X0,XCOORD
         SUB16 X1, X0, XDIST
+
+        lda XDIST + 1
+        bne CalcPlotHLine
+        
+        lda XDIST
+        cmp #$08
+        bcc NotHorizontal               
 
 ;---------------------------------------
 CalcPlotHLine
@@ -849,16 +826,24 @@ HCPlotLine
         beq @InitLoop
 
 ; -------------------------------------------
-
+        ; if XD < 8 we cant do this
+        tay
+        
+        lda XD + 1
+        bne @Sub
+        lda XD
+        cmp #8
+        bcc @Exit
+        
         ; subtract 8 - N from XD
+@Sub
+        tya
         sta TMP
         sec
         lda #8
         sbc TMP
         sta TMP
         SUB168 XD, TMP, XD
-
-; -------------------------------------------
 
         ; set color Memory
         ldy #0
@@ -1038,7 +1023,7 @@ HFillRect
 ;  Parse Basic text for
 ;  x, y, xdist, ydist
 ;
-;  Call HRect for to draw rectangle
+;  Call HRect to draw rectangle
 ;
 ;********************************************
 HGRRect
@@ -1197,7 +1182,7 @@ HGRCircle2
         jsr RangeCheckCircle
 
 HGRCircle3
-        ; pk = 3 - 2 * r;
+                            ; pk = 3 - 2 * r;
         lda #0
         sta PK + 1
         MOVE8 R, PK         ; pk = r
@@ -1366,6 +1351,7 @@ PlotFillCircle
         MOVE8 Y0, Y1
         jmp _Line2
 
+
 ;********************************************
 ;
 ;  RangeCheckXY
@@ -1415,9 +1401,7 @@ RangeCheckCircle
         ADD168 CX,R,XCOORD
         jmp RangeCheckXY
 
-
 ;----------------------------------------------
-
 
 MaskStart
         .byte %00000001 ; 0
@@ -1450,5 +1434,343 @@ MaskDataEnd
         .byte %11111110 ; 7
         .byte %11111111 ; 8
 
+;********************************************
+;
+;  HGRBez
+;
+;  Draw a Bezier curve
+;
+;*******************************************
+HGRBez  
+;----------------------------------
+        * = $CE00
+@LASTX  .ds 2
+@LASTY  .ds 1
+@A1     .ds 4
+@B1     .ds 4
+@C1     .ds 4
+@X0     .ds 2
+@Y0     .ds 1
+@X1     .ds 2
+@Y1     .ds 1
+@X2     .ds 2
+@Y2     .ds 1
+@T      .ds 4
+@ONE_MINUS_T .ds 4
+@A      .ds 4
+@B      .ds 4
+@C      .ds 4
+@FIXX   .ds 4
+@FIXY   .ds 4
+
+;----------------------------------
+        * = HGRBez
+        jmp @start
         
+@INC    .word 0, $0200
+@ONE    .word 1, 0
+@TWO    .word 2, 0
+
+@start  
         
+        INC16 TXTPTR    ; advance basic textptr
+
+        ; get the start position, xdistance and ydistance
+
+        jsr GETNUM ; get address in $14/$15 y next integer at X
+        ; jsr RangeCheckXY       
+        stx @Y0
+        MOVE16 XCOORD, @X0
+
+        jsr CHKCOM
+        jsr GETNUM ; get address in $14/$15 y next integer at X
+        ; jsr RangeCheckXY
+        stx @Y1
+        MOVE16 XCOORD, @X1
+        
+        jsr CHKCOM
+        jsr GETNUM ; get address in $14/$15 y next integer at X
+        ; jsr RangeCheckXY
+        stx @Y2
+        MOVE16 XCOORD, @X2
+
+        ;   const auto inc = fix16_from_dbl(1.0 / sz);
+        ;   auto t = F16(0);
+        ;   constexpr auto max = F16(1);
+        ;   constexpr auto two = F16(2);
+        MOVE16I @T, 0        
+        MOVE16I @T + 2, $0
+        
+        MOVE16 @X0, @LASTX
+        MOVE8 @Y0, @LASTY
+        
+@WHILE_T
+        ;     while (t <= max)horacemann
+        lda @T
+        beq @ContinueWhile
+        jmp @LoopExit
+
+@ContinueWhile
+        ;  const auto one_minus_t = F16(1) - t;
+        SUBFIX16 @ONE, @T, @ONE_MINUS_T
+        
+;----------------------------------------------      
+; calculate a1,b1 and c1
+;----------------------------------------------        
+        ; (1 - t) * (1 - t)
+        ; const fix16_t a1 = fix16_mul(one_minus_t, one_minus_t);
+        MOVE32 @ONE_MINUS_T, FixedA
+        MOVE32 @ONE_MINUS_T, FixedB
+        jsr FIX16_MUL
+        MOVE32 FixedC, @A1
+
+        ; 2 * (1 - t) * t
+        ; fix16_t b1 = fix16_mul(two, one_minus_t);
+        ; b1 = fix16_mul(b1, t);
+        MOVE32 @TWO, FixedA
+        MOVE32 @ONE_MINUS_T, FixedB
+        jsr FIX16_MUL
+        MOVE32 FixedC, @B1
+
+        MOVE32 @B1,FixedA
+        MOVE32 @T, FixedB
+        jsr FIX16_MUL
+        MOVE32 FixedC, @B1
+
+        ;  c1 = fix16_mul(t, t);
+        MOVE32 @T, FixedA
+        MOVE32 @T, FixedB
+        jsr FIX16_MUL
+        MOVE32 FixedC, @C1
+        
+;-----------------------------------------
+;        Calculate FixedX
+;-----------------------------------------
+        ;   a = fix16_mul(a1, x0);
+        MOVE32 @A1, FixedA
+        MOVE16I FixedB, 0
+        MOVE16 @X0, FixedB + 2
+        jsr FIX16_MUL
+        MOVE32 FixedC, @A   
+
+        ;   b = fix16_mul(b1, x1);        
+        MOVE32 @B1, FixedA
+        MOVE16 @X1, FixedB + 2       
+        
+        jsr FIX16_MUL
+        MOVE32 FixedC, @B
+     
+        ;  c = fix16_mul(c1, x2);
+        MOVE32 @C1, FixedA
+        MOVE16 @X2, FixedB + 2
+        jsr FIX16_MUL
+        MOVE32 FixedC, @C
+
+        ; fix16_t x_fixed = fix16_add(a, b);
+        ; x_fixed = fix16_add(x_fixed, c);        
+        ADDFIX16 @A, @B, @FIXX
+        ADDFIX16 @FIXX, @C, @FIXX
+        
+;-----------------------------------------
+;        Calculate FixedY
+;-----------------------------------------
+        ;   a = fix16_mul(a1, y0);
+        MOVE32 @A1, FixedA
+        MOVE16I FixedB, 0
+        MOVE16I FixedB + 2, 0
+        MOVE8 @Y0, FixedB + 2
+        jsr FIX16_MUL
+        MOVE32 FixedC, @A
+
+        ;   b = fix16_mul(b1, y1);
+        MOVE32 @B1, FixedA
+        MOVE8 @Y1, FixedB + 2
+        jsr FIX16_MUL
+        MOVE32 FixedC, @B
+        
+        ;  c = fix16_mul(c1, y2);
+        MOVE32 @C1, FixedA
+        MOVE8 @Y2, FixedB + 2
+        jsr FIX16_MUL
+        MOVE32 FixedC, @C
+
+        ; fix16_t y_fixed = fix16_add(a, b);
+        ; y_fixed = fix16_add(x_fixed, c);
+        ADDFIX16 @A, @B, @FIXY
+        ADDFIX16 @FIXY, @C, @FIXY
+  
+;----------------------------------------
+        ; putpixel(put_x, put_y); // putting pixel
+        
+        lda @FIXX + 2
+        cmp @LASTX
+        bne @DO_Line
+        
+        lda @FIXX + 3       
+        cmp @LASTX + 1
+        bne @DO_Line
+
+        lda @FIXY + 2
+        cmp @LASTY
+        beq @No_Line
+
+@DO_Line
+        ; X0 MUST BE <= X1!!!!
+        
+        ;16-bit number comparison...
+        ;
+        lda @FIXX + 3         ;MSB of 1st number
+        cmp @LASTX + 1        ;MSB of 2nd number
+        bcc @X0_Lower_Same    ;X0 < X1
+        ;
+        bne @X1_Larger        ;X1 > X0
+        ;
+        lda @FIXX + 2         ;LSB of 1st number
+        cmp @LASTX            ;LSB of 2nd number
+        bcc @X0_Lower_Same    ;X0 < X1
+        ;
+        beq @X0_Lower_Same    ;X0 = X1
+        ;
+        bne @X1_Larger        ;X > Y
+         
+@X0_Lower_Same       
+        MOVE16 @FIXX + 2, X0
+        MOVE8 @FIXY + 2, Y0
+        MOVE16 @LASTX, X1
+        MOVE8 @LASTY, Y1
+        jmp @DrawLine
+        
+@X1_Larger
+        MOVE16 @FIXX + 2, X1
+        MOVE8 @FIXY + 2, Y1
+        MOVE16 @LASTX, X0
+        MOVE8 @LASTY, Y0
+ 
+@DrawLine
+        jsr @RangeCheckLine
+        jsr _Line
+
+        MOVE16 @FIXX + 2, @LASTX
+        MOVE8 @FIXY + 2, @LASTY
+                
+@NO_Line        
+        ; t += inc;
+        ADDFIX16 @T, @INC, @T
+ 
+        jmp @WHILE_T
+
+;----------------------------------------
+
+@LoopExit
+        rts
+
+@RangeCheckLine
+        lda Y0
+        cmp # 200
+        bcs @RangeError
+
+        lda Y1
+        cmp # 200
+        bcs @RangeError
+
+        lda X0 + 1
+        beq @CheckX1
+
+        lda X0
+        cmp # 320 - 256
+        bcs @RangeError
+@CheckX1
+        lda X1 + 1
+        beq @Exit
+
+        lda X1
+        cmp # 320 - 256
+        bcs @RangeError
+
+@Exit
+        rts
+@RangeError
+        ldx # ILLEGALQUANITY
+        jmp ERROR
+
+;---------------------------------------------- ; 
+        
+
+;****************************************************
+;*                                                  *
+;* FIX16_MUL                                        *
+;*                                                  *
+;*  fix16 multiply                                  *
+;*                                                  *
+;*  16bit integer    16bit Fraction                 *
+;*                                                  *
+;*  FixedA  IN:  4 bytes 1st number to multiply     *
+;*  FixedB  IN:  4 bytes 2nd number to multiply     *
+;*  FixedC OUT:  4 bytes result                     *
+;*                                                  *
+;*	// Each argument is divided to 16-bit parts.    *
+;*  destroys a, x, y                                *
+;*                                                  *
+;****************************************************
+FIX16_MUL
+
+    FixedA      = $CF00
+    FixedB      = FixedA + 4
+    FixedC      = FixedB + 4
+    
+    * = FixedC + 4
+    @AC         .ds 4
+    @AD         .ds 4
+    @BD         .ds 4
+    @CB         .ds 4
+    @AD_CB      .ds 4
+    @P_HI       .ds 4
+    @P_LO       .ds 4
+    @tmp        .ds 4
+    * = FIX16_MUL
+    
+    @A          = FixedA
+    @B          = FixedA + 2
+    @C          = FixedB
+    @D          = FixedB + 2
+    
+    ;	int32_t AC = A*C;
+    ;	int32_t AD_CB = A*D + C*B;
+    ;	uint32_t BD = B*D;
+	MULT16 @A, @C, @AC
+    MOVE16 @AC+2,@tmp
+    MOVE16 @AC, @AC+2
+    MOVE16 @tmp, @AC
+
+    MULT16 @A, @D, @AD
+    MOVE16 @AD+2,@tmp
+    MOVE16 @AD, @AD+2
+    MOVE16 @tmp, @AD
+    
+    MULT16 @C, @B, @CB
+    MOVE16 @CB+2,@tmp
+    MOVE16 @CB, @CB+2
+    MOVE16 @tmp, @CB
+
+    MULT16 @B, @D, @BD
+    MOVE16 @BD+2,@tmp
+    MOVE16 @BD, @BD+2
+    MOVE16 @tmp, @BD
+    
+    ADDFIX16 @AD, @CB, @AD_CB 
+  
+    ;	int32_t product_hi = AC + (AD_CB >> 16);
+    MOVE16I @tmp, 0
+    MOVE16 @AD_CB, @tmp + 2
+    ADDFIX16 @AC, @tmp, @P_HI
+        
+    MOVE16I @tmp + 2, 0
+    MOVE16 @AD_CB + 2, @tmp
+    ADDFIX16 @BD, @tmp, @P_LO
+     
+ 	; return (product_hi << 16) | (product_lo >> 16);
+    MOVE16 @P_HI + 2, FixedC 
+    MOVE16 @P_LO, FixedC + 2
+    
+    rts
+ 

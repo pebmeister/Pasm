@@ -118,6 +118,50 @@
 
 ;********************************************
 ;*                                          *
+;* MOVE32                                   *
+;*                                          *
+;*  move a 32 bit variable                  *
+;*                                          *
+;*  \1  Source                              *
+;*  \2  Destination                         *
+;*                                          *
+;*  destroys a                              *
+;*                                          *
+;********************************************
+        .macro MOVE32
+        lda \1
+        sta \2
+        lda \1 + 1
+        sta \2 + 1
+        lda \1 + 2
+        sta \2 + 2
+        lda \1 + 3
+        sta \2 + 3
+        .endm
+
+;********************************************
+;*                                          *
+;* SWAP32                                   *
+;*                                          *
+;*  swap a upper and lower 16 bits          *
+;*                                          *
+;*  \1  Source                              *
+;*                                          *
+;*  destroys a                              *
+;*                                          *
+;********************************************
+        .macro SWAP32
+        jmp @start
+@tmp    
+        .word 0        
+@start 
+        MOVE16 \1 + 2, @tmp
+        MOVE16 \1, \1 + 2
+        MOVE16 @tmp, \1
+        .endm
+
+;********************************************
+;*                                          *
 ;* MOVE16I                                  *
 ;*                                          *
 ;*  move a 16 bit value to a variable       *
@@ -195,6 +239,93 @@
         sta \3
         lda \1 + 1
         adc \2 + 1
+        sta \3 + 1
+        .endm
+
+;********************************************
+;*                                          *
+;* ADD32                                    *
+;*                                          *
+;*  add 32 bit variables                    *
+;*                                          *
+;*  /1  Variable 1                          *
+;*  /2  Variable 2                          *
+;*  /3  Destination                         *
+;*                                          *
+;*  destroys a                              *
+;*                                          *
+;********************************************
+        .macro ADD32
+        clc
+        lda \1
+        adc \2
+        sta \3
+        lda \1 + 1
+        adc \2 + 1
+        sta \3 + 1
+        lda \1 + 2
+        adc \2 + 2
+        sta \3 + 2
+        lda \1 + 3
+        adc \2 + 3
+        sta \3 + 3
+        .endm
+
+;********************************************
+;*                                          *
+;* ADDFIX16                                 *
+;*                                          *
+;*  add 16 bit fixed point variables        *
+;*                                          *
+;*  /1  Variable 1                          *
+;*  /2  Variable 2                          *
+;*  /3  Destination                         *
+;*                                          *
+;*  destroys a                              *
+;*                                          *
+;********************************************
+        .macro ADDFIX16
+        clc
+        lda \1 + 2
+        adc \2 + 2
+        sta \3 + 2
+        lda \1 + 3
+        adc \2 + 3
+        sta \3 + 3
+        lda \1
+        adc \2
+        sta \3
+        lda \1 + 1
+        adc \2 + 1
+        sta \3 + 1
+        .endm
+
+;********************************************
+;*                                          *
+;* ADDFIX16I                                *
+;*                                          *
+;*  add 16 bit fixed point variables        *
+;*                                          *
+;*  /1  Variable 1                          *
+;*  /2  number                              *
+;*  /3  Destination                         *
+;*                                          *
+;*  destroys a                              *
+;*                                          *
+;********************************************
+        .macro ADDFIX16I
+        clc
+        lda #\2
+        adc \1 + 2
+        sta \3 + 2
+        lda #0
+        adc \1 + 3
+        sta \3 + 3
+        lda #0
+        adc \1
+        sta \3
+        lda #0
+        adc \1 + 1
         sta \3 + 1
         .endm
 
@@ -388,6 +519,35 @@
 
 ;********************************************
 ;*                                          *
+;* SUBFIX16                                 *
+;*                                          *
+;*  subtract 16 bit variables               *
+;*                                          *
+;*  \1  Variable                            *
+;*  \2  Variable to subtract                *
+;*  \3  Destination                         *
+;*                                          *
+;*  destroys a                              *
+;*                                          *
+;********************************************
+        .macro SUBFIX16
+        sec
+        lda \1 + 2
+        sbc \2 + 2
+        sta \3 + 2
+        lda \1 + 3
+        sbc \2 + 3
+        sta \3 + 3
+        lda \1
+        sbc \2
+        sta \3
+        lda \1 + 1
+        sbc \2 + 1
+        sta \3 + 1       
+        .endm
+
+;********************************************
+;*                                          *
 ;* DEC8                                     *
 ;*                                          *
 ;*  Decrement a 8 bit variable              *
@@ -444,7 +604,7 @@
 ;*  16bit shift                             *
 ;*                                          *
 ;*  \1  Variable                            *
-;*  \2  btits to shift                      *
+;*  \2  bits to shift                       *
 ;*                                          *
 ;*  destroys    nothing                     *
 ;*                                          *
@@ -454,6 +614,31 @@
         n = \2
         .while n > 0
             lsr \1 + 1
+            ror \1
+
+            n = n -1
+        .wend
+        .endm
+
+;********************************************
+;*                                          *
+;*  RSHIFT32                                *
+;*                                          *
+;*  32bit shift                             *
+;*                                          *
+;*  \1  Variable                            *
+;*  \2  bits to shift                       *
+;*                                          *
+;*  destroys    nothing                     *
+;*                                          *
+;********************************************
+        .macro RSHIFT32
+        .var n
+        n = \2
+        .while n > 0
+            lsr \1 + 3
+            ror \1 + 2
+            ror \1 + 1
             ror \1
 
             n = n -1
@@ -488,7 +673,7 @@
 ;*  16bit shift                             *
 ;*                                          *
 ;*  \1  Variable                            *
-;*  \2  btits to shift                      *
+;*  \2  bits to shift                       *
 ;*                                          *
 ;*  destroys    nothing                     *
 ;*                                          *
@@ -503,6 +688,29 @@
         .wend
         .endm
 
+;********************************************
+;*                                          *
+;*  LSHIFT32                                *
+;*                                          *
+;*  32bit shift                             *
+;*                                          *
+;*  \1  Variable                            *
+;*  \2  bits to shift                       *
+;*                                          *
+;*  destroys    nothing                     *
+;*                                          *
+;********************************************
+        .macro LSHIFT32
+        .var n
+        n = \2
+        .while n > 0
+            asl \1
+            rol \1 + 1
+            rol \1 + 2
+            rol \1 + 3
+            n = n -1
+        .wend
+        .endm
 ;********************************************
 ;*                                          *
 ;* MULT10                                   *
@@ -633,7 +841,6 @@
         sta \1 + 1              ;   store high byte
         .endm
 
-
 ;********************************************
 ;*                                          *
 ;*  MULT8                                   *
@@ -713,6 +920,7 @@
             sta \2
 
             .endm
+
 
 ;********************************************
 ;*                                          *
