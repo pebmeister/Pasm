@@ -141,27 +141,6 @@
 
 ;********************************************
 ;*                                          *
-;* SWAP32                                   *
-;*                                          *
-;*  swap a upper and lower 16 bits          *
-;*                                          *
-;*  \1  Source                              *
-;*                                          *
-;*  destroys a                              *
-;*                                          *
-;********************************************
-        .macro SWAP32
-        jmp @start
-@tmp    
-        .word 0        
-@start 
-        MOVE16 \1 + 2, @tmp
-        MOVE16 \1, \1 + 2
-        MOVE16 @tmp, \1
-        .endm
-
-;********************************************
-;*                                          *
 ;* MOVE16I                                  *
 ;*                                          *
 ;*  move a 16 bit value to a variable       *
@@ -921,6 +900,25 @@
 
             .endm
 
+
+;********************************************
+;*                                          *
+;*  FMUL                                    *
+;*                                          *
+;*  16bit Fixed multiplication 32bit result *
+;*                                          *
+;*  \1  Variable a     16-bit               *
+;*  \2  Variable b     16 bit               *
+;*  \3  Destination    32 bit               *
+;*  \4  Storage        32 bit               *
+;*                                          *
+;********************************************
+            .macro FMUL
+            MULT16 \1, \2, \3
+            MOVE16 \3 + 2, \4
+            MOVE16 \3, \3 + 2
+            MOVE16 \4, \3
+            .endm
 
 ;********************************************
 ;*                                          *

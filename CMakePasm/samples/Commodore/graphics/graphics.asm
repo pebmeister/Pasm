@@ -52,6 +52,9 @@
         StartX = DSCPNT
         YMAX = OLDLIN
         XMAX = BLNCT
+        FixedA      = FREKZP
+        FixedB      = FAC1
+        FixedC      = FAC2  
 
         IGONE_SV .equ $3FC
 
@@ -270,7 +273,7 @@ HGROn
 
 ;********************************************
 ;*                                          *
-;*  HGRClS                                  *
+;*  HGRCLS                                  *
 ;*                                          *
 ;*  Clear graphics bitmap and colors        *
 ;*                                          *
@@ -1442,6 +1445,9 @@ MaskDataEnd
 ;
 ;*******************************************
 HGRBez  
+
+;----------------------------------
+; local variables
 ;----------------------------------
         * = $CE00
 @LASTX  .ds 2
@@ -1465,32 +1471,21 @@ HGRBez
 
 ;----------------------------------
         * = HGRBez
-        jmp @start
-        
-@INC    .word 0, $0200
-@ONE    .word 1, 0
-@TWO    .word 2, 0
-
-@start  
         
         INC16 TXTPTR    ; advance basic textptr
 
         ; get the start position, xdistance and ydistance
-
         jsr GETNUM ; get address in $14/$15 y next integer at X
-        ; jsr RangeCheckXY       
         stx @Y0
         MOVE16 XCOORD, @X0
 
         jsr CHKCOM
         jsr GETNUM ; get address in $14/$15 y next integer at X
-        ; jsr RangeCheckXY
         stx @Y1
         MOVE16 XCOORD, @X1
         
         jsr CHKCOM
         jsr GETNUM ; get address in $14/$15 y next integer at X
-        ; jsr RangeCheckXY
         stx @Y2
         MOVE16 XCOORD, @X2
 
@@ -1505,10 +1500,10 @@ HGRBez
         MOVE8 @Y0, @LASTY
         
 @WHILE_T
-        ;     while (t <= max)horacemann
+        ;     while (t <= max)horacemann        
         lda @T
         beq @ContinueWhile
-        jmp @LoopExit
+        rts
 
 @ContinueWhile
         ;  const auto one_minus_t = F16(1) - t;
@@ -1555,8 +1550,7 @@ HGRBez
 
         ;   b = fix16_mul(b1, x1);        
         MOVE32 @B1, FixedA
-        MOVE16 @X1, FixedB + 2       
-        
+        MOVE16 @X1, FixedB + 2              
         jsr FIX16_MUL
         MOVE32 FixedC, @B
      
@@ -1600,6 +1594,7 @@ HGRBez
         ADDFIX16 @FIXY, @C, @FIXY
   
 ;----------------------------------------
+
         ; putpixel(put_x, put_y); // putting pixel
         
         lda @FIXX + 2
@@ -1615,7 +1610,7 @@ HGRBez
         beq @No_Line
 
 @DO_Line
-        ; X0 MUST BE <= X1!!!!
+        ; X0 MUST BE <= X1!
         
         ;16-bit number comparison...
         ;
@@ -1656,13 +1651,9 @@ HGRBez
 @NO_Line        
         ; t += inc;
         ADDFIX16 @T, @INC, @T
- 
         jmp @WHILE_T
 
-;----------------------------------------
-
-@LoopExit
-        rts
+;---------------------------
 
 @RangeCheckLine
         lda Y0
@@ -1693,9 +1684,10 @@ HGRBez
         ldx # ILLEGALQUANITY
         jmp ERROR
 
-;---------------------------------------------- ; 
-        
-
+@INC    .word 0, $0210
+@ONE    .word 1, 0
+@TWO    .word 2, 0
+    
 ;****************************************************
 ;*                                                  *
 ;* FIX16_MUL                                        *
@@ -1712,65 +1704,47 @@ HGRBez
 ;*  destroys a, x, y                                *
 ;*                                                  *
 ;****************************************************
+
 FIX16_MUL
 
-    FixedA      = $CF00
-    FixedB      = FixedA + 4
-    FixedC      = FixedB + 4
-    
-    * = FixedC + 4
-    @AC         .ds 4
-    @AD         .ds 4
-    @BD         .ds 4
-    @CB         .ds 4
-    @AD_CB      .ds 4
-    @P_HI       .ds 4
-    @P_LO       .ds 4
-    @tmp        .ds 4
-    * = FIX16_MUL
-    
     @A          = FixedA
     @B          = FixedA + 2
     @C          = FixedB
     @D          = FixedB + 2
-    
+
+    @AC         = UNUSED2
+    @AD         = BITCI
+    @TMP        = TMPDATA
+    @BD         = TAPE1
+    @CB         = ARGSGN
+
+    * = $CF00    
+    @AD_CB      .ds 4
+    @P_HI       .ds 4
+    @P_LO       .ds 4
+    * = FIX16_MUL
+
     ;	int32_t AC = A*C;
     ;	int32_t AD_CB = A*D + C*B;
     ;	uint32_t BD = B*D;
-	MULT16 @A, @C, @AC
-    MOVE16 @AC+2,@tmp
-    MOVE16 @AC, @AC+2
-    MOVE16 @tmp, @AC
-
-    MULT16 @A, @D, @AD
-    MOVE16 @AD+2,@tmp
-    MOVE16 @AD, @AD+2
-    MOVE16 @tmp, @AD
-    
-    MULT16 @C, @B, @CB
-    MOVE16 @CB+2,@tmp
-    MOVE16 @CB, @CB+2
-    MOVE16 @tmp, @CB
-
-    MULT16 @B, @D, @BD
-    MOVE16 @BD+2,@tmp
-    MOVE16 @BD, @BD+2
-    MOVE16 @tmp, @BD
-    
+    FMUL @A, @C, @AC, @TMP
+    FMUL @A, @D, @AD, @TMP
+    FMUL @C, @B, @CB, @TMP
+    FMUL @B, @D, @BD, @TMP
+   
     ADDFIX16 @AD, @CB, @AD_CB 
   
     ;	int32_t product_hi = AC + (AD_CB >> 16);
-    MOVE16I @tmp, 0
-    MOVE16 @AD_CB, @tmp + 2
-    ADDFIX16 @AC, @tmp, @P_HI
+    MOVE16I @TMP, 0
+    MOVE16 @AD_CB, @TMP + 2
+    ADDFIX16 @AC, @TMP, @P_HI
         
-    MOVE16I @tmp + 2, 0
-    MOVE16 @AD_CB + 2, @tmp
-    ADDFIX16 @BD, @tmp, @P_LO
+    MOVE16I @TMP + 2, 0
+    MOVE16 @AD_CB + 2, @TMP
+    ADDFIX16 @BD, @TMP, @P_LO
      
  	; return (product_hi << 16) | (product_lo >> 16);
     MOVE16 @P_HI + 2, FixedC 
     MOVE16 @P_LO, FixedC + 2
     
     rts
- 
