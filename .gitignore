@@ -5,3 +5,7 @@
 /WinPasm
 /LinPasm
 /samples
+
+*.crt
+*.lst
+
