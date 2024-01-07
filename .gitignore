@@ -4,6 +4,7 @@
 
 *.crt
 *.lst
+*.sym
 
 /WinPasm
 /LinPasm
