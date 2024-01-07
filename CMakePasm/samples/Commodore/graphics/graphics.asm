@@ -1664,12 +1664,6 @@ HGRBez
         cmp # 200
         bcs @RangeError
 
-        lda X0 + 1
-        beq @CheckX1
-
-        lda X0
-        cmp # 320 - 256
-        bcs @RangeError
 @CheckX1
         lda X1 + 1
         beq @Exit
