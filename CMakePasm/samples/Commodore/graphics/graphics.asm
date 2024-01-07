@@ -1711,9 +1711,9 @@ FIX16_MUL
     @TMP        = TMPDATA
     @BD         = TAPE1
     @CB         = ARGSGN
+    @AD_CB      = TEMPST
 
     * = $CF00    
-    @AD_CB      .ds 4
     @P_HI       .ds 4
     @P_LO       .ds 4
     * = FIX16_MUL
@@ -1721,10 +1721,10 @@ FIX16_MUL
     ;	int32_t AC = A*C;
     ;	int32_t AD_CB = A*D + C*B;
     ;	uint32_t BD = B*D;
-    FMUL @A, @C, @AC, @TMP
-    FMUL @A, @D, @AD, @TMP
-    FMUL @C, @B, @CB, @TMP
-    FMUL @B, @D, @BD, @TMP
+    FMUL @A, @C, @AC
+    FMUL @A, @D, @AD
+    FMUL @C, @B, @CB
+    FMUL @B, @D, @BD
    
     ADDFIX16 @AD, @CB, @AD_CB 
   

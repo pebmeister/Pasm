@@ -905,19 +905,21 @@
 ;*                                          *
 ;*  FMUL                                    *
 ;*                                          *
-;*  16bit Fixed multiplication 32bit result *
+;*  16 bit multiplication 32bit result      *
+;*  swap hi and low words                   *
 ;*                                          *
 ;*  \1  Variable a     16-bit               *
 ;*  \2  Variable b     16 bit               *
 ;*  \3  Destination    32 bit               *
-;*  \4  Storage        32 bit               *
 ;*                                          *
 ;********************************************
             .macro FMUL
             MULT16 \1, \2, \3
-            MOVE16 \3 + 2, \4
+            ldx \3 + 2
+            ldy \3 + 3
             MOVE16 \3, \3 + 2
-            MOVE16 \4, \3
+            stx \3
+            sty \3 + 1
             .endm
 
 ;********************************************
