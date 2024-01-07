@@ -2,10 +2,9 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
-/WinPasm
-/LinPasm
-/samples
-
 *.crt
 *.lst
 
+/WinPasm
+/LinPasm
+/samples
