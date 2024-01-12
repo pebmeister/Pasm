@@ -11,7 +11,7 @@
 
         ; Some zero page has multiple uses
 
-        XCOORD = LINNUM ; DO NOT CHANGE set by basic parse routine
+        XCOORD = LINNUM
         LOC = UNUSED2
         DX = BITTS
         DY = BITCI
@@ -29,7 +29,6 @@
         CMDJUMP = UNUSED2
         WEDGE_TMP = LINNUM
         CURLOC = BITTS
-        CURLOCB = BITCI
         COUNTER = UNUSED2
         MASKB = RESHO
         MASKE = FREKZP
@@ -52,20 +51,15 @@
         StartX = DSCPNT
         YMAX = OLDLIN
         XMAX = BLNCT
-        FixedA      = FREKZP
-        FixedB      = FAC1
-        FixedC      = FAC2  
+        FixedA = FREKZP
+        FixedB = FAC1
+        FixedC = FAC2
+        CIRJUMP = VERCK
+        COLOR = UNUSED3
 
-        IGONE_SV .equ $3FC
+        IGONE_SV = $3FC
 
-        ;************************************
-        ; The values below are globals must
-        ; not be modified by basic
-        ; The values below will work if you do
-        ; not use tape
-        ;************************************
-        CIRJUMP = CNTDN
-        COLOR = CMP0
+;********************************************
 
         .org $8000
 
@@ -80,7 +74,6 @@
         jsr $FD50				; RANTAM - Clear/test system RAM
         jsr $FD15				; RESTOR - Init KERNAL RAM vectors
         jsr $FF5B				; CINT   - Init VIC and screen editor
- 
 
 ;	BASIC RESET  Routine
         jsr $E453				; Init BASIC RAM vectors
@@ -88,20 +81,20 @@
         jsr $E422				; Power-up message / NEW command
         ldx #$FB
         txs					    ; Reduce stack pointer for BASIC
-	
+
 @WARM_START
 ;	START YOUR PROGRAM HERE
 
-        lda #5		            ; CHANGE BORDER COLOUR 
-        sta BORDER		        ; 
- 
+        lda #5		            ; CHANGE BORDER COLOUR
+        sta BORDER		        ;
+
         ;
         ;   install wedge
-        ;  
-@SETWEDGE 
-        NEWBYTES .equ  3
+        ;
+@SETWEDGE
+        NEWBYTES = 3
         sei
-        
+
         MOVE16 IGONE, IGONE_SV
         MOVE16I IGONE, WEDGE
 
@@ -113,15 +106,25 @@
         bne -
 
         cli
-        
+
         jmp (IGONE_SV)
-        
+
 ;********************************************
 ;*                                          *
 ;*  WEDGE                                   *
 ;*                                          *
 ;* TXTPTR - pointer to BASIC text           *
 ;* IGONE  - jump vector back to BASIC       *
+;*                                          *
+;* ---------------------------------------- *
+;*        PAGE ZERO USAGE                   *
+;* ---------------------------------------- *
+;*  CMDTABLE    = UNUSED2      2 bytes      *
+;*  BASICTEXT   = RESHO        2 bytes      *
+;*  CMDJUMP     = UNUSED2      2 bytes      *
+;*  WEDGE_TMP   = LINNUM       2 bytes      *
+;*  _CMD        = FREKZP       1 byte       *
+;* ---------------------------------------- *
 ;*                                          *
 ;********************************************
 WEDGE
@@ -135,12 +138,16 @@ WEDGE
         sty _CMD
         iny
 
+; -------------------------------------
+
 @SkipSpace
         lda (BASICTEXT),y
         cmp #' '
         bne @MatchCmd
         INC16 BASICTEXT
         jmp @SkipSpace
+
+; -------------------------------------
 
 @MatchCmd
         lda (BASICTEXT),y
@@ -160,11 +167,14 @@ WEDGE
         jmp @MatchCmd
 
 ; -------------------------------------
+
 @NextCmd
         lda (CMDTABLE),y
         beq @ExecuteCmd
 
         inc _CMD
+
+; -------------------------------------
 
         ldy #0
 @CmdTableInc
@@ -177,7 +187,9 @@ WEDGE
         INC16 CMDTABLE
         iny
         jmp @MatchCmd
+
 ; -------------------------------------
+
 @ExecuteCmd
         dey
         sty WEDGE_TMP
@@ -203,14 +215,20 @@ WEDGE
 
         jsr @Jump
 
+; -------------------------------------
+
 @Cleanup
         jsr CHRGOT
         beq @Exit2
         jsr CHRGET
         jmp @Cleanup
+
+; -------------------------------------
+
 @Exit2
         DEC16 TXTPTR
 
+; -------------------------------------
 @ExitToBasic
         jmp (IGONE_SV)
 
@@ -277,6 +295,11 @@ HGROn
 ;*                                          *
 ;*  Clear graphics bitmap and colors        *
 ;*                                          *
+;* ---------------------------------------- *
+;*        CALLS                             *
+;* ---------------------------------------- *
+;*  ClearColor                              *
+;* ---------------------------------------- *
 ;********************************************
 HGRCls
         ldx #0
@@ -297,10 +320,16 @@ HGRCls
         jmp ClearColor
 
 ;********************************************
-;
-;  HGRBColor
-;     Set HGR Background COLOR
-;
+;*                                          *
+;*  HGRBColor                               *
+;*     Set HGR Background COLOR             *
+;*                                          *
+;* ---------------------------------------- *
+;*        PAGE ZERO USAGE                   *
+;* ---------------------------------------- *
+;*  TMP     = UNUSED2 + 2       1 byte      *
+;*  COLOR   = CMP0              1 byte      *
+;* ---------------------------------------- *
 ;********************************************
 HGRBColor
         jsr GETBYTC
@@ -314,10 +343,16 @@ HGRBColor
         rts
 
 ;********************************************
-;
-;  HGRFColor
-;     Set HGR Forground COLOR
-;
+;*                                          *
+;*  HGRFColor                               *
+;*     Set HGR Forground COLOR              *
+;*                                          *
+;* ---------------------------------------- *
+;*        PAGE ZERO USAGE                   *
+;* ---------------------------------------- *
+;*  TMP     = UNUSED2 + 2       1 byte      *
+;*  COLOR   = CMP0              1 byte      *
+;* ---------------------------------------- *
 ;********************************************
 HGRFColor
         jsr GETBYTC
@@ -336,10 +371,15 @@ HGRFColor
         rts
 
 ;********************************************
-;
-;  ClearColor
-;     clear Color memory
-;
+;*                                          *
+;*  ClearColor                              *
+;*     clear Color memory                   *
+;*                                          *
+;* ---------------------------------------- *
+;*        PAGE ZERO USAGE                   *
+;* ---------------------------------------- *
+;*  COLOR   = CMP0              1 byte      *
+;* ---------------------------------------- *
 ;********************************************
 ClearColor
         lda COLOR
@@ -358,9 +398,9 @@ ClearColor
         rts
 
 ;********************************************
-;
-;  HGROff
-;
+;*                                          *
+;*  HGROff                                  *
+;*                                          *
 ;********************************************
 HGROff
         ; hires off
@@ -374,17 +414,22 @@ HGROff
         rts
 
 ;********************************************
-;
-;  HGRPlot
-;
-; Parses Basic Text and plot a point
-;
-; Calls
-;   GETNUM $B7EB
-;   _Plot
-;
-; HGRPlot x,y
-;
+;*                                          *
+;*  HGRPlot                                 *
+;*                                          *
+;* Parses Basic Text and plot a point       *
+;*                                          *
+;* ---------------------------------------- *
+;*        PAGE ZERO USAGE                   *
+;* ---------------------------------------- *
+;*  TXTPTR                                  *
+;* ---------------------------------------- *
+;*        CALLS                             *
+;* ---------------------------------------- *
+;   GETNUM                                  *
+;   RangeCheckXY                            *
+;   _Plot                                   *
+;* -----------------------------------------*
 ;********************************************
 HGRPlot
         INC16 TXTPTR
@@ -393,18 +438,27 @@ HGRPlot
         jsr RangeCheckXY
 
 ;********************************************
-;
-;  _Plot
-;       XCOORD     IN  2 byte x coordinate
-;       X register IN  y coordinate
-;
-; Plot a single point
-; Must not be called Plot because it collides with Kernal
-; PLOT    = $E50A
-;
-; Calls
-;   CalcPlot
-;
+;*                                          *
+;*  _Plot                                   *
+;*       XCOORD     IN  2 byte x coordinate *
+;*       X register IN  y coordinate        *
+;*                                          *
+;* Plot a single point                      *
+;*                                          *
+;* ---------------------------------------- *
+;*        PAGE ZERO USAGE                   *
+;* ---------------------------------------- *
+;*  LOC         = UNUSED2                   *
+;*  COLOR       = CMP0                      *
+;*  YCOL        = PTR1                      *
+;*  COLORPTR    = TMPDATA                   *
+;*  XCOORD      = LINNUM                    *
+;* ---------------------------------------- *
+;*        CALLS                             *
+;* ---------------------------------------- *
+;*   CalcPlot                               *
+;*   CalcColorByte                          *
+;* ---------------------------------------- *
 ;********************************************
 _Plot
         stx YCOL
@@ -425,35 +479,50 @@ _Plot
         rts
 
 ;********************************************
-;
-; CalcColorByte
-;
-; COLORPTR = x location
-; YCOL = y location
-;
-; Warning:
-;     Destroys both COLORPTR and YCOL
+;*                                          *
+;* CalcColorByte                            *
+;*                                          *
+;* COLORPTR = x location                    *
+;* YCOL = y location                        *
+;*                                          *
+;* ---------------------------------------- *
+;*        PAGE ZERO USAGE                   *
+;* ---------------------------------------- *
+;*  YCOL        = PTR1          2 bytes     *
+;*  COLORPTR    = TMPDATA       2 bytes     *
+;* ---------------------------------------- *
 ;********************************************
 CalcColorByte
+        ; YCOL + 0 has y value
+        ; zero out high byte
         lda #0
         sta YCOL + 1
         RSHIFT16 COLORPTR, 3  ; COLORPTR = x / 8
         RSHIFT16 YCOL, 3      ; ycol int(y/8)*40
         MULT40 YCOL
 
-        ADD16 COLORPTR, YCOL, COLORPTR  ; COLORPTR = COLORPTR + ycol
-        ADD16I COLORPTR, COLORBASE, COLORPTR ; COLORPTR = COLORPTR + COLORBASE
+        ; COLORPTR = COLORPTR + ycol
+        ADD16 COLORPTR, YCOL, COLORPTR
+
+        ; COLORPTR = COLORPTR + COLORBASE
+        ADD16I COLORPTR, COLORBASE, COLORPTR
         rts
 
 ;********************************************
-;
-;  CalcPlot
-;       XCOORD IN  2 byte x coordinate
-;       X reg  IN  y coordinate
-;
-;       LOC    OUT  byte of bitemap
-;       X reg  OUT  bit of bitmap
-;
+;*                                          *
+;*  CalcPlot                                *
+;*      XCOORD IN  2 byte x coordinate      *
+;*      X reg  IN  y coordinate             *
+;*                                          *
+;*      LOC    OUT  byte of bitmap          *
+;*      X reg  OUT  bit of bitmap           *
+;*                                          *
+;* ---------------------------------------- *
+;*        PAGE ZERO USAGE                   *
+;* ---------------------------------------- *
+;*  LOC         = UNUSED2       2 byte      *
+;*  XCOORD      = LINNUM        2 bytes     *
+;*  TMP         = UNUSED2 + 2   2 bytes     *
 ;********************************************
 CalcPlot
 ; 320*int(y/8)=32*[8*int(y/8)] + 8*[8*int(y/8)]
@@ -464,33 +533,46 @@ CalcPlot
         lsr
         lsr
         sta LOC + 1     ; high-byte of 32*8*int(y/8)
+
 ;-------------------------------------------------
+
         lsr
         ror LOC
         lsr
         ror LOC         ; low byte of 8*[8*int(y/8)]
+
 ;-------------------------------------------------
+
         adc LOC + 1
         adc #>BITMAPBASE
         sta LOC+1       ; high byte of memory=BITMAPBASE + 320*int(y/8)
+
 ;-------------------------------------------------
+
         lda XCOORD
         and #%11111000  ; 8*int(x/8)
         adc LOC
         sta LOC         ; set address memory block of bytes
+
 ;-----------------------------------------------
+
         lda XCOORD + 1
         adc LOC + 1
         sta LOC + 1
+        
 ;-----------------------------------------------
+
         txa
         and #%00000111 ; int(y/7), byte offset inside bLOCk
         tay
 
 ;-----------------------------------------------
+
         lda XCOORD
         and #%00000111 ; int(x/7), bit inside byte
         tax
+
+;-----------------------------------------------
 
         ; add y to LOC
         sty TMP
@@ -499,7 +581,8 @@ CalcPlot
         ADD16 TMP, LOC, LOC
 
 ;-----------------------------------------------
-        ; given: x (0 - 7) 
+
+        ; given: x (0 - 7)
         ; x = 7 - x
         MOVE8I TMP, 7
         stx TMP + 1
@@ -508,17 +591,29 @@ CalcPlot
         rts
 
 ;********************************************
-;
-;  HGRLine
-;
-; This routine draws a line
-;
-; Calls:
-;  GETNUM
-;  _Line
-;
+;*                                          *
+;*                                          *
+;*  HGRLine                                 *
+;*                                          *
+;* This routine draws a line                *
+;*                                          *
+;* ---------------------------------------- *
+;*        PAGE ZERO USAGE                   *
+;* ---------------------------------------- *
+;*  TXTPTR                    2 bytes       *
+;*  X0           = FORPNT     2 bytes       *
+;*  Y0           = PRTY       1 byte        *
+;*  X1           = OPPTR      2 bytes       *
+;*  Y1           = MSGFLG     1 byte        *
+;*  XCOORD       = LINNUM     2 bytes       *
+;* ---------------------------------------- *
+;*        CALLS                             *
+;* ---------------------------------------- *
+;*  GETNUM                                  *
+;*  RangeCheckXY                            *
+;*  _Line                                   *
 ;********************************************
-HGRLine
+ HGRLine
         INC16 TXTPTR
 
         jsr GETNUM ; get address in LINNUM $14/$15 y next integer at X
@@ -535,69 +630,64 @@ HGRLine
         MOVE16 XCOORD, X1
 
 ;********************************************
-;
-; _Line
-;
-;    X0 - start X
-;    Y0 - start Y
-;    X1 - end X
-;    Y1 - end Y
-;
-;    X0 must be less than X1
-; optimized for horizontal lines
-;********************************************
-_Line   
-        ldx Y0
-        cpx Y1
-        bne NotHorizontal
-
-;---------------------------------------        
-        lda X0 + 1
-        cmp X1 + 1
-        bcc _Line2
-;---------------------------------------
-        lda X0
-        cmp X1
-        bcc _Line2
-;---------------------------------------
-        MOVE16 X1, XCOORD
-        SUB16 X0, X1, XDIST
-                
-        jmp CalcPlotHLine
-
-;********************************************
 ;*                                          *
-;*  _Line2                                  *
-;*    Draw Horizontal line                  *
-;*    X0 must be less than X1               *
+;* _Line                                    *
 ;*                                          *
 ;*    X0 - start X                          *
 ;*    Y0 - start Y                          *
 ;*    X1 - end X                            *
 ;*    Y1 - end Y                            *
 ;*                                          *
+;*    optimized for horizontal lines        *
+;*                                          *
+;* ---------------------------------------- *
+;*        PAGE ZERO USAGE                   *
+;* ---------------------------------------- *
+;*  X0           = FORPNT     2 bytes       *
+;*  Y0           = PRTY       1 byte        *
+;*  X1           = OPPTR      2 bytes       *
+;*  Y1           = MSGFLG     1 byte        *
+;*  XDIST        = INDEX      2 bytes       *
+;* ---------------------------------------- *
 ;********************************************
-_Line2
+_Line
+        lda Y0
+        cmp Y1
+        bne NotHorizontal
+        
+;---------------------------------------
+        BLE16 X0, X1, @X0_Less_Equal        
+;---------------------------------------
+; Swap X0, Y0 and X1, Y1
+        SWAP16 X0, X1
+        ldx Y0
+        ldy Y1
+        stx Y1
+        sty Y0
+
+;---------------------------------------
+;
+; At this point X0 MUST be less than X1!!!
+;
+;---------------------------------------
+
+@X0_Less_Equal        
         MOVE16 X0,XCOORD
         SUB16 X1, X0, XDIST
-
-        lda XDIST + 1
-        bne CalcPlotHLine
         
-        lda XDIST
-        cmp #$08
-        bcc NotHorizontal               
-
 ;---------------------------------------
 CalcPlotHLine
         MOVE16 XCOORD, COLORPTR
         MOVE8 Y0, YCOL
         ldx Y0
+
         ; Calculate 1st byte and bit of BitMap
         jsr CalcPlot
         MOVE16 LOC, CURLOC
-        ; Draw the horizontal Line
-        jsr HGRHorizontalLine
+
+        ; Draw the horizontal Line        
+        jsr HGRHorizontalLine        
+        
         ; Set the Lines color memory
         jmp HCPlotLine
 
@@ -609,13 +699,7 @@ NotHorizontal
         ; DX% = abs(x0%-x1%)
         ; set XS to add or substract
         ;
-        lda X0 + 1
-        cmp X1 + 1
-        bcc @X1_larger
-
-        lda X0
-        cmp X1
-        bcc @X1_larger
+        BLT16 X0, X1, @X1_larger
 
 ;-------------------------------------------
         SUB16 X0, X1, DX
@@ -815,13 +899,23 @@ NotHorizontal
 ;
 ;********************************************
 HCPlotLine
-        ; Save start, distance and end
+        ; Save start, distance
         MOVE16 COLORPTR, StartX
 
         ; get the start byte
         jsr CalcColorByte
 
+        ; check for XDIST > 8
+        ldy #0
         MOVE16 XDIST, XD
+        lda XD + 1
+        bne @Continue
+        
+        lda XD
+        cmp #9
+        bcc @LoopExit
+        
+@Continue        
         INC16 XD
 
         lda StartX
@@ -829,19 +923,10 @@ HCPlotLine
         beq @InitLoop
 
 ; -------------------------------------------
-        ; if XD < 8 we cant do this
-        tay
-        
-        lda XD + 1
-        bne @Sub
-        lda XD
-        cmp #8
-        bcc @Exit
-        
         ; subtract 8 - N from XD
-@Sub
-        tya
+
         sta TMP
+        
         sec
         lda #8
         sbc TMP
@@ -895,7 +980,7 @@ HCPlotLine
 ;  HGRHorizontalLine
 ;
 ; CURLOC IN POINTER to bitmap byte
-; XDIST IN x distance
+; XDIST IN x pixel distance
 ; X register IN bit in first byte of bitmap
 ;
 ;********************************************
@@ -909,16 +994,31 @@ HGRHorizontalLine
         bne @HFirstByte ; if its not 0 then it > 8 bits
         cpx XDIST       ; see if bit is within distance
         bcc @HFirstByte ; yes so we leave x unmodified
-        ldx XDIST       ; set x to XDIST
-        jmp @HLastByte
-
+        
+;----------------------------------------------
+; special case for < 8 pixels
+@StartByte
+        ldy #0
+        lda (CURLOC),y
+        ldy XDIST       ; set y to XDIST    
+        beq @StartExit
+@StartByteLoop        
+        ora MaskStart,x
+        dex
+        dey
+        bne @StartByteLoop
+        sta (CURLOC),y
+@StartExit
+        rts
+        
 ;----------------------------------------------
 @HFirstByte
         stx  COUNTER    ; save in counter
         lda #0          ; zero out high byte
         sta COUNTER + 1
+
 ;----------------------------------------------
-        ; substract COUNTER from distance of first byte
+        ; subtract COUNTER from distance of first byte
         ; and save in COUNTER
         SUB16 XDIST, COUNTER, COUNTER
 ;----------------------------------------------
@@ -936,6 +1036,7 @@ HGRHorizontalLine
         lda COUNTER + 1 ; get the high byte
         bne @HLoop_Cont ; if its set there are more than 8 bits left
         lda COUNTER     ; load lo byte
+        beq @HLoop1End
         cmp #8          ; compare it to 8
         beq @HLoop1End  ; if it is equal then go to the last byte
         bcs @HLoop_Cont ; continue if > 8
@@ -947,7 +1048,7 @@ HGRHorizontalLine
         lda #$FF        ; load a with FF
         sta (CURLOC),y  ; store the byte
 
-                        ; Increrment COUNTER by 8
+                        ; Increment COUNTER by 8
         SUB16I COUNTER, 8, COUNTER
         jmp @HLoop1     ; goto to byte loop
 
@@ -1003,12 +1104,12 @@ HGRFillRect
 HFillRect
         ADD8 Y0, YDIST, YMAX
         ADD16 X0, XDIST, X1
-        lda Y0
 
 ; -------------------------------------------
 @YLOOP
+        lda Y0
         sta Y1
-        jsr _Line2
+        jsr _Line
 
         ldy Y0
         cpy YMAX
@@ -1066,7 +1167,7 @@ HRect
         MOVE16 XMAX, X1
         MOVE8 Y0, Y1
         pha
-        jsr _Line2
+        jsr _Line
 
         ; ------------------------------
         ;
@@ -1076,7 +1177,7 @@ HRect
         lda YMAX
         sta Y0
         sta Y1
-        jsr _Line2
+        jsr _Line
 
         ; ------------------------------
         ;
@@ -1100,12 +1201,36 @@ HRect
 
 ;********************************************
 ;
-;  SetCircleJump
+;  CirclePlot
 ;
-;  set routine for circle to plot or fill
+;  This will fill or plot for circles
 ;
 ;********************************************
-SetCircleJump
+CirclePlot
+        * = $CE00
+CirSave         .ds 1
+CX_MINUS_CURY   .ds 2
+CX_MINUS_CURX   .ds 2
+CX_PLUS_CURY    .ds 2
+CX_PLUS_CURX    .ds 2
+
+CY_MINUS_CURY   .ds 1
+CY_MINUS_CURX   .ds 1
+CY_PLUS_CURY    .ds 1
+CY_PLUS_CURX    .ds 1
+        * = CirclePlot
+
+        SUB16 CX, CURX, CX_MINUS_CURX
+        ADD16 CX, CURX, CX_PLUS_CURX        
+        SUB168 CX, CURY, CX_MINUS_CURY
+        ADD168 CX, CURY, CX_PLUS_CURY
+
+        SUB8 CY, CURX, CY_MINUS_CURX
+        ADD8 CY, CURX, CY_PLUS_CURX        
+        SUB8 CY, CURY, CY_MINUS_CURY
+        ADD8 CY, CURY, CY_PLUS_CURY
+        
+        lda CirSave
         asl
         tax
         lda JumpTable, x
@@ -1113,18 +1238,7 @@ SetCircleJump
         inx
         lda JumpTable, x
         sta CIRJUMP + 1
-        rts
-
-;********************************************
-;
-;  JumpCircle
-;
-;  SetCircleJump MUST be called first
-;  This will fill or plot for circles
-;
-;********************************************
-JumpCircle
-         jmp (CIRJUMP)
+        jmp (CIRJUMP)
 
 JumpTable
         .word PlotCirclePixels
@@ -1142,20 +1256,8 @@ JumpTable
 ;*******************************************
 HGRFillCircle
         lda #1
-        jsr SetCircleJump
+        sta CirSave
         jmp HGRCircle2
-
-;********************************************
-;
-;  HGRFillCircle
-;
-;  Fill a circle from asm
-;
-;*******************************************
-HGRFillCircle2
-        lda #1
-        jsr SetCircleJump
-        jmp HGRCircle3
 
 ;********************************************
 ;
@@ -1169,7 +1271,7 @@ HGRFillCircle2
 ;********************************************
 HGRCircle
         lda #0
-        jsr SetCircleJump
+        sta CirSave
 
 HGRCircle2
         INC16 TXTPTR    ; advance basic textptr
@@ -1184,7 +1286,6 @@ HGRCircle2
 
         jsr RangeCheckCircle
 
-HGRCircle3
                             ; pk = 3 - 2 * r;
         lda #0
         sta PK + 1
@@ -1197,7 +1298,7 @@ HGRCircle3
         MOVE8 R, CURY       ; y = r
 
         ; PlotPixels(x, y, xc, yc);
-        jsr JumpCircle
+        jsr CirclePlot
 
 @StartWhile
         ; while (x < y)
@@ -1241,7 +1342,7 @@ HGRCircle3
 @EndWhile
 
         ; PlotPixels(x, y, xc, yc);
-        jsr JumpCircle
+        jsr CirclePlot
         jmp @StartWhile
 @Exit
         rts
@@ -1254,62 +1355,59 @@ HGRCircle3
 ;
 ;*******************************************
 PlotCirclePixels
+
+;==============================================
+
         ; PutPixel(CX - CURX, CY + CURY);
-        SUB16 CX, CURX, XCOORD
-        ADD8 CY, CURY, Y1
-        tax
+        MOVE16 CX_MINUS_CURX, XCOORD
+        ldx CY_PLUS_CURY
         jsr _Plot
 
 ;----------------------------------------------
-
         ; PutPixel(CX + CURX, CY + CURY);
-        ADD16 CX, CURX, XCOORD
-        ldx Y1
+        MOVE16 CX_PLUS_CURX, XCOORD
+        ldx CY_PLUS_CURY
         jsr _Plot
 
-;----------------------------------------------
-
+;==============================================
         ; PutPixel(CX - CURX,  CY - CURY);
-        SUB16 CX, CURX, XCOORD
-        SUB8 CY, CURY, Y1
-        tax
+        MOVE16 CX_MINUS_CURX, XCOORD
+        ldx CY_MINUS_CURY
         jsr _Plot
 
 ;----------------------------------------------
 
         ; PutPixel(CX + CURX, CY - CURY);
-        ADD16 CX, CURX, XCOORD
-        ldx Y1
+        MOVE16 CX_PLUS_CURX, XCOORD
+        ldx CY_MINUS_CURY
         jsr _Plot
 
-;----------------------------------------------
+;==============================================
 
-        ; PutPixel(CX - CURY, CY + CURX);
-        SUB168 CX, CURY, XCOORD
-        ADD8 CY, CURX, Y1
-        tax
+      ; PutPixel(CX - CURY, CY + CURX);
+        MOVE16 CX_MINUS_CURY, XCOORD
+        ldx CY_PLUS_CURX
         jsr _Plot
 
 ;----------------------------------------------
 
         ; PutPixel(CX + CURY, CY + CURX);
-        ADD168 CX, CURY, XCOORD
-        ldx Y1
+        MOVE16 CX_PLUS_CURY, XCOORD
+        ldx CY_PLUS_CURX
         jsr _Plot
 
-;----------------------------------------------
+;==============================================
 
         ; PutPixel(CX - CURY, CY - CURX);
-        SUB168 CX, CURY, XCOORD
-        SUB8 CY, CURX, Y1
-        tax
+        MOVE16 CX_MINUS_CURY, XCOORD
+        ldx CY_MINUS_CURX
         jsr _Plot
 
 ;----------------------------------------------
 
         ; PutPixel(CX + CURY, CY - CURX);
-        ADD168 CX, CURY, XCOORD
-        ldx Y1
+        MOVE16 CX_PLUS_CURY, XCOORD
+        ldx CY_MINUS_CURX
         jmp _Plot
 
 ;********************************************
@@ -1319,41 +1417,42 @@ PlotCirclePixels
 ;  fill circle pixels
 ;
 ;*******************************************
+
 PlotFillCircle
-        ; Line(CX - CURY, CY + CURX) to (CX + CURY, CY + CURX)
-        SUB168 CX, CURY, X0
-        ADD8 CY, CURX, Y0
-        ADD168 CX, CURY, X1
-        MOVE8 Y0, Y1
-        jsr _Line2
+         
+        ; Line (CX - CURX, CY + CURY) TO (CX + CURX, CY + CURY);
+        MOVE16 CX_MINUS_CURX, X0
+        MOVE16 CX_PLUS_CURX, X1
+        MOVE8 CY_PLUS_CURY, Y0
+        MOVE8 Y0, Y1        
+        jsr _Line
 
 ;----------------------------------------------
 
-        ; Line (CX - CURY, CY - CURX) to (CX + CURY, CY - CURX)
-        SUB168 CX, CURY, X0
-        SUB8 CY, CURX, Y0
-        ADD168 CX, CURY, X1
+        ; Line (CX - CURX,  CY - CURY) TO (CX + CURX, CY - CURY);
+        MOVE16 CX_MINUS_CURX, X0
+        MOVE16 CX_PLUS_CURX, X1
+        MOVE8 CY_MINUS_CURY, Y0
         MOVE8 Y0, Y1
-        jsr _Line2
+        jsr _Line
 
 ;----------------------------------------------
 
-        ; Line(CX - CURX, CY + CURY) to (CX + CURX, CY + CURY)
-        SUB16 CX, CURX, X0
-        ADD8 CY, CURY, Y0
-        ADD16 CX, CURX, X1
+        ; Line(CX - CURY, CY + CURX) TO (CX + CURX, CY + CURX)
+        MOVE16 CX_MINUS_CURY, X0
+        MOVE16 CX_PLUS_CURY, X1
+        MOVE8 CY_PLUS_CURX, Y0
         MOVE8 Y0, Y1
-        jsr _Line2
+        jsr _Line
 
 ;----------------------------------------------
 
-        ; Line(CX - CURX, CY - CURY) to (CX + CURX, CY - CURY)
-        SUB16 CX, CURX, X0
-        SUB8 CY, CURY, Y0
-        ADD16 CX, CURX, X1
+        ; Line(CX - CURX, CY - CURX) to (CX + CURX, CY - CURX)
+        MOVE16 CX_MINUS_CURY, X0
+        MOVE16 CX_PLUS_CURY, X1
+        MOVE8 CY_MINUS_CURX, Y0
         MOVE8 Y0, Y1
-        jmp _Line2
-
+        jmp _Line
 
 ;********************************************
 ;
@@ -1368,7 +1467,10 @@ RangeCheckXY
 
         lda XCOORD + 1
         beq @Exit
+        cmp #2
+        bcs RangeError
 
+        
         lda XCOORD
         cmp # 320 - 256
         bcs RangeError
@@ -1444,12 +1546,12 @@ MaskDataEnd
 ;  Draw a Bezier curve
 ;
 ;*******************************************
-HGRBez  
+HGRBez
 
 ;----------------------------------
 ; local variables
 ;----------------------------------
-        * = $CE00
+        * = $CF00
 @LASTX  .ds 2
 @LASTY  .ds 1
 @A1     .ds 4
@@ -1471,7 +1573,7 @@ HGRBez
 
 ;----------------------------------
         * = HGRBez
-        
+
         INC16 TXTPTR    ; advance basic textptr
 
         ; get the start position, xdistance and ydistance
@@ -1483,7 +1585,7 @@ HGRBez
         jsr GETNUM ; get address in $14/$15 y next integer at X
         stx @Y1
         MOVE16 XCOORD, @X1
-        
+
         jsr CHKCOM
         jsr GETNUM ; get address in $14/$15 y next integer at X
         stx @Y2
@@ -1493,14 +1595,14 @@ HGRBez
         ;   auto t = F16(0);
         ;   constexpr auto max = F16(1);
         ;   constexpr auto two = F16(2);
-        MOVE16I @T, 0        
+        MOVE16I @T, 0
         MOVE16I @T + 2, $0
-        
+
         MOVE16 @X0, @LASTX
         MOVE8 @Y0, @LASTY
-        
+
 @WHILE_T
-        ;     while (t <= max)horacemann        
+        ;     while (t <= max)
         lda @T
         beq @ContinueWhile
         rts
@@ -1508,10 +1610,10 @@ HGRBez
 @ContinueWhile
         ;  const auto one_minus_t = F16(1) - t;
         SUBFIX16 @ONE, @T, @ONE_MINUS_T
-        
-;----------------------------------------------      
+
+;----------------------------------------------
 ; calculate a1,b1 and c1
-;----------------------------------------------        
+;----------------------------------------------
         ; (1 - t) * (1 - t)
         ; const fix16_t a1 = fix16_mul(one_minus_t, one_minus_t);
         MOVE32 @ONE_MINUS_T, FixedA
@@ -1537,7 +1639,7 @@ HGRBez
         MOVE32 @T, FixedB
         jsr FIX16_MUL
         MOVE32 FixedC, @C1
-        
+
 ;-----------------------------------------
 ;        Calculate FixedX
 ;-----------------------------------------
@@ -1546,14 +1648,14 @@ HGRBez
         MOVE16I FixedB, 0
         MOVE16 @X0, FixedB + 2
         jsr FIX16_MUL
-        MOVE32 FixedC, @A   
+        MOVE32 FixedC, @A
 
-        ;   b = fix16_mul(b1, x1);        
+        ;   b = fix16_mul(b1, x1);
         MOVE32 @B1, FixedA
-        MOVE16 @X1, FixedB + 2              
+        MOVE16 @X1, FixedB + 2
         jsr FIX16_MUL
         MOVE32 FixedC, @B
-     
+
         ;  c = fix16_mul(c1, x2);
         MOVE32 @C1, FixedA
         MOVE16 @X2, FixedB + 2
@@ -1561,10 +1663,10 @@ HGRBez
         MOVE32 FixedC, @C
 
         ; fix16_t x_fixed = fix16_add(a, b);
-        ; x_fixed = fix16_add(x_fixed, c);        
+        ; x_fixed = fix16_add(x_fixed, c);
         ADDFIX16 @A, @B, @FIXX
         ADDFIX16 @FIXX, @C, @FIXX
-        
+
 ;-----------------------------------------
 ;        Calculate FixedY
 ;-----------------------------------------
@@ -1581,7 +1683,7 @@ HGRBez
         MOVE8 @Y1, FixedB + 2
         jsr FIX16_MUL
         MOVE32 FixedC, @B
-        
+
         ;  c = fix16_mul(c1, y2);
         MOVE32 @C1, FixedA
         MOVE8 @Y2, FixedB + 2
@@ -1592,69 +1694,41 @@ HGRBez
         ; y_fixed = fix16_add(x_fixed, c);
         ADDFIX16 @A, @B, @FIXY
         ADDFIX16 @FIXY, @C, @FIXY
-  
+
 ;----------------------------------------
 
         ; putpixel(put_x, put_y); // putting pixel
-        
+
         lda @FIXX + 2
         cmp @LASTX
-        bne @DO_Line
-        
-        lda @FIXX + 3       
+        bne @Plot_Line
+
+        lda @FIXX + 3
         cmp @LASTX + 1
-        bne @DO_Line
+        bne @Plot_Line
 
         lda @FIXY + 2
         cmp @LASTY
         beq @No_Line
 
-@DO_Line
-        ; X0 MUST BE <= X1!
-        
-        ;16-bit number comparison...
-        ;
-        lda @FIXX + 3         ;MSB of 1st number
-        cmp @LASTX + 1        ;MSB of 2nd number
-        bcc @X0_Lower_Same    ;X0 < X1
-        ;
-        bne @X1_Larger        ;X1 > X0
-        ;
-        lda @FIXX + 2         ;LSB of 1st number
-        cmp @LASTX            ;LSB of 2nd number
-        bcc @X0_Lower_Same    ;X0 < X1
-        ;
-        beq @X0_Lower_Same    ;X0 = X1
-        ;
-        bne @X1_Larger        ;X > Y
-         
-@X0_Lower_Same       
+@Plot_Line
         MOVE16 @FIXX + 2, X0
         MOVE8 @FIXY + 2, Y0
         MOVE16 @LASTX, X1
         MOVE8 @LASTY, Y1
-        jmp @DrawLine
-        
-@X1_Larger
-        MOVE16 @FIXX + 2, X1
-        MOVE8 @FIXY + 2, Y1
-        MOVE16 @LASTX, X0
-        MOVE8 @LASTY, Y0
- 
-@DrawLine
-        jsr @RangeCheckLine
-        jsr _Line
 
         MOVE16 @FIXX + 2, @LASTX
         MOVE8 @FIXY + 2, @LASTY
-                
-@NO_Line        
+
+        jsr @RangeCheckLine
+        jsr _Line
+
+@NO_Line
         ; t += inc;
         ADDFIX16 @T, @INC, @T
         jmp @WHILE_T
 
 ;---------------------------
-
 @RangeCheckLine
         lda Y0
         cmp # 200
@@ -1664,24 +1738,38 @@ HGRBez
         cmp # 200
         bcs @RangeError
 
+; Check X0
+        lda X0 + 1
+        beq @CheckX1
+        cmp #2        
+        bcs @RangeError
+        
+        lda X0
+        cmp # 320 - 256
+        bcs @RangeError
+
 @CheckX1
         lda X1 + 1
         beq @Exit
+        cmp #2        
+        bcs @RangeError
 
         lda X1
         cmp # 320 - 256
         bcs @RangeError
-
 @Exit
         rts
+        
 @RangeError
         ldx # ILLEGALQUANITY
         jmp ERROR
 
+;---------------------------
+
 @INC    .word 0, $0210
 @ONE    .word 1, 0
 @TWO    .word 2, 0
-    
+
 ;****************************************************
 ;*                                                  *
 ;* FIX16_MUL                                        *
@@ -1689,6 +1777,7 @@ HGRBez
 ;*  fix16 multiply                                  *
 ;*                                                  *
 ;*  16bit integer    16bit Fraction                 *
+;*  Little Endian    Little Endian                  *
 ;*                                                  *
 ;*  FixedA  IN:  4 bytes 1st number to multiply     *
 ;*  FixedB  IN:  4 bytes 2nd number to multiply     *
@@ -1698,9 +1787,7 @@ HGRBez
 ;*  destroys a, x, y                                *
 ;*                                                  *
 ;****************************************************
-
 FIX16_MUL
-
     @A          = FixedA
     @B          = FixedA + 2
     @C          = FixedB
@@ -1712,11 +1799,8 @@ FIX16_MUL
     @BD         = TAPE1
     @CB         = ARGSGN
     @AD_CB      = TEMPST
-
-    * = $CF00    
-    @P_HI       .ds 4
-    @P_LO       .ds 4
-    * = FIX16_MUL
+    @P_HI       = VERCK
+    @P_LO       = UNUSED2
 
     ;	int32_t AC = A*C;
     ;	int32_t AD_CB = A*D + C*B;
@@ -1725,20 +1809,20 @@ FIX16_MUL
     FMUL @A, @D, @AD
     FMUL @C, @B, @CB
     FMUL @B, @D, @BD
-   
-    ADDFIX16 @AD, @CB, @AD_CB 
-  
+
+    ADDFIX16 @AD, @CB, @AD_CB
+
     ;	int32_t product_hi = AC + (AD_CB >> 16);
     MOVE16I @TMP, 0
     MOVE16 @AD_CB, @TMP + 2
     ADDFIX16 @AC, @TMP, @P_HI
-        
+
     MOVE16I @TMP + 2, 0
     MOVE16 @AD_CB + 2, @TMP
     ADDFIX16 @BD, @TMP, @P_LO
-     
+
  	; return (product_hi << 16) | (product_lo >> 16);
-    MOVE16 @P_HI + 2, FixedC 
+    MOVE16 @P_HI + 2, FixedC
     MOVE16 @P_LO, FixedC + 2
-    
+
     rts

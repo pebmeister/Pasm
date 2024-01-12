@@ -900,6 +900,26 @@
 
             .endm
 
+;********************************************
+;*                                          *
+;*  SWAP16                                  *
+;*                                          *
+;*  Swap 2 16 bit values                    *
+;*                                          *
+;*  \1  Variable a     16-bit               *
+;*  \2  Variable b     16 bit               *
+;*                                          *
+;********************************************
+            .macro SWAP16
+            ldx \1
+            ldy \1 + 1
+            lda \2
+            sta \1
+            lda \2 + 1
+            sta \1 + 1
+            stx \2
+            sty \2 + 1
+            .endm
 
 ;********************************************
 ;*                                          *
@@ -915,11 +935,7 @@
 ;********************************************
             .macro FMUL
             MULT16 \1, \2, \3
-            ldx \3 + 2
-            ldy \3 + 3
-            MOVE16 \3, \3 + 2
-            stx \3
-            sty \3 + 1
+            SWAP16 \3, \3 + 2
             .endm
 
 ;********************************************
@@ -1166,17 +1182,17 @@
 ;*                                          *
 ;*  \1  a       16-bit                      *
 ;*  \2  b       16 bit                      *
-;*  \3  Destination if equal 16 bit         *
+;*  \3  Destination b = a                   *
 ;*                                          *
 ;*  destroys    a,x,y                       *
 ;*                                          *
 ;********************************************
         .macro BEQ16
+        lda \1 + 1
+        cmp \2 + 1
+        beq \3
         lda \1
         cmp \2
-        beq \3
-        lda \1  + 1
-        cmp \2 + 1
         beq \3
         .endm
 
@@ -1188,18 +1204,68 @@
 ;*                                          *
 ;*  \1  a       16-bit                      *
 ;*  \2  b       16 bit                      *
-;*  \3  Destination if not equal 16 bit     *
+;*  \3  Destination a != b                  *
 ;*                                          *
 ;*  destroys    a,x,y                       *
 ;*                                          *
 ;********************************************
         .macro BNE16
+        lda \1 + 1
+        cmp \2 + 1
+        bne \3
         lda \1
         cmp \2
-        bne \3
-        lda \1  + 1
-        cmp \2 + 1
         bne \3
         .endm
 
     .print on
+
+;********************************************
+;*                                          *
+;*  BLT16                                   *
+;*                                          *
+;*  16bit bcc                               *
+;*                                          *
+;*  \1  a       16-bit                      *
+;*  \2  b       16 bit                      *
+;*  \3  Destination a < b                   *
+;*                                          *
+;*  destroys    a,x,y                       *
+;*                                          *
+;********************************************
+        .macro BLT16
+        lda \1 + 1
+        cmp \2 + 1
+        bcc \3
+        bne @exit
+        lda \1
+        cmp \2
+        bcc \3
+@exit
+        .endm
+
+;********************************************
+;*                                          *
+;*  BLE16                                   *
+;*                                          *
+;*  16bit bcc beq                           *
+;*                                          *
+;*  \1  a       16-bit                      *
+;*  \2  b       16 bit                      *
+;*  \3  Destination if equal 16 bit         *
+;*                                          *
+;*  destroys    a,x,y                       *
+;*                                          *
+;********************************************
+        .macro BLE16
+        lda \1 + 1
+        cmp \2 + 1
+        bcc \3
+        bne @exit
+        lda \1
+        cmp \2
+        bcc \3
+        beq \3
+@exit
+        .endm
+
