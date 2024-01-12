@@ -1182,18 +1182,19 @@
 ;*                                          *
 ;*  \1  a       16-bit                      *
 ;*  \2  b       16 bit                      *
-;*  \3  Destination b = a                   *
+;*  \3  Destination a = b                   *
 ;*                                          *
-;*  destroys    a,x,y                       *
+;*  destroys    a                           *
 ;*                                          *
 ;********************************************
         .macro BEQ16
         lda \1 + 1
         cmp \2 + 1
-        beq \3
+        bne @exit
         lda \1
         cmp \2
         beq \3
+  @exit
         .endm
 
 ;********************************************
@@ -1206,7 +1207,7 @@
 ;*  \2  b       16 bit                      *
 ;*  \3  Destination a != b                  *
 ;*                                          *
-;*  destroys    a,x,y                       *
+;*  destroys    a                           *
 ;*                                          *
 ;********************************************
         .macro BNE16
@@ -1218,8 +1219,6 @@
         bne \3
         .endm
 
-    .print on
-
 ;********************************************
 ;*                                          *
 ;*  BLT16                                   *
@@ -1230,7 +1229,7 @@
 ;*  \2  b       16 bit                      *
 ;*  \3  Destination a < b                   *
 ;*                                          *
-;*  destroys    a,x,y                       *
+;*  destroys    a                           *
 ;*                                          *
 ;********************************************
         .macro BLT16
@@ -1252,9 +1251,9 @@
 ;*                                          *
 ;*  \1  a       16-bit                      *
 ;*  \2  b       16 bit                      *
-;*  \3  Destination if equal 16 bit         *
+;*  \3  Destination a <= b                  *
 ;*                                          *
-;*  destroys    a,x,y                       *
+;*  destroys    a                           *
 ;*                                          *
 ;********************************************
         .macro BLE16
@@ -1269,3 +1268,4 @@
 @exit
         .endm
 
+        .print on

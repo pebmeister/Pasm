@@ -63,30 +63,30 @@
 
         .org $8000
 
-        .WORD	@COLD_START		; Cartridge cold-start vector
-        .WORD	@WARM_START	    ; Cartridge warm-start vector
-        .BYTE	$C3, $C2, $CD, $38, $30		; CBM8O - Autostart key
+        .WORD   @COLD_START     ; Cartridge cold-start vector
+        .WORD   @WARM_START     ; Cartridge warm-start vector
+        .BYTE   $C3, $C2, $CD, $38, $30     ; CBM8O - Autostart key
 
 @COLD_START
-;	KERNAL RESET ROUTINE
-        stx $D016				; Turn on VIC for PAL / NTSC check
-        jsr $FDA3				; IOINIT - Init CIA chips
-        jsr $FD50				; RANTAM - Clear/test system RAM
-        jsr $FD15				; RESTOR - Init KERNAL RAM vectors
-        jsr $FF5B				; CINT   - Init VIC and screen editor
+;   KERNAL RESET ROUTINE
+        stx $D016               ; Turn on VIC for PAL / NTSC check
+        jsr $FDA3               ; IOINIT - Init CIA chips
+        jsr $FD50               ; RANTAM - Clear/test system RAM
+        jsr $FD15               ; RESTOR - Init KERNAL RAM vectors
+        jsr $FF5B               ; CINT   - Init VIC and screen editor
 
-;	BASIC RESET  Routine
-        jsr $E453				; Init BASIC RAM vectors
-        jsr $E3BF				; Main BASIC RAM Init routine
-        jsr $E422				; Power-up message / NEW command
+;   BASIC RESET  Routine
+        jsr $E453               ; Init BASIC RAM vectors
+        jsr $E3BF               ; Main BASIC RAM Init routine
+        jsr $E422               ; Power-up message / NEW command
         ldx #$FB
-        txs					    ; Reduce stack pointer for BASIC
+        txs                     ; Reduce stack pointer for BASIC
 
 @WARM_START
-;	START YOUR PROGRAM HERE
+;   START YOUR PROGRAM HERE
 
-        lda #5		            ; CHANGE BORDER COLOUR
-        sta BORDER		        ;
+        lda #5                  ; CHANGE BORDER COLOUR
+        sta BORDER              ;
 
         ;
         ;   install wedge
@@ -559,7 +559,7 @@ CalcPlot
         lda XCOORD + 1
         adc LOC + 1
         sta LOC + 1
-        
+
 ;-----------------------------------------------
 
         txa
@@ -654,9 +654,9 @@ _Line
         lda Y0
         cmp Y1
         bne NotHorizontal
-        
+
 ;---------------------------------------
-        BLE16 X0, X1, @X0_Less_Equal        
+        BLE16 X0, X1, @X0_Less_Equal
 ;---------------------------------------
 ; Swap X0, Y0 and X1, Y1
         SWAP16 X0, X1
@@ -671,10 +671,10 @@ _Line
 ;
 ;---------------------------------------
 
-@X0_Less_Equal        
+@X0_Less_Equal
         MOVE16 X0,XCOORD
         SUB16 X1, X0, XDIST
-        
+
 ;---------------------------------------
 CalcPlotHLine
         MOVE16 XCOORD, COLORPTR
@@ -685,9 +685,9 @@ CalcPlotHLine
         jsr CalcPlot
         MOVE16 LOC, CURLOC
 
-        ; Draw the horizontal Line        
-        jsr HGRHorizontalLine        
-        
+        ; Draw the horizontal Line
+        jsr HGRHorizontalLine
+
         ; Set the Lines color memory
         jmp HCPlotLine
 
@@ -910,12 +910,12 @@ HCPlotLine
         MOVE16 XDIST, XD
         lda XD + 1
         bne @Continue
-        
+
         lda XD
         cmp #9
         bcc @LoopExit
-        
-@Continue        
+
+@Continue
         INC16 XD
 
         lda StartX
@@ -926,7 +926,7 @@ HCPlotLine
         ; subtract 8 - N from XD
 
         sta TMP
-        
+
         sec
         lda #8
         sbc TMP
@@ -994,15 +994,15 @@ HGRHorizontalLine
         bne @HFirstByte ; if its not 0 then it > 8 bits
         cpx XDIST       ; see if bit is within distance
         bcc @HFirstByte ; yes so we leave x unmodified
-        
+
 ;----------------------------------------------
 ; special case for < 8 pixels
 @StartByte
         ldy #0
         lda (CURLOC),y
-        ldy XDIST       ; set y to XDIST    
+        ldy XDIST       ; set y to XDIST
         beq @StartExit
-@StartByteLoop        
+@StartByteLoop
         ora MaskStart,x
         dex
         dey
@@ -1010,7 +1010,7 @@ HGRHorizontalLine
         sta (CURLOC),y
 @StartExit
         rts
-        
+
 ;----------------------------------------------
 @HFirstByte
         stx  COUNTER    ; save in counter
@@ -1221,15 +1221,15 @@ CY_PLUS_CURX    .ds 1
         * = CirclePlot
 
         SUB16 CX, CURX, CX_MINUS_CURX
-        ADD16 CX, CURX, CX_PLUS_CURX        
+        ADD16 CX, CURX, CX_PLUS_CURX
         SUB168 CX, CURY, CX_MINUS_CURY
         ADD168 CX, CURY, CX_PLUS_CURY
 
         SUB8 CY, CURX, CY_MINUS_CURX
-        ADD8 CY, CURX, CY_PLUS_CURX        
+        ADD8 CY, CURX, CY_PLUS_CURX
         SUB8 CY, CURY, CY_MINUS_CURY
         ADD8 CY, CURY, CY_PLUS_CURY
-        
+
         lda CirSave
         asl
         tax
@@ -1419,12 +1419,12 @@ PlotCirclePixels
 ;*******************************************
 
 PlotFillCircle
-         
+
         ; Line (CX - CURX, CY + CURY) TO (CX + CURX, CY + CURY);
         MOVE16 CX_MINUS_CURX, X0
         MOVE16 CX_PLUS_CURX, X1
         MOVE8 CY_PLUS_CURY, Y0
-        MOVE8 Y0, Y1        
+        MOVE8 Y0, Y1
         jsr _Line
 
 ;----------------------------------------------
@@ -1470,7 +1470,7 @@ RangeCheckXY
         cmp #2
         bcs RangeError
 
-        
+
         lda XCOORD
         cmp # 320 - 256
         bcs RangeError
@@ -1741,9 +1741,9 @@ HGRBez
 ; Check X0
         lda X0 + 1
         beq @CheckX1
-        cmp #2        
+        cmp #2
         bcs @RangeError
-        
+
         lda X0
         cmp # 320 - 256
         bcs @RangeError
@@ -1751,7 +1751,7 @@ HGRBez
 @CheckX1
         lda X1 + 1
         beq @Exit
-        cmp #2        
+        cmp #2
         bcs @RangeError
 
         lda X1
@@ -1759,7 +1759,7 @@ HGRBez
         bcs @RangeError
 @Exit
         rts
-        
+
 @RangeError
         ldx # ILLEGALQUANITY
         jmp ERROR
@@ -1783,7 +1783,7 @@ HGRBez
 ;*  FixedB  IN:  4 bytes 2nd number to multiply     *
 ;*  FixedC OUT:  4 bytes result                     *
 ;*                                                  *
-;*	// Each argument is divided to 16-bit parts.    *
+;*  // Each argument is divided to 16-bit parts.    *
 ;*  destroys a, x, y                                *
 ;*                                                  *
 ;****************************************************
@@ -1802,9 +1802,9 @@ FIX16_MUL
     @P_HI       = VERCK
     @P_LO       = UNUSED2
 
-    ;	int32_t AC = A*C;
-    ;	int32_t AD_CB = A*D + C*B;
-    ;	uint32_t BD = B*D;
+    ;   int32_t AC = A*C;
+    ;   int32_t AD_CB = A*D + C*B;
+    ;   uint32_t BD = B*D;
     FMUL @A, @C, @AC
     FMUL @A, @D, @AD
     FMUL @C, @B, @CB
@@ -1812,7 +1812,7 @@ FIX16_MUL
 
     ADDFIX16 @AD, @CB, @AD_CB
 
-    ;	int32_t product_hi = AC + (AD_CB >> 16);
+    ;   int32_t product_hi = AC + (AD_CB >> 16);
     MOVE16I @TMP, 0
     MOVE16 @AD_CB, @TMP + 2
     ADDFIX16 @AC, @TMP, @P_HI
@@ -1821,7 +1821,7 @@ FIX16_MUL
     MOVE16 @AD_CB + 2, @TMP
     ADDFIX16 @BD, @TMP, @P_LO
 
- 	; return (product_hi << 16) | (product_lo >> 16);
+    ; return (product_hi << 16) | (product_lo >> 16);
     MOVE16 @P_HI + 2, FixedC
     MOVE16 @P_LO, FixedC + 2
 
