@@ -1247,7 +1247,7 @@
 ;*                                          *
 ;*  BLE16                                   *
 ;*                                          *
-;*  16bit bcc beq                           *
+;*  16bit branch less than or equal         *
 ;*                                          *
 ;*  \1  a       16-bit                      *
 ;*  \2  b       16 bit                      *

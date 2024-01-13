@@ -1563,13 +1563,13 @@ HGRBez
 @Y1     .ds 1
 @X2     .ds 2
 @Y2     .ds 1
-@T      .ds 4
 @ONE_MINUS_T .ds 4
 @A      .ds 4
 @B      .ds 4
 @C      .ds 4
 @FIXX   .ds 4
 @FIXY   .ds 4
+@IDX    .ds 1
 
 ;----------------------------------
         * = HGRBez
@@ -1591,54 +1591,51 @@ HGRBez
         stx @Y2
         MOVE16 XCOORD, @X2
 
-        ;   const auto inc = fix16_from_dbl(1.0 / sz);
-        ;   auto t = F16(0);
-        ;   constexpr auto max = F16(1);
-        ;   constexpr auto two = F16(2);
-        MOVE16I @T, 0
-        MOVE16I @T + 2, $0
-
         MOVE16 @X0, @LASTX
         MOVE8 @Y0, @LASTY
 
-@WHILE_T
-        ;     while (t <= max)
-        lda @T
-        beq @ContinueWhile
+        MOVE8I @IDX,1
+@WHILE_IDX
+        ;     while (idex <= max)
+        lda @IDX
+        cmp #128
+        bcc @ContinueWhile
         rts
 
 @ContinueWhile
-        ;  const auto one_minus_t = F16(1) - t;
-        SUBFIX16 @ONE, @T, @ONE_MINUS_T
-
 ;----------------------------------------------
 ; calculate a1,b1 and c1
 ;----------------------------------------------
         ; (1 - t) * (1 - t)
         ; const fix16_t a1 = fix16_mul(one_minus_t, one_minus_t);
-        MOVE32 @ONE_MINUS_T, FixedA
-        MOVE32 @ONE_MINUS_T, FixedB
-        jsr FIX16_MUL
-        MOVE32 FixedC, @A1
+        lda @IDX
+        asl
+        tay
 
-        ; 2 * (1 - t) * t
-        ; fix16_t b1 = fix16_mul(two, one_minus_t);
-        ; b1 = fix16_mul(b1, t);
-        MOVE32 @TWO, FixedA
-        MOVE32 @ONE_MINUS_T, FixedB
-        jsr FIX16_MUL
-        MOVE32 FixedC, @B1
+        MOVE16I FixedA, @A1_table
+        lda (FixedA),y
+        sta @A1 + 2
+        iny
+        lda (FixedA),y
+        sta @A1 + 3
 
-        MOVE32 @B1,FixedA
-        MOVE32 @T, FixedB
-        jsr FIX16_MUL
-        MOVE32 FixedC, @B1
-
-        ;  c1 = fix16_mul(t, t);
-        MOVE32 @T, FixedA
-        MOVE32 @T, FixedB
-        jsr FIX16_MUL
-        MOVE32 FixedC, @C1
+        dey     
+        MOVE16I FixedA, @B1_table
+        MOVE16I @B1,0
+        lda (FixedA),y
+        sta @B1 + 2
+        iny
+        lda (FixedA),y
+        sta @B1 + 3
+        
+        dey
+        MOVE16I FixedA, @C1_table
+        MOVE16I @C1,0
+        lda (FixedA),y
+        sta @C1 + 2
+        iny
+        lda (FixedA),y
+        sta @C1 + 3
 
 ;-----------------------------------------
 ;        Calculate FixedX
@@ -1725,8 +1722,8 @@ HGRBez
 
 @NO_Line
         ; t += inc;
-        ADDFIX16 @T, @INC, @T
-        jmp @WHILE_T
+        inc @IDX
+        jmp @WHILE_IDX
 
 ;---------------------------
 @RangeCheckLine
@@ -1764,6 +1761,398 @@ HGRBez
         ldx # ILLEGALQUANITY
         jmp ERROR
 
+; ****** Bezier Curve tables ***********
+@A1_table
+    .word $0000
+    .word $fc04
+    .word $f810
+    .word $f424
+    .word $f040
+    .word $ec64
+    .word $e890
+    .word $e4c4
+    .word $e100
+    .word $dd44
+    .word $d990
+    .word $d5e4
+    .word $d240
+    .word $cea4
+    .word $cb10
+    .word $c784
+    .word $c400
+    .word $c084
+    .word $bd10
+    .word $b9a4
+    .word $b640
+    .word $b2e4
+    .word $af90
+    .word $ac44
+    .word $a900
+    .word $a5c4
+    .word $a290
+    .word $9f64
+    .word $9c40
+    .word $9924
+    .word $9610
+    .word $9304
+    .word $9000
+    .word $8d04
+    .word $8a10
+    .word $8724
+    .word $8440
+    .word $8164
+    .word $7e90
+    .word $7bc4
+    .word $7900
+    .word $7644
+    .word $7390
+    .word $70e4
+    .word $6e40
+    .word $6ba4
+    .word $6910
+    .word $6684
+    .word $6400
+    .word $6184
+    .word $5f10
+    .word $5ca4
+    .word $5a40
+    .word $57e4
+    .word $5590
+    .word $5344
+    .word $5100
+    .word $4ec4
+    .word $4c90
+    .word $4a64
+    .word $4840
+    .word $4624
+    .word $4410
+    .word $4204
+    .word $4000
+    .word $3e04
+    .word $3c10
+    .word $3a24
+    .word $3840
+    .word $3664
+    .word $3490
+    .word $32c4
+    .word $3100
+    .word $2f44
+    .word $2d90
+    .word $2be4
+    .word $2a40
+    .word $28a4
+    .word $2710
+    .word $2584
+    .word $2400
+    .word $2284
+    .word $2110
+    .word $1fa4
+    .word $1e40
+    .word $1ce4
+    .word $1b90
+    .word $1a44
+    .word $1900
+    .word $17c4
+    .word $1690
+    .word $1564
+    .word $1440
+    .word $1324
+    .word $1210
+    .word $1104
+    .word $1000
+    .word $0f04
+    .word $0e10
+    .word $0d24
+    .word $0c40
+    .word $0b64
+    .word $0a90
+    .word $09c4
+    .word $0900
+    .word $0844
+    .word $0790
+    .word $06e4
+    .word $0640
+    .word $05a4
+    .word $0510
+    .word $0484
+    .word $0400
+    .word $0384
+    .word $0310
+    .word $02a4
+    .word $0240
+    .word $01e4
+    .word $0190
+    .word $0144
+    .word $0100
+    .word $00c4
+    .word $0090
+    .word $0064
+    .word $0040
+    .word $0024
+    .word $0010
+    .word $0004
+    .word $0000
+@B1_table
+    .word $0000
+    .word $03f8
+    .word $07e0
+    .word $0bb8
+    .word $0f80
+    .word $1338
+    .word $16e0
+    .word $1a78
+    .word $1e00
+    .word $2178
+    .word $24e0
+    .word $2838
+    .word $2b80
+    .word $2eb8
+    .word $31e0
+    .word $34f8
+    .word $3800
+    .word $3af8
+    .word $3de0
+    .word $40b8
+    .word $4380
+    .word $4638
+    .word $48e0
+    .word $4b78
+    .word $4e00
+    .word $5078
+    .word $52e0
+    .word $5538
+    .word $5780
+    .word $59b8
+    .word $5be0
+    .word $5df8
+    .word $6000
+    .word $61f8
+    .word $63e0
+    .word $65b8
+    .word $6780
+    .word $6938
+    .word $6ae0
+    .word $6c78
+    .word $6e00
+    .word $6f78
+    .word $70e0
+    .word $7238
+    .word $7380
+    .word $74b8
+    .word $75e0
+    .word $76f8
+    .word $7800
+    .word $78f8
+    .word $79e0
+    .word $7ab8
+    .word $7b80
+    .word $7c38
+    .word $7ce0
+    .word $7d78
+    .word $7e00
+    .word $7e78
+    .word $7ee0
+    .word $7f38
+    .word $7f80
+    .word $7fb8
+    .word $7fe0
+    .word $7ff8
+    .word $8000
+    .word $7ff8
+    .word $7fe0
+    .word $7fb8
+    .word $7f80
+    .word $7f38
+    .word $7ee0
+    .word $7e78
+    .word $7e00
+    .word $7d78
+    .word $7ce0
+    .word $7c38
+    .word $7b80
+    .word $7ab8
+    .word $79e0
+    .word $78f8
+    .word $7800
+    .word $76f8
+    .word $75e0
+    .word $74b8
+    .word $7380
+    .word $7238
+    .word $70e0
+    .word $6f78
+    .word $6e00
+    .word $6c78
+    .word $6ae0
+    .word $6938
+    .word $6780
+    .word $65b8
+    .word $63e0
+    .word $61f8
+    .word $6000
+    .word $5df8
+    .word $5be0
+    .word $59b8
+    .word $5780
+    .word $5538
+    .word $52e0
+    .word $5078
+    .word $4e00
+    .word $4b78
+    .word $48e0
+    .word $4638
+    .word $4380
+    .word $40b8
+    .word $3de0
+    .word $3af8
+    .word $3800
+    .word $34f8
+    .word $31e0
+    .word $2eb8
+    .word $2b80
+    .word $2838
+    .word $24e0
+    .word $2178
+    .word $1e00
+    .word $1a78
+    .word $16e0
+    .word $1338
+    .word $0f80
+    .word $0bb8
+    .word $07e0
+    .word $03f8
+    .word $0000
+@C1_table
+    .word $0000
+    .word $0004
+    .word $0010
+    .word $0024
+    .word $0040
+    .word $0064
+    .word $0090
+    .word $00c4
+    .word $0100
+    .word $0144
+    .word $0190
+    .word $01e4
+    .word $0240
+    .word $02a4
+    .word $0310
+    .word $0384
+    .word $0400
+    .word $0484
+    .word $0510
+    .word $05a4
+    .word $0640
+    .word $06e4
+    .word $0790
+    .word $0844
+    .word $0900
+    .word $09c4
+    .word $0a90
+    .word $0b64
+    .word $0c40
+    .word $0d24
+    .word $0e10
+    .word $0f04
+    .word $1000
+    .word $1104
+    .word $1210
+    .word $1324
+    .word $1440
+    .word $1564
+    .word $1690
+    .word $17c4
+    .word $1900
+    .word $1a44
+    .word $1b90
+    .word $1ce4
+    .word $1e40
+    .word $1fa4
+    .word $2110
+    .word $2284
+    .word $2400
+    .word $2584
+    .word $2710
+    .word $28a4
+    .word $2a40
+    .word $2be4
+    .word $2d90
+    .word $2f44
+    .word $3100
+    .word $32c4
+    .word $3490
+    .word $3664
+    .word $3840
+    .word $3a24
+    .word $3c10
+    .word $3e04
+    .word $4000
+    .word $4204
+    .word $4410
+    .word $4624
+    .word $4840
+    .word $4a64
+    .word $4c90
+    .word $4ec4
+    .word $5100
+    .word $5344
+    .word $5590
+    .word $57e4
+    .word $5a40
+    .word $5ca4
+    .word $5f10
+    .word $6184
+    .word $6400
+    .word $6684
+    .word $6910
+    .word $6ba4
+    .word $6e40
+    .word $70e4
+    .word $7390
+    .word $7644
+    .word $7900
+    .word $7bc4
+    .word $7e90
+    .word $8164
+    .word $8440
+    .word $8724
+    .word $8a10
+    .word $8d04
+    .word $9000
+    .word $9304
+    .word $9610
+    .word $9924
+    .word $9c40
+    .word $9f64
+    .word $a290
+    .word $a5c4
+    .word $a900
+    .word $ac44
+    .word $af90
+    .word $b2e4
+    .word $b640
+    .word $b9a4
+    .word $bd10
+    .word $c084
+    .word $c400
+    .word $c784
+    .word $cb10
+    .word $cea4
+    .word $d240
+    .word $d5e4
+    .word $d990
+    .word $dd44
+    .word $e100
+    .word $e4c4
+    .word $e890
+    .word $ec64
+    .word $f040
+    .word $f424
+    .word $f810
+    .word $fc04
+    .word $0000
+
 ;---------------------------
 
 @INC    .word 0, $0210
@@ -1783,7 +2172,7 @@ HGRBez
 ;*  FixedB  IN:  4 bytes 2nd number to multiply     *
 ;*  FixedC OUT:  4 bytes result                     *
 ;*                                                  *
-;*  // Each argument is divided to 16-bit parts.    *
+;*  Each argument is divided to 16-bit parts.       *
 ;*  destroys a, x, y                                *
 ;*                                                  *
 ;****************************************************
