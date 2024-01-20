@@ -6,66 +6,66 @@
         .inc "kernal.asm"
 
 ;********************************************
-        BITMAPBASE = $2000
-        COLORBASE = $0400
+        BITMAPBASE  = $2000
+        COLORBASE   = $0400
 
         ; Some zero page has multiple uses
 
-        XCOORD = LINNUM
-        LOC = UNUSED2
-        DX = BITTS
-        DY = BITCI
-        XS = RIDATA
-        YS = RIPRTY + 1
-        K1 = OLDLIN
-        K2 = FREKZP
-        _D = FREKZP + 2
-        _X = LINNUM
-        _Y = RESHO
-        _CMD = FREKZP
-        TMP = UNUSED2 + 2
-        CMDTABLE = UNUSED2
-        BASICTEXT = RESHO
-        CMDJUMP = UNUSED2
-        WEDGE_TMP = LINNUM
-        CURLOC = BITTS
-        COUNTER = UNUSED2
-        MASKB = RESHO
-        MASKE = FREKZP
-        YCOUNT = FREKZP + 2
-        YCOL = PTR1
-        XD   = PTR1
-        COLORPTR = TMPDATA
-        X0 = FORPNT
-        X1 = OPPTR
-        Y0 = PRTY
-        Y1 = MSGFLG
-        R = FREKZP
-        PK = OLDLIN
-        CURX = BITCI
-        CURY = FREKZP + 2
-        CX = RIDATA
-        CY = RIPRTY + 1
-        XDIST  = INDEX
-        YDIST  = INDEX + 2
-        StartX = DSCPNT
-        YMAX = OLDLIN
-        XMAX = BLNCT
-        FixedA = FREKZP
-        FixedB = FAC1
-        FixedC = FAC2
-        CIRJUMP = VERCK
-        COLOR = UNUSED3
+        XCOORD      = LINNUM
+        LOC         = UNUSED2
+        DX          = BITTS
+        DY          = BITCI
+        XS          = RIDATA
+        YS          = RIPRTY + 1
+        K1          = OLDLIN
+        K2          = FREKZP
+        _D          = FREKZP + 2
+        _X          = LINNUM
+        _Y          = RESHO
+        _CMD        = FREKZP
+        TMP         = UNUSED2 + 2
+        CMDTABLE    = UNUSED2
+        BASICTEXT   = RESHO
+        CMDJUMP     = UNUSED2
+        WEDGE_TMP   = LINNUM
+        CURLOC      = BITTS
+        COUNTER     = UNUSED2
+        MASKB       = RESHO
+        MASKE       = FREKZP
+        YCOUNT      = FREKZP + 2
+        YCOL        = PTR1
+        XD          = PTR1
+        COLORPTR    = TMPDATA
+        X0          = FORPNT
+        X1          = OPPTR
+        Y0          = PRTY
+        Y1          = MSGFLG
+        R           = FREKZP
+        PK          = OLDLIN
+        CURX        = BITCI
+        CURY        = FREKZP + 2
+        CX          = RIDATA
+        CY          = RIPRTY + 1
+        XDIST       = INDEX
+        YDIST       = INDEX + 2
+        StartX      = DSCPNT
+        YMAX        = OLDLIN
+        XMAX        = BLNCT
+        FixedA      = FREKZP
+        FixedB      = FAC1
+        FixedC      = FAC2
+        CIRJUMP     = VERCK
+        COLOR       = UNUSED3
 
-        IGONE_SV = $3FC
+        IGONE_SV    = $3FC
 
 ;********************************************
 
         .org $8000
 
-        .WORD   @COLD_START     ; Cartridge cold-start vector
-        .WORD   @WARM_START     ; Cartridge warm-start vector
-        .BYTE   $C3, $C2, $CD, $38, $30     ; CBM8O - Autostart key
+        .word @COLD_START       ; Cartridge cold-start vector
+        .word @WARM_START       ; Cartridge warm-start vector
+        .byte  $C3, $C2, $CD, $38, $30     ; CBM8O - Autostart key
 
 @COLD_START
 ;   KERNAL RESET ROUTINE
@@ -237,7 +237,7 @@ WEDGE
         jmp (CMDJUMP)
 
 ; -------------------------------------
-; each command
+; each command has
 ; 1st byte space or 0 for end of table
 ; 0 terminates the string entry
 ; -------------------------------------
@@ -655,7 +655,8 @@ CalcPlot
 ;*  XDIST        = INDEX      2 bytes       *
 ;* ---------------------------------------- *
 ;********************************************
-_Line
+        ; asm entry point
+        _Line = *
         lda Y0
         cmp Y1
         bne NotHorizontal
@@ -707,6 +708,7 @@ NotHorizontal
         BLT16 X0, X1, @X1_larger
 
 ;-------------------------------------------
+
         SUB16 X0, X1, DX
         lda #1
         bne @Calc_DY
@@ -718,6 +720,7 @@ NotHorizontal
         sta XS
 
 ;-------------------------------------------
+
         ; DY = abs(y0% - y1%)
         ; set YS to add or subtract
         lda Y0
@@ -733,7 +736,9 @@ NotHorizontal
         lda #0
 @Done_calc
         sta YS
+
 ;-------------------------------------------
+
         ; y is 8 bit so if this is not 0 its larger
         lda DX + 1
 
@@ -760,15 +765,19 @@ NotHorizontal
 
         ; d%=K1%-DY
         SUB16 K1, DY, _D
+
 ;-------------------------------------------
+
         ; y=y0%
         lda Y0
         sta _Y
 
         ; x = x0
         MOVE16 X0, _X
+
 ;-------------------------------------------
 ; for y=y0% to y1% step YS%
+
 @Y_loop_start
         lda _Y
         cmp Y1
@@ -780,7 +789,9 @@ NotHorizontal
         ; plot
         ldx _Y
         jsr _Plot
+
 ; -------------------------------------------
+
         ; if d%<0 then y_loop_d0_minus
         lda _D + 1
         bmi @Y_loop_d0_minus
@@ -799,11 +810,15 @@ NotHorizontal
         ; d% = d% + K2%
         ADD16 _D, K2, _D
         jmp @Y_loop_next
+
 ; -------------------------------------------
+
 @y_loop_d0_minus
         ; d%=d%+K1%
         ADD16 _D, K1, _D
+
 ; -------------------------------------------
+
 @y_loop_next
         ; y = y + YS
         lda YS
@@ -815,7 +830,9 @@ NotHorizontal
 @Y_loop_next_inc
         inc _Y
         jmp @Y_loop_start
+
 ; -------------------------------------------
+
 @DX_larger
         ; K1 = 2 * DY
         MOVE16 DY, K1
@@ -827,15 +844,19 @@ NotHorizontal
 
         ; d%=K1%-DX
         SUB16 K1, DX, _D
+
 ; -------------------------------------------
+
         ; y=y0%
         lda Y0
         sta _Y
 
         ; x = x0
         MOVE16 X0, _X
+
 ;-------------------------------------------
 ; for x=x0% to x1% step XS%
+
 @X_loop_start
 
         lda _X + 1
@@ -852,7 +873,9 @@ NotHorizontal
         ; plot
         ldx _Y
         jsr _Plot
+
 ; -------------------------------------------
+
         ; if d%<0 then x_loop_d0_minus
         lda _D + 1
         bmi @X_loop_d0_minus
@@ -875,7 +898,9 @@ NotHorizontal
 @X_loop_d0_minus
         ; d%=d%+K1%
         ADD16 _D, K1, _D
+
 ; -------------------------------------------
+
 @X_loop_next
         ; x = x + XS
         lda XS
@@ -887,7 +912,9 @@ NotHorizontal
 @X_loop_next_inc
         INC16 _X
         jmp @X_loop_start
+
 ; -------------------------------------------
+
 @Exitline
         ldx _Y
         jmp _Plot
@@ -927,6 +954,7 @@ HCPlotLine
         beq @InitLoop
 
 ; -------------------------------------------
+
         ; subtract 8 - N from XD
 
         sta TMP
@@ -957,6 +985,7 @@ HCPlotLine
         bcc @LoopExit
 
 ; -------------------------------------------
+
 @LoopContinue
         ; set color Memory
         lda COLOR
@@ -968,6 +997,7 @@ HCPlotLine
         jmp @Loop
 
 ; -------------------------------------------
+
 @LoopExit
         ; check for last byte
         lda XD
@@ -1001,6 +1031,7 @@ HGRHorizontalLine
 
 ;----------------------------------------------
 ; special case for < 8 pixels
+
 @StartByte
         ldy #0
         lda (CURLOC),y
@@ -1016,25 +1047,31 @@ HGRHorizontalLine
         rts
 
 ;----------------------------------------------
+
 @HFirstByte
         stx  COUNTER    ; save in counter
         lda #0          ; zero out high byte
         sta COUNTER + 1
 
 ;----------------------------------------------
+
         ; subtract COUNTER from distance of first byte
         ; and save in COUNTER
         SUB16 XDIST, COUNTER, COUNTER
+
 ;----------------------------------------------
+
         ; Plot the first byte
         ldy #0
         lda (CURLOC),y
         ora MaskData,x
         sta (CURLOC),y
+
 ;----------------------------------------------
 ; Horizontal Line - Loop
 ; here we plot bytes instead of bits
 ;----------------------------------------------
+
 @HLoop1
         ; test that there are at least 8 bits to plot
         lda COUNTER + 1 ; get the high byte
@@ -1047,6 +1084,7 @@ HGRHorizontalLine
         jmp @HLoop1End  ; less than 8 go to last byte
 
 ; -------------------------------------------
+
 @HLoop_Cont             ; add 8 to current pointer
         ADD16I CURLOC, 8, CURLOC
         lda #$FF        ; load a with FF
@@ -1057,6 +1095,7 @@ HGRHorizontalLine
         jmp @HLoop1     ; goto to byte loop
 
 ; -------------------------------------------
+
 @HLoop1End
         ldx COUNTER     ; see if there are bits left
         beq @HLoop1EXIT ; if no then exit
@@ -1064,6 +1103,7 @@ HGRHorizontalLine
 ;----------------------------------------------
 ; Horizontal Lines Last Byte
 ;----------------------------------------------
+
         ADD16I CURLOC, 8, CURLOC
 @HLastByte
         lda (CURLOC),y
@@ -1077,6 +1117,7 @@ HGRHorizontalLine
 ;  HGRFillRect
 ;
 ;********************************************
+
 HGRFillRect
         INC16 TXTPTR    ; advance basic textptr
 
@@ -1097,7 +1138,7 @@ HGRFillRect
 
 ;********************************************
 ;
-;  HFillRect
+;  _FillRect
 ;
 ; X0        -  xstart
 ; Y0        -  ystart
@@ -1105,11 +1146,13 @@ HGRFillRect
 ; YDIST     -  ydistance
 ;
 ;********************************************
-HFillRect
+
+        _FillRect = *
         ADD8 Y0, YDIST, YMAX
         ADD16 X0, XDIST, X1
 
 ; -------------------------------------------
+
 @YLOOP
         lda Y0
         sta Y1
@@ -1131,9 +1174,10 @@ HFillRect
 ;  Parse Basic text for
 ;  x, y, xdist, ydist
 ;
-;  Call HRect to draw rectangle
+;  Call _Rect to draw rectangle
 ;
 ;********************************************
+
 HGRRect
         INC16 TXTPTR    ; advance basic textptr
 
@@ -1152,14 +1196,16 @@ HGRRect
 
 ;********************************************
 ;
-;  HRect
+;  _Rect
 ;
 ;  X0       - x start
 ;  Y0       - y start
 ;  XDIST    - x distance
 ;  YDIST    - y distance
 ;********************************************
-HRect
+
+        ; asm entry point
+        _Rect = *
         ADD16 X0, XDIST, XMAX
         ADD8 Y0, YDIST, YMAX
 
@@ -1207,21 +1253,22 @@ HRect
 ;
 ;  CirclePlot
 ;
-;  This will fill or plot for circles
+;  This will fill or plot circles
 ;
 ;********************************************
 CirclePlot
-        * = $CE00
-CirSave         .ds 1
-CX_MINUS_CURY   .ds 2
-CX_MINUS_CURX   .ds 2
-CX_PLUS_CURY    .ds 2
-CX_PLUS_CURX    .ds 2
 
-CY_MINUS_CURY   .ds 1
-CY_MINUS_CURX   .ds 1
-CY_PLUS_CURY    .ds 1
-CY_PLUS_CURX    .ds 1
+        * = $CE00
+        CirSave         .ds 1
+        CX_MINUS_CURY   .ds 2
+        CX_MINUS_CURX   .ds 2
+        CX_PLUS_CURY    .ds 2
+        CX_PLUS_CURX    .ds 2
+
+        CY_MINUS_CURY   .ds 1
+        CY_MINUS_CURX   .ds 1
+        CY_PLUS_CURY    .ds 1
+        CY_PLUS_CURX    .ds 1
         * = CirclePlot
 
         SUB16 CX, CURX, CX_MINUS_CURX
@@ -1273,6 +1320,7 @@ HGRFillCircle
 ; Bresenham's algorithm
 ;
 ;********************************************
+
 HGRCircle
         lda #0
         sta CirSave
@@ -1289,7 +1337,9 @@ HGRCircle2
         stx R
 
         jsr RangeCheckCircle
-_HCir
+        
+        ; Entry point for asm
+        _HCir   = *
                             ; pk = 3 - 2 * r;
         lda #0
         sta PK + 1
@@ -1465,6 +1515,7 @@ PlotFillCircle
 ;  Check XCOORD and x range
 ;
 ;*******************************************
+
 RangeCheckXY
         cpx # 200
         bcs RangeError
@@ -1491,6 +1542,7 @@ RangeError
 ;  Range check Circle parameters
 ;
 ;*******************************************
+
 RangeCheckCircle
         lda CY
         cmp R
@@ -1551,37 +1603,41 @@ MaskDataEnd
 ;
 ;*******************************************
 
-BezParams
+        ; define parameters
+        BezParams = *
         * = $CF50
-BX0     .ds 2
-BY0     .ds 1
-BX1     .ds 2
-BY1     .ds 1
-BX2     .ds 2
-BY2     .ds 1
+        BX0     .ds 2
+        BY0     .ds 1
+        BX1     .ds 2
+        BY1     .ds 1
+        BX2     .ds 2
+        BY2     .ds 1
         * = BezParams
 
 HGRBez
+
 ;----------------------------------
 ; local variables
 ;----------------------------------
-        * = $CF00
-@LASTX  .ds 2
-@LASTY  .ds 1
-@A1     .ds 4
-@B1     .ds 4
-@C1     .ds 4
-@ONE_MINUS_T .ds 4
-@A      .ds 4
-@B      .ds 4
-@C      .ds 4
-@FIXX   .ds 4
-@FIXY   .ds 4
-@IDX    .ds 1
 
-;----------------------------------
+        * = $CF00
+        @LASTX  .ds 2
+        @LASTY  .ds 1
+        @A1     .ds 4
+        @B1     .ds 4
+        @C1     .ds 4
+        @ONE_MINUS_T .ds 4
+        @A      .ds 4
+        @B      .ds 4
+        @C      .ds 4
+        @FIXX   .ds 4
+        @FIXY   .ds 4
+        @IDX    .ds 1
         * = HGRBez
 
+;----------------------------------
+
+        ; basic entry point
         INC16 TXTPTR    ; advance basic textptr
 
         ; get the start position, xdistance and ydistance
@@ -1599,7 +1655,8 @@ HGRBez
         stx BY2
         MOVE16 XCOORD, BX2
 
-_HBez    = *
+        ; Asm entry point
+        _HBez    = *
 
         MOVE16 BX0, @LASTX
         MOVE8 BY0, @LASTY
@@ -1613,10 +1670,12 @@ _HBez    = *
         rts
 
 @ContinueWhile
+
 ;----------------------------------------------
 ; calculate a1,b1 and c1
 ; use table lookup
 ;----------------------------------------------
+
         lda @IDX
         asl
         tay
@@ -1649,6 +1708,7 @@ _HBez    = *
 ;-----------------------------------------
 ;        Calculate FixedX
 ;-----------------------------------------
+
         ;   a = fix16_mul(a1, x0);
         MOVE32 @A1, FixedA
         MOVE16I FixedB, 0
@@ -1676,6 +1736,7 @@ _HBez    = *
 ;-----------------------------------------
 ;        Calculate FixedY
 ;-----------------------------------------
+
         ;   a = fix16_mul(a1, y0);
         MOVE32 @A1, FixedA
         MOVE16I FixedB, 0
@@ -1734,6 +1795,7 @@ _HBez    = *
         jmp @WHILE_IDX
 
 ;---------------------------
+
 @RangeCheckLine
         lda Y0
         cmp # 200
@@ -2178,45 +2240,46 @@ _HBez    = *
 ;*  destroys a, x, y                                *
 ;*                                                  *
 ;****************************************************
+
 FIX16_MUL
-@A              = FixedA
-@B              = FixedA + 2
-@C              = FixedB
-@D              = FixedB + 2
+        @A          = FixedA
+        @B          = FixedA + 2
+        @C          = FixedB
+        @D          = FixedB + 2
 
-    @AC         = UNUSED2
-    @AD         = BITCI
-    @TMP        = TMPDATA
-    @BD         = TAPE1
-    @CB         = ARGSGN
-    @AD_CB      = TEMPST
-    @P_HI       = VERCK
-    @P_LO       = UNUSED2
+        @AC         = UNUSED2
+        @AD         = BITCI
+        @TMP        = TMPDATA
+        @BD         = TAPE1
+        @CB         = ARGSGN
+        @AD_CB      = TEMPST
+        @P_HI       = VERCK
+        @P_LO       = UNUSED2
 
-    ;   int32_t AC = A*C;
-    ;   int32_t AD_CB = A*D + C*B;
-    ;   uint32_t BD = B*D;
-    FMUL @A, @C, @AC
-    FMUL @A, @D, @AD
-    FMUL @C, @B, @CB
-    FMUL @B, @D, @BD
+        ;   int32_t AC = A*C;
+        ;   int32_t AD_CB = A*D + C*B;
+        ;   uint32_t BD = B*D;
+        FMUL @A, @C, @AC
+        FMUL @A, @D, @AD
+        FMUL @C, @B, @CB
+        FMUL @B, @D, @BD
 
-    ADDFIX16 @AD, @CB, @AD_CB
+        ADDFIX16 @AD, @CB, @AD_CB
 
-    ;   int32_t product_hi = AC + (AD_CB >> 16);
-    MOVE16I @TMP, 0
-    MOVE16 @AD_CB, @TMP + 2
-    ADDFIX16 @AC, @TMP, @P_HI
+        ;   int32_t product_hi = AC + (AD_CB >> 16);
+        MOVE16I @TMP, 0
+        MOVE16 @AD_CB, @TMP + 2
+        ADDFIX16 @AC, @TMP, @P_HI
 
-    MOVE16I @TMP + 2, 0
-    MOVE16 @AD_CB + 2, @TMP
-    ADDFIX16 @BD, @TMP, @P_LO
+        MOVE16I @TMP + 2, 0
+        MOVE16 @AD_CB + 2, @TMP
+        ADDFIX16 @BD, @TMP, @P_LO
 
-    ; return (product_hi << 16) | (product_lo >> 16);
-    MOVE16 @P_HI + 2, FixedC
-    MOVE16 @P_LO, FixedC + 2
+        ; return (product_hi << 16) | (product_lo >> 16);
+        MOVE16 @P_HI + 2, FixedC
+        MOVE16 @P_LO, FixedC + 2
 
-    rts
+        rts
 
 HGRTest
         * = $CC00
@@ -2401,7 +2464,7 @@ HGRTest
         bne @L11
         Lda #1
         sta CirSave
-        jmp @Circle        
+        jmp @Circle
 @L11
         cmp #11
         bne @L12
@@ -2583,6 +2646,7 @@ HGRTest
 ;  RECT Y Start
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 @Rect_StartY
         lda #$CD
         sta Color
@@ -2597,7 +2661,7 @@ HGRTest
 @Rect_Y_Start_NLoop
 
 ;---------------------------------
-; Left Rect 
+; Left Rect
 
         ; set forecolor
         lda @N
@@ -2626,7 +2690,8 @@ HGRTest
 
 ;---------------------------------
 ; Right Rect
-       ; set forecolor
+
+        ; set forecolor
         lda @N
         clc
         adc #3
@@ -2668,6 +2733,7 @@ HGRTest
 ;  RECT Y End
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 @Rect_EndY
         lda #$CD
         sta Color
@@ -2707,7 +2773,7 @@ HGRTest
         jsr @FillFrameRect
 
  ; Right Rect
-       ; set forecolor
+        ; set forecolor
         lda @N
         clc
         adc #3
@@ -2743,21 +2809,24 @@ HGRTest
         jmp @WaitForPress
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 @FillFrameRect
         ; Frame or fill rectangle
         lda @RectJump
         beq @FrameRect1
 
-        jsr HFillRect
+        jsr _FillRect
         rts
+ 
 @FrameRect1
-        jmp HRect
+        jmp _Rect
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ;  Line
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 @Line
         lda #$CD
         sta Color
@@ -2772,45 +2841,45 @@ HGRTest
         MOVE16I X1, 0
         MOVE8I Y1, 0
         jsr _Line
-        
+
         lda #3
         jsr _HGRFColor
         MOVE16I X1, 79
         jsr _Line
-        
+
         lda #4
         jsr _HGRFColor
         MOVE16I X1, 239
         jsr _Line
-        
+
         lda #5
         jsr _HGRFColor
         MOVE16I X1, 319
         jsr _Line
-        
+
         lda #6
         jsr _HGRFColor
         MOVE8I Y1, 49
         jsr _Line
-        
+
         lda #7
         jsr _HGRFColor
         MOVE8I Y1, 149
         jsr _Line
-        
+
         lda #8
         jsr _HGRFColor
-        MOVE8I Y1, 199        
+        MOVE8I Y1, 199
         jsr _Line
-        
+
         lda #9
         jsr _HGRFColor
-        MOVE16I X1, 239        
+        MOVE16I X1, 239
         jsr _Line
 
         lda #10
         jsr _HGRFColor
-        MOVE16I X1, 79        
+        MOVE16I X1, 79
         jsr _Line
 
         lda #11
@@ -2820,12 +2889,12 @@ HGRTest
 
         lda #14
         jsr _HGRFColor
-        MOVE8I Y1, 149   
+        MOVE8I Y1, 149
         jsr _Line
 
         lda #15
         jsr _HGRFColor
-        MOVE8I Y1, 49   
+        MOVE8I Y1, 49
         jsr _Line
 
         lda #2
@@ -2857,6 +2926,7 @@ HGRTest
 ;  Circle
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 @Circle
         lda #$CD
         sta Color
@@ -2879,7 +2949,7 @@ HGRTest
 
         MOVE16I CX, 32
         MOVE8 @Y0, CY
-        ADD8 CY, @N, CY        
+        ADD8 CY, @N, CY
         MOVE8I R, 16
         jsr _HCir
 
@@ -2908,7 +2978,7 @@ HGRTest
         cmp #8
         bcs @CircleEnd
         jmp @Circle_Loop
-        
+
 @CircleEnd
         jmp @WaitForPress
 
@@ -2917,6 +2987,7 @@ HGRTest
 ;  Bez
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 @Bez
         lda #$CD
         sta Color
@@ -2940,13 +3011,13 @@ HGRTest
         MOVE16I BX0, 32
         MOVE16I BX1, 300
         MOVE16I BX2, 32
-        
+
         MOVE8 @Y0, BY0
-        ADD8 BY0, @N, BY0        
+        ADD8 BY0, @N, BY0
         ADD8I BY0, 16, BY1
         ADD8I BY1, 16, BY2
         jsr _HBez
-                        
+
 ;---------------------------------
 ; Right Bez
 
@@ -2958,13 +3029,13 @@ HGRTest
         MOVE16I BX0, 182
         MOVE16I BX1, 450
         MOVE16I BX2, 182
-        
+
         MOVE8 @Y0, BY0
-        ADD8 BY0, @N, BY0        
+        ADD8 BY0, @N, BY0
         ADD8I BY0, 16, BY1
         ADD8I BY1, 16, BY2
         jsr _HBez
-        
+
         ; increment Y
         ADD8I @Y0, 40, @Y0
         INC8  @Y
@@ -2975,11 +3046,12 @@ HGRTest
         cmp #8
         bcs @BezEnd
         jmp @Bez_Loop
-        
+
 @BezEnd
 ;        jmp @WaitForPress  Fall through to @WaitForPress
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 @WaitForPress
         jsr GETIN
         beq @WaitForPress
@@ -2990,6 +3062,7 @@ HGRTest
 ;  EXIT
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 @Exit
         lda #147
         jsr CHROUT
