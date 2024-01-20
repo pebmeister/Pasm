@@ -1,4 +1,36 @@
-.print off
+        .print off
+
+;********************************************
+;*                                          *
+;* PUSH16                                   *
+;*                                          *
+;*  push 16 bit value                       *
+;*                                          *
+;*  destroys a                              *
+;*                                          *
+;********************************************
+        .macro PUSH16
+        lda \1
+        pha
+        lda \1 + 1
+        pha
+        .endm
+
+;********************************************
+;*                                          *
+;* POP16                                    *
+;*                                          *
+;*  pop 16 bit value                        *
+;*                                          *
+;*  destroys a                              *
+;*                                          *
+;********************************************
+        .macro POP16
+        pla
+        sta \1 + 1
+        pla
+        sta \1
+        .endm
 
 ;********************************************
 ;*                                          *
@@ -522,7 +554,7 @@
         sta \3
         lda \1 + 1
         sbc \2 + 1
-        sta \3 + 1       
+        sta \3 + 1
         .endm
 
 ;********************************************
@@ -796,7 +828,6 @@
 ;*                                          *
 ;********************************************
         .macro MULT5
-
         ;
         ;   save the number
         ;
@@ -861,10 +892,53 @@
 ;********************************************
             .macro MULT16
 
-            lda \2
-            pha
-            lda \2 + 1
-            pha
+            PUSH16 \2
+
+            lda #0      ;initialize result to 0
+            sta \3 + 2
+
+            ldx #16     ;there are 16 bits in num2
+@l1
+            lsr \2 + 1  ;get low bit of num2
+            ror \2
+            bcc @l2     ; 0 or 1?
+
+            tay         ; if 1, add num1 (hi byte of result is in a)
+            clc
+            lda \1
+            adc \3 + 2
+            sta \3 + 2
+
+            tya
+            adc \1 + 1
+@l2
+            ror         ;"stairstep" shift
+            ror \3 + 2
+            ror \3 + 1
+            ror \3
+
+            dex
+            bne @l1
+
+            sta \3 + 3
+
+            POP16 \2
+            .endm
+
+;********************************************
+;*                                          *
+;*  MULT16                                  *
+;*                                          *
+;*  16bit multiplication     32bit result   *
+;*  \2 is destroyed                         *
+;*                                          *
+;*  \1  Variable a     16-bit               *
+;*  \2  Variable b     16 bit               *
+;*  \3  Destination    32 bit               *
+;*                                          *
+;********************************************
+            .macro MULT_F_16
+
 
             lda #0      ;initialize result to 0
             sta \3 + 2
@@ -893,12 +967,8 @@
 
             sta \3 + 3
 
-            pla
-            sta \2 + 1
-            pla
-            sta \2
-
             .endm
+
 
 ;********************************************
 ;*                                          *
@@ -952,10 +1022,8 @@
 ;*                                          *
 ;********************************************
         .macro MULT16I
-        lda \2
-        pha
-        lda \2 + 1
-        pha
+
+        PUSH16 \2
 
         lda #0      ;initialize result to 0
         sta \3 + 2
@@ -984,10 +1052,7 @@
 
         sta \3 + 3
 
-        pla
-        sta \2 + 1
-        pla
-        sta \2
+        POP16 \2
         .endm
 
 ;********************************************
@@ -1054,38 +1119,6 @@
         pla
         tay
         pla
-        .endm
-
-;********************************************
-;*                                          *
-;* PUSH16                                   *
-;*                                          *
-;*  push 16 bit value                       *
-;*                                          *
-;*  destroys a                              *
-;*                                          *
-;********************************************
-        .macro PUSH16
-        lda \1
-        pha
-        lda \1 + 1
-        pha
-        .endm
-
-;********************************************
-;*                                          *
-;* POP16                                    *
-;*                                          *
-;*  pop 16 bit value                        *
-;*                                          *
-;*  destroys a                              *
-;*                                          *
-;********************************************
-        .macro POP16
-        pla
-        sta \1 + 1
-        pla
-        sta \1
         .endm
 
 ;********************************************

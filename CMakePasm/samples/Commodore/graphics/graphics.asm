@@ -69,7 +69,7 @@
 
 @COLD_START
 ;   KERNAL RESET ROUTINE
-        stx $D016               ; Turn on VIC for PAL / NTSC check
+        stx $D016               ; SCROLX - Turn on VIC for PAL / NTSC check
         jsr $FDA3               ; IOINIT - Init CIA chips
         jsr $FD50               ; RANTAM - Clear/test system RAM
         jsr $FD15               ; RESTOR - Init KERNAL RAM vectors
@@ -254,6 +254,8 @@ _Commands
         .byte " HCIR", 0
         .byte " HFCIR", 0
         .byte " HBEZ", 0
+        .byte " HTEST", 0
+
         .byte 0
 
  ; offsets to commands
@@ -270,6 +272,7 @@ _Jump
         .word HGRCircle
         .word HGRFillCircle
         .word HGRBez
+        .word HGRTest
 
 ;********************************************
 ;*                                          *
@@ -334,6 +337,7 @@ HGRCls
 HGRBColor
         jsr GETBYTC
         txa
+_HGRBColor
         and #$0F
         sta TMP
         lda COLOR
@@ -357,6 +361,7 @@ HGRBColor
 HGRFColor
         jsr GETBYTC
         txa
+_HGRFColor
         and #$0F
         asl
         asl
@@ -906,7 +911,6 @@ HCPlotLine
         jsr CalcColorByte
 
         ; check for XDIST > 8
-        ldy #0
         MOVE16 XDIST, XD
         lda XD + 1
         bne @Continue
@@ -1285,7 +1289,7 @@ HGRCircle2
         stx R
 
         jsr RangeCheckCircle
-
+_HCir
                             ; pk = 3 - 2 * r;
         lda #0
         sta PK + 1
@@ -1384,7 +1388,7 @@ PlotCirclePixels
 
 ;==============================================
 
-      ; PutPixel(CX - CURY, CY + CURX);
+        ; PutPixel(CX - CURY, CY + CURX);
         MOVE16 CX_MINUS_CURY, XCOORD
         ldx CY_PLUS_CURX
         jsr _Plot
@@ -1546,8 +1550,18 @@ MaskDataEnd
 ;  Draw a Bezier curve
 ;
 ;*******************************************
-HGRBez
 
+BezParams
+        * = $CF50
+BX0     .ds 2
+BY0     .ds 1
+BX1     .ds 2
+BY1     .ds 1
+BX2     .ds 2
+BY2     .ds 1
+        * = BezParams
+
+HGRBez
 ;----------------------------------
 ; local variables
 ;----------------------------------
@@ -1557,12 +1571,6 @@ HGRBez
 @A1     .ds 4
 @B1     .ds 4
 @C1     .ds 4
-@X0     .ds 2
-@Y0     .ds 1
-@X1     .ds 2
-@Y1     .ds 1
-@X2     .ds 2
-@Y2     .ds 1
 @ONE_MINUS_T .ds 4
 @A      .ds 4
 @B      .ds 4
@@ -1578,21 +1586,23 @@ HGRBez
 
         ; get the start position, xdistance and ydistance
         jsr GETNUM ; get address in $14/$15 y next integer at X
-        stx @Y0
-        MOVE16 XCOORD, @X0
+        stx BY0
+        MOVE16 XCOORD, BX0
 
         jsr CHKCOM
         jsr GETNUM ; get address in $14/$15 y next integer at X
-        stx @Y1
-        MOVE16 XCOORD, @X1
+        stx BY1
+        MOVE16 XCOORD, BX1
 
         jsr CHKCOM
         jsr GETNUM ; get address in $14/$15 y next integer at X
-        stx @Y2
-        MOVE16 XCOORD, @X2
+        stx BY2
+        MOVE16 XCOORD, BX2
 
-        MOVE16 @X0, @LASTX
-        MOVE8 @Y0, @LASTY
+_HBez    = *
+
+        MOVE16 BX0, @LASTX
+        MOVE8 BY0, @LASTY
 
         MOVE8I @IDX,1
 @WHILE_IDX
@@ -1605,9 +1615,8 @@ HGRBez
 @ContinueWhile
 ;----------------------------------------------
 ; calculate a1,b1 and c1
+; use table lookup
 ;----------------------------------------------
-        ; (1 - t) * (1 - t)
-        ; const fix16_t a1 = fix16_mul(one_minus_t, one_minus_t);
         lda @IDX
         asl
         tay
@@ -1619,7 +1628,7 @@ HGRBez
         lda (FixedA),y
         sta @A1 + 3
 
-        dey     
+        dey
         MOVE16I FixedA, @B1_table
         MOVE16I @B1,0
         lda (FixedA),y
@@ -1627,7 +1636,7 @@ HGRBez
         iny
         lda (FixedA),y
         sta @B1 + 3
-        
+
         dey
         MOVE16I FixedA, @C1_table
         MOVE16I @C1,0
@@ -1643,19 +1652,19 @@ HGRBez
         ;   a = fix16_mul(a1, x0);
         MOVE32 @A1, FixedA
         MOVE16I FixedB, 0
-        MOVE16 @X0, FixedB + 2
+        MOVE16 BX0, FixedB + 2
         jsr FIX16_MUL
         MOVE32 FixedC, @A
 
         ;   b = fix16_mul(b1, x1);
         MOVE32 @B1, FixedA
-        MOVE16 @X1, FixedB + 2
+        MOVE16 BX1, FixedB + 2
         jsr FIX16_MUL
         MOVE32 FixedC, @B
 
         ;  c = fix16_mul(c1, x2);
         MOVE32 @C1, FixedA
-        MOVE16 @X2, FixedB + 2
+        MOVE16 BX2, FixedB + 2
         jsr FIX16_MUL
         MOVE32 FixedC, @C
 
@@ -1671,19 +1680,19 @@ HGRBez
         MOVE32 @A1, FixedA
         MOVE16I FixedB, 0
         MOVE16I FixedB + 2, 0
-        MOVE8 @Y0, FixedB + 2
+        MOVE8 BY0, FixedB + 2
         jsr FIX16_MUL
         MOVE32 FixedC, @A
 
         ;   b = fix16_mul(b1, y1);
         MOVE32 @B1, FixedA
-        MOVE8 @Y1, FixedB + 2
+        MOVE8 BY1, FixedB + 2
         jsr FIX16_MUL
         MOVE32 FixedC, @B
 
         ;  c = fix16_mul(c1, y2);
         MOVE32 @C1, FixedA
-        MOVE8 @Y2, FixedB + 2
+        MOVE8 BY2, FixedB + 2
         jsr FIX16_MUL
         MOVE32 FixedC, @C
 
@@ -1721,7 +1730,6 @@ HGRBez
         jsr _Line
 
 @NO_Line
-        ; t += inc;
         inc @IDX
         jmp @WHILE_IDX
 
@@ -1763,401 +1771,395 @@ HGRBez
 
 ; ****** Bezier Curve tables ***********
 @A1_table
-    .word $0000
-    .word $fc04
-    .word $f810
-    .word $f424
-    .word $f040
-    .word $ec64
-    .word $e890
-    .word $e4c4
-    .word $e100
-    .word $dd44
-    .word $d990
-    .word $d5e4
-    .word $d240
-    .word $cea4
-    .word $cb10
-    .word $c784
-    .word $c400
-    .word $c084
-    .word $bd10
-    .word $b9a4
-    .word $b640
-    .word $b2e4
-    .word $af90
-    .word $ac44
-    .word $a900
-    .word $a5c4
-    .word $a290
-    .word $9f64
-    .word $9c40
-    .word $9924
-    .word $9610
-    .word $9304
-    .word $9000
-    .word $8d04
-    .word $8a10
-    .word $8724
-    .word $8440
-    .word $8164
-    .word $7e90
-    .word $7bc4
-    .word $7900
-    .word $7644
-    .word $7390
-    .word $70e4
-    .word $6e40
-    .word $6ba4
-    .word $6910
-    .word $6684
-    .word $6400
-    .word $6184
-    .word $5f10
-    .word $5ca4
-    .word $5a40
-    .word $57e4
-    .word $5590
-    .word $5344
-    .word $5100
-    .word $4ec4
-    .word $4c90
-    .word $4a64
-    .word $4840
-    .word $4624
-    .word $4410
-    .word $4204
-    .word $4000
-    .word $3e04
-    .word $3c10
-    .word $3a24
-    .word $3840
-    .word $3664
-    .word $3490
-    .word $32c4
-    .word $3100
-    .word $2f44
-    .word $2d90
-    .word $2be4
-    .word $2a40
-    .word $28a4
-    .word $2710
-    .word $2584
-    .word $2400
-    .word $2284
-    .word $2110
-    .word $1fa4
-    .word $1e40
-    .word $1ce4
-    .word $1b90
-    .word $1a44
-    .word $1900
-    .word $17c4
-    .word $1690
-    .word $1564
-    .word $1440
-    .word $1324
-    .word $1210
-    .word $1104
-    .word $1000
-    .word $0f04
-    .word $0e10
-    .word $0d24
-    .word $0c40
-    .word $0b64
-    .word $0a90
-    .word $09c4
-    .word $0900
-    .word $0844
-    .word $0790
-    .word $06e4
-    .word $0640
-    .word $05a4
-    .word $0510
-    .word $0484
-    .word $0400
-    .word $0384
-    .word $0310
-    .word $02a4
-    .word $0240
-    .word $01e4
-    .word $0190
-    .word $0144
-    .word $0100
-    .word $00c4
-    .word $0090
-    .word $0064
-    .word $0040
-    .word $0024
-    .word $0010
-    .word $0004
-    .word $0000
+        .word $0000
+        .word $fc04
+        .word $f810
+        .word $f424
+        .word $f040
+        .word $ec64
+        .word $e890
+        .word $e4c4
+        .word $e100
+        .word $dd44
+        .word $d990
+        .word $d5e4
+        .word $d240
+        .word $cea4
+        .word $cb10
+        .word $c784
+        .word $c400
+        .word $c084
+        .word $bd10
+        .word $b9a4
+        .word $b640
+        .word $b2e4
+        .word $af90
+        .word $ac44
+        .word $a900
+        .word $a5c4
+        .word $a290
+        .word $9f64
+        .word $9c40
+        .word $9924
+        .word $9610
+        .word $9304
+        .word $9000
+        .word $8d04
+        .word $8a10
+        .word $8724
+        .word $8440
+        .word $8164
+        .word $7e90
+        .word $7bc4
+        .word $7900
+        .word $7644
+        .word $7390
+        .word $70e4
+        .word $6e40
+        .word $6ba4
+        .word $6910
+        .word $6684
+        .word $6400
+        .word $6184
+        .word $5f10
+        .word $5ca4
+        .word $5a40
+        .word $57e4
+        .word $5590
+        .word $5344
+        .word $5100
+        .word $4ec4
+        .word $4c90
+        .word $4a64
+        .word $4840
+        .word $4624
+        .word $4410
+        .word $4204
+        .word $4000
+        .word $3e04
+        .word $3c10
+        .word $3a24
+        .word $3840
+        .word $3664
+        .word $3490
+        .word $32c4
+        .word $3100
+        .word $2f44
+        .word $2d90
+        .word $2be4
+        .word $2a40
+        .word $28a4
+        .word $2710
+        .word $2584
+        .word $2400
+        .word $2284
+        .word $2110
+        .word $1fa4
+        .word $1e40
+        .word $1ce4
+        .word $1b90
+        .word $1a44
+        .word $1900
+        .word $17c4
+        .word $1690
+        .word $1564
+        .word $1440
+        .word $1324
+        .word $1210
+        .word $1104
+        .word $1000
+        .word $0f04
+        .word $0e10
+        .word $0d24
+        .word $0c40
+        .word $0b64
+        .word $0a90
+        .word $09c4
+        .word $0900
+        .word $0844
+        .word $0790
+        .word $06e4
+        .word $0640
+        .word $05a4
+        .word $0510
+        .word $0484
+        .word $0400
+        .word $0384
+        .word $0310
+        .word $02a4
+        .word $0240
+        .word $01e4
+        .word $0190
+        .word $0144
+        .word $0100
+        .word $00c4
+        .word $0090
+        .word $0064
+        .word $0040
+        .word $0024
+        .word $0010
+        .word $0004
+        .word $0000
 @B1_table
-    .word $0000
-    .word $03f8
-    .word $07e0
-    .word $0bb8
-    .word $0f80
-    .word $1338
-    .word $16e0
-    .word $1a78
-    .word $1e00
-    .word $2178
-    .word $24e0
-    .word $2838
-    .word $2b80
-    .word $2eb8
-    .word $31e0
-    .word $34f8
-    .word $3800
-    .word $3af8
-    .word $3de0
-    .word $40b8
-    .word $4380
-    .word $4638
-    .word $48e0
-    .word $4b78
-    .word $4e00
-    .word $5078
-    .word $52e0
-    .word $5538
-    .word $5780
-    .word $59b8
-    .word $5be0
-    .word $5df8
-    .word $6000
-    .word $61f8
-    .word $63e0
-    .word $65b8
-    .word $6780
-    .word $6938
-    .word $6ae0
-    .word $6c78
-    .word $6e00
-    .word $6f78
-    .word $70e0
-    .word $7238
-    .word $7380
-    .word $74b8
-    .word $75e0
-    .word $76f8
-    .word $7800
-    .word $78f8
-    .word $79e0
-    .word $7ab8
-    .word $7b80
-    .word $7c38
-    .word $7ce0
-    .word $7d78
-    .word $7e00
-    .word $7e78
-    .word $7ee0
-    .word $7f38
-    .word $7f80
-    .word $7fb8
-    .word $7fe0
-    .word $7ff8
-    .word $8000
-    .word $7ff8
-    .word $7fe0
-    .word $7fb8
-    .word $7f80
-    .word $7f38
-    .word $7ee0
-    .word $7e78
-    .word $7e00
-    .word $7d78
-    .word $7ce0
-    .word $7c38
-    .word $7b80
-    .word $7ab8
-    .word $79e0
-    .word $78f8
-    .word $7800
-    .word $76f8
-    .word $75e0
-    .word $74b8
-    .word $7380
-    .word $7238
-    .word $70e0
-    .word $6f78
-    .word $6e00
-    .word $6c78
-    .word $6ae0
-    .word $6938
-    .word $6780
-    .word $65b8
-    .word $63e0
-    .word $61f8
-    .word $6000
-    .word $5df8
-    .word $5be0
-    .word $59b8
-    .word $5780
-    .word $5538
-    .word $52e0
-    .word $5078
-    .word $4e00
-    .word $4b78
-    .word $48e0
-    .word $4638
-    .word $4380
-    .word $40b8
-    .word $3de0
-    .word $3af8
-    .word $3800
-    .word $34f8
-    .word $31e0
-    .word $2eb8
-    .word $2b80
-    .word $2838
-    .word $24e0
-    .word $2178
-    .word $1e00
-    .word $1a78
-    .word $16e0
-    .word $1338
-    .word $0f80
-    .word $0bb8
-    .word $07e0
-    .word $03f8
-    .word $0000
+        .word $0000
+        .word $03f8
+        .word $07e0
+        .word $0bb8
+        .word $0f80
+        .word $1338
+        .word $16e0
+        .word $1a78
+        .word $1e00
+        .word $2178
+        .word $24e0
+        .word $2838
+        .word $2b80
+        .word $2eb8
+        .word $31e0
+        .word $34f8
+        .word $3800
+        .word $3af8
+        .word $3de0
+        .word $40b8
+        .word $4380
+        .word $4638
+        .word $48e0
+        .word $4b78
+        .word $4e00
+        .word $5078
+        .word $52e0
+        .word $5538
+        .word $5780
+        .word $59b8
+        .word $5be0
+        .word $5df8
+        .word $6000
+        .word $61f8
+        .word $63e0
+        .word $65b8
+        .word $6780
+        .word $6938
+        .word $6ae0
+        .word $6c78
+        .word $6e00
+        .word $6f78
+        .word $70e0
+        .word $7238
+        .word $7380
+        .word $74b8
+        .word $75e0
+        .word $76f8
+        .word $7800
+        .word $78f8
+        .word $79e0
+        .word $7ab8
+        .word $7b80
+        .word $7c38
+        .word $7ce0
+        .word $7d78
+        .word $7e00
+        .word $7e78
+        .word $7ee0
+        .word $7f38
+        .word $7f80
+        .word $7fb8
+        .word $7fe0
+        .word $7ff8
+        .word $8000
+        .word $7ff8
+        .word $7fe0
+        .word $7fb8
+        .word $7f80
+        .word $7f38
+        .word $7ee0
+        .word $7e78
+        .word $7e00
+        .word $7d78
+        .word $7ce0
+        .word $7c38
+        .word $7b80
+        .word $7ab8
+        .word $79e0
+        .word $78f8
+        .word $7800
+        .word $76f8
+        .word $75e0
+        .word $74b8
+        .word $7380
+        .word $7238
+        .word $70e0
+        .word $6f78
+        .word $6e00
+        .word $6c78
+        .word $6ae0
+        .word $6938
+        .word $6780
+        .word $65b8
+        .word $63e0
+        .word $61f8
+        .word $6000
+        .word $5df8
+        .word $5be0
+        .word $59b8
+        .word $5780
+        .word $5538
+        .word $52e0
+        .word $5078
+        .word $4e00
+        .word $4b78
+        .word $48e0
+        .word $4638
+        .word $4380
+        .word $40b8
+        .word $3de0
+        .word $3af8
+        .word $3800
+        .word $34f8
+        .word $31e0
+        .word $2eb8
+        .word $2b80
+        .word $2838
+        .word $24e0
+        .word $2178
+        .word $1e00
+        .word $1a78
+        .word $16e0
+        .word $1338
+        .word $0f80
+        .word $0bb8
+        .word $07e0
+        .word $03f8
+        .word $0000
 @C1_table
-    .word $0000
-    .word $0004
-    .word $0010
-    .word $0024
-    .word $0040
-    .word $0064
-    .word $0090
-    .word $00c4
-    .word $0100
-    .word $0144
-    .word $0190
-    .word $01e4
-    .word $0240
-    .word $02a4
-    .word $0310
-    .word $0384
-    .word $0400
-    .word $0484
-    .word $0510
-    .word $05a4
-    .word $0640
-    .word $06e4
-    .word $0790
-    .word $0844
-    .word $0900
-    .word $09c4
-    .word $0a90
-    .word $0b64
-    .word $0c40
-    .word $0d24
-    .word $0e10
-    .word $0f04
-    .word $1000
-    .word $1104
-    .word $1210
-    .word $1324
-    .word $1440
-    .word $1564
-    .word $1690
-    .word $17c4
-    .word $1900
-    .word $1a44
-    .word $1b90
-    .word $1ce4
-    .word $1e40
-    .word $1fa4
-    .word $2110
-    .word $2284
-    .word $2400
-    .word $2584
-    .word $2710
-    .word $28a4
-    .word $2a40
-    .word $2be4
-    .word $2d90
-    .word $2f44
-    .word $3100
-    .word $32c4
-    .word $3490
-    .word $3664
-    .word $3840
-    .word $3a24
-    .word $3c10
-    .word $3e04
-    .word $4000
-    .word $4204
-    .word $4410
-    .word $4624
-    .word $4840
-    .word $4a64
-    .word $4c90
-    .word $4ec4
-    .word $5100
-    .word $5344
-    .word $5590
-    .word $57e4
-    .word $5a40
-    .word $5ca4
-    .word $5f10
-    .word $6184
-    .word $6400
-    .word $6684
-    .word $6910
-    .word $6ba4
-    .word $6e40
-    .word $70e4
-    .word $7390
-    .word $7644
-    .word $7900
-    .word $7bc4
-    .word $7e90
-    .word $8164
-    .word $8440
-    .word $8724
-    .word $8a10
-    .word $8d04
-    .word $9000
-    .word $9304
-    .word $9610
-    .word $9924
-    .word $9c40
-    .word $9f64
-    .word $a290
-    .word $a5c4
-    .word $a900
-    .word $ac44
-    .word $af90
-    .word $b2e4
-    .word $b640
-    .word $b9a4
-    .word $bd10
-    .word $c084
-    .word $c400
-    .word $c784
-    .word $cb10
-    .word $cea4
-    .word $d240
-    .word $d5e4
-    .word $d990
-    .word $dd44
-    .word $e100
-    .word $e4c4
-    .word $e890
-    .word $ec64
-    .word $f040
-    .word $f424
-    .word $f810
-    .word $fc04
-    .word $0000
-
-;---------------------------
-
-@INC    .word 0, $0210
-@ONE    .word 1, 0
-@TWO    .word 2, 0
+        .word $0000
+        .word $0004
+        .word $0010
+        .word $0024
+        .word $0040
+        .word $0064
+        .word $0090
+        .word $00c4
+        .word $0100
+        .word $0144
+        .word $0190
+        .word $01e4
+        .word $0240
+        .word $02a4
+        .word $0310
+        .word $0384
+        .word $0400
+        .word $0484
+        .word $0510
+        .word $05a4
+        .word $0640
+        .word $06e4
+        .word $0790
+        .word $0844
+        .word $0900
+        .word $09c4
+        .word $0a90
+        .word $0b64
+        .word $0c40
+        .word $0d24
+        .word $0e10
+        .word $0f04
+        .word $1000
+        .word $1104
+        .word $1210
+        .word $1324
+        .word $1440
+        .word $1564
+        .word $1690
+        .word $17c4
+        .word $1900
+        .word $1a44
+        .word $1b90
+        .word $1ce4
+        .word $1e40
+        .word $1fa4
+        .word $2110
+        .word $2284
+        .word $2400
+        .word $2584
+        .word $2710
+        .word $28a4
+        .word $2a40
+        .word $2be4
+        .word $2d90
+        .word $2f44
+        .word $3100
+        .word $32c4
+        .word $3490
+        .word $3664
+        .word $3840
+        .word $3a24
+        .word $3c10
+        .word $3e04
+        .word $4000
+        .word $4204
+        .word $4410
+        .word $4624
+        .word $4840
+        .word $4a64
+        .word $4c90
+        .word $4ec4
+        .word $5100
+        .word $5344
+        .word $5590
+        .word $57e4
+        .word $5a40
+        .word $5ca4
+        .word $5f10
+        .word $6184
+        .word $6400
+        .word $6684
+        .word $6910
+        .word $6ba4
+        .word $6e40
+        .word $70e4
+        .word $7390
+        .word $7644
+        .word $7900
+        .word $7bc4
+        .word $7e90
+        .word $8164
+        .word $8440
+        .word $8724
+        .word $8a10
+        .word $8d04
+        .word $9000
+        .word $9304
+        .word $9610
+        .word $9924
+        .word $9c40
+        .word $9f64
+        .word $a290
+        .word $a5c4
+        .word $a900
+        .word $ac44
+        .word $af90
+        .word $b2e4
+        .word $b640
+        .word $b9a4
+        .word $bd10
+        .word $c084
+        .word $c400
+        .word $c784
+        .word $cb10
+        .word $cea4
+        .word $d240
+        .word $d5e4
+        .word $d990
+        .word $dd44
+        .word $e100
+        .word $e4c4
+        .word $e890
+        .word $ec64
+        .word $f040
+        .word $f424
+        .word $f810
+        .word $fc04
+        .word $0000
 
 ;****************************************************
 ;*                                                  *
@@ -2177,10 +2179,10 @@ HGRBez
 ;*                                                  *
 ;****************************************************
 FIX16_MUL
-    @A          = FixedA
-    @B          = FixedA + 2
-    @C          = FixedB
-    @D          = FixedB + 2
+@A              = FixedA
+@B              = FixedA + 2
+@C              = FixedB
+@D              = FixedB + 2
 
     @AC         = UNUSED2
     @AD         = BITCI
@@ -2215,3 +2217,803 @@ FIX16_MUL
     MOVE16 @P_LO, FixedC + 2
 
     rts
+
+HGRTest
+        * = $CC00
+        @MenuIndex  .ds 1       ; menu index
+        @Choice     .ds 1       ; user selected menu
+        @MenuItem   .ds 2       ; menu text
+        @N          .ds 2       ;
+        @Y          .ds 1       ;
+        @X0         .ds 2       ;
+        @Y0         .ds 1       ;
+        @RectJump   .ds 1       ;
+        * = HGRTest
+
+        lda #$45
+        sta Color
+
+        ; set initial menu choice
+        lda #0
+        sta @Choice
+
+@MainLoop
+        ; Turn off graphics
+        ; and clear the screen
+
+        jsr HGROff
+
+        ; Clear Text screen
+        lda #147
+        jsr CHROUT
+
+        ; position cursor top center
+        ldx #0
+        ldy #16
+        clc
+        jsr Plot
+
+        ; draw the title
+        lda #<@TITLE
+        ldy #>@TITLE
+        jsr STROUT
+
+@Menu_Refresh
+        ; Initialize MenuItem Pointer
+        MOVE16I @MenuItem, @Menu
+        lda #0
+        sta @MenuIndex
+
+@DrawMenuLoop
+        ; Position cursor
+        ldx @MenuIndex
+        inx
+        ldy #0
+        clc
+        jsr Plot
+
+        ; If its the selected menu
+        ; turn revese on
+        lda @MenuIndex
+        cmp @Choice
+        bne @DrawMenuItem
+
+        lda #18     ; Reverse On
+        jsr CHROUT
+
+@DrawMenuItem
+        lda @MenuItem
+        ldy @MenuItem + 1
+        jsr STROUT
+
+        lda @MenuIndex
+        cmp @Choice
+        bne @MenuLoopEnd
+
+        lda #146    ; Reverse Off
+        jsr CHROUT
+
+@MenuLoopEnd
+        INC8 @MenuIndex
+        MOVE16 @MenuItem, TMP
+        ldy #0
+
+@NextMenuItem
+        INC16 TMP
+        lda (TMP),y
+        bne @NextMenuItem
+
+        ; check for last menu item
+        INC16 TMP
+        MOVE16 TMP, @MenuItem
+        lda (TMP),y
+        bne @DrawMenuLoop
+
+;-----------------------------------
+
+@Input_Get
+        jsr GETIN
+        beq @Input_Get
+
+        cmp #$11    ;down
+        beq @Down
+
+        cmp #$91    ;up
+        beq @Up
+
+        cmp #$0d    ; Enter
+        beq @Enter
+
+        jmp @Input_Get
+
+;-----------------------------------
+
+@Up
+        lda @Choice
+        beq @Input_Get
+        dec @Choice
+        jmp @Menu_Refresh
+
+;-----------------------------------
+
+@Down
+        lda @Choice
+        cmp #12
+        bcs @Input_Get
+        inc @Choice
+        jmp @Menu_Refresh
+
+;-----------------------------------
+
+@Enter
+        lda @Choice
+        bne @L1
+        MOVE8I @RectJump, 0
+        jmp @Rect_StartX
+@L1
+        cmp #1
+        bne @L2
+
+        MOVE8I @RectJump, 0
+        jmp @Rect_EndX
+@L2
+        cmp #2
+        bne @L3
+        MOVE8I @RectJump, 0
+        jmp @Rect_StartY
+@L3
+        cmp #3
+        bne @L4
+        MOVE8I @RectJump, 0
+        jmp @Rect_EndY
+@L4
+        cmp #4
+        bne @L5
+        MOVE8I @RectJump, 1
+        jmp @Rect_StartX
+@L5
+        cmp #5
+        bne @L6
+        MOVE8I @RectJump, 1
+        jmp @Rect_EndX
+@L6
+        cmp #6
+        bne @L7
+        MOVE8I @RectJump, 1
+        jmp @Rect_StartY
+@L7
+        cmp #7
+        bne @L8
+        MOVE8I @RectJump, 1
+        jmp @Rect_EndY
+@L8
+        cmp #8
+        bne @L9
+        jmp @Line
+@L9
+        cmp #9
+        bne @L10
+        Lda #0
+        sta CirSave
+        jmp @Circle
+@L10
+        cmp #10
+        bne @L11
+        Lda #1
+        sta CirSave
+        jmp @Circle        
+@L11
+        cmp #11
+        bne @L12
+        jmp @Bez
+@L12
+        cmp #12
+        bne @LEnd
+        jmp @Exit
+@LEnd
+        jmp @Input_Get
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  RECT X Start
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@Rect_StartX
+        lda #$CD
+        sta Color
+
+        jsr HGRCls
+        jsr HGROn
+
+        MOVE8I @Y,0
+        MOVE8I @Y0,8
+        MOVE16I @N,0
+
+@Rect_X_Start_NLoop
+; Left Rect
+
+        ; set forecolor
+        lda @N
+        clc
+        adc #2
+        jsr _HGRFColor
+        lda #1
+        jsr _HGRBColor
+
+        ; set X0
+        ADD16I @N, 16, X0
+
+        ; set Y0
+        MOVE8 @Y0, Y0
+
+        ; set XDist
+        MOVE16I XDIST, 79
+        SUB16 XDIST, @N, XDIST
+
+        ; Set YDist
+        MOVE8I YDIST, 15
+
+        ; Frame or fill rectangle
+        jsr @FillFrameRect
+
+; Right Rect
+
+        ; set forecolor
+        lda @N
+        clc
+        adc #3
+        jsr _HGRFColor
+
+        ; set X0`
+        ADD16I @N, 113, X0
+
+        ; set Y0
+        MOVE8 @Y0, Y0
+
+        ; set XDist
+        MOVE16I XDIST, 78
+        SUB16 XDIST, @N, XDIST
+
+        ; Set YDist
+        MOVE8I YDIST, 15
+
+        ; Frame or fill rectangle
+        jsr @FillFrameRect
+
+        ; increment Y
+        ADD8I @Y0, 32, @Y0
+        INC8  @Y
+
+        ; Next N
+        ADD16I @N, 2, @N
+        lda @N
+        cmp #8
+        bcs @EndStartX
+        jmp @Rect_X_Start_NLoop
+@EndStartX
+        jmp @WaitForPress
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  RECT X END
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@Rect_EndX
+        lda #$CD
+        sta Color
+
+        jsr HGRCls
+        jsr HGROn
+
+        MOVE8I @Y,0
+        MOVE8I @Y0,8
+        MOVE16I @N,0
+
+@Rect_X_End_NLoop
+
+; Left Rect
+        ; set forecolor
+        lda @N
+        clc
+        adc #2
+        jsr _HGRFColor
+        lda #1
+        jsr _HGRBColor
+
+;------------------------------------
+        ; set X0
+        MOVE16I X0, 16
+
+        ; set Y0
+        MOVE8 @Y0, Y0
+
+        ; set XDist
+        MOVE16I XDIST, 79
+        SUB16 XDIST, @N, XDIST
+
+        ; Set YDist
+        MOVE8I YDIST, 15
+
+        ; Frame or fill rectangle
+        jsr @FillFrameRect
+
+;------------------------------------
+
+; Right Rect
+
+        ; set forecolor
+        lda @N
+        clc
+        adc #3
+        jsr _HGRFColor
+
+        ; set X0
+        MOVE16I X0, 112
+
+        ; set Y0
+        MOVE8 @Y0, Y0
+
+        ; set XDist
+        MOVE16I XDIST, 78
+        SUB16 XDIST, @N, XDIST
+
+        ; Set YDist
+        MOVE8I YDIST, 15
+
+        ; Frame or fill rectangle
+        jsr @FillFrameRect
+
+;------------------------------------
+
+        ; increment Y
+        ADD8I @Y0, 32, @Y0
+        INC8  @Y
+
+        ; Next N
+        ADD16I @N, 2, @N
+        lda @N
+        cmp #8
+        bcs @EndEndX
+        jmp @Rect_X_End_NLoop
+@EndEndX
+        jmp @WaitForPress
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  RECT Y Start
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@Rect_StartY
+        lda #$CD
+        sta Color
+
+        jsr HGRCls
+        jsr HGROn
+
+        MOVE8I @Y,0
+        MOVE8I @Y0,8
+        MOVE16I @N,0
+
+@Rect_Y_Start_NLoop
+
+;---------------------------------
+; Left Rect 
+
+        ; set forecolor
+        lda @N
+        clc
+        adc #2
+        jsr _HGRFColor
+        lda #1
+        jsr _HGRBColor
+
+        ; set X0
+        MOVE16I X0, 16
+
+        ; set Y0
+        MOVE8 @Y0, Y0
+        ADD8 Y0, @N, Y0
+
+        ; set XDist
+        MOVE16I XDIST, 79
+
+        ; Set YDist
+        MOVE8I YDIST, 15
+        SUB8 YDIST, @N, YDIST
+
+        ; Frame or fill rectangle
+        jsr @FillFrameRect
+
+;---------------------------------
+; Right Rect
+       ; set forecolor
+        lda @N
+        clc
+        adc #3
+        jsr _HGRFColor
+
+        ; set X0
+        MOVE16I X0, 112
+
+        ; set Y0
+        MOVE8 @Y0, Y0
+        ADD8  Y0, @N, Y0
+        INC8 Y0
+
+        ; set XDist
+        MOVE16I XDIST, 79
+
+        ; Set YDist
+        MOVE8I YDIST, 14
+        SUB8 YDIST, @N, YDIST
+
+        ; Frame or fill rectangle
+        jsr @FillFrameRect
+
+        ; increment Y
+        ADD8I @Y0, 32, @Y0
+        INC8  @Y
+
+        ; Next N
+        ADD16I @N, 2, @N
+        lda @N
+        cmp #8
+        bcs @EndStartY
+        jmp @Rect_Y_Start_NLoop
+@EndStartY
+        jmp @WaitForPress
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  RECT Y End
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@Rect_EndY
+        lda #$CD
+        sta Color
+
+        jsr HGRCls
+        jsr HGROn
+
+        MOVE8I @Y,0
+        MOVE8I @Y0,8
+        MOVE16I @N,0
+
+@Rect_Y_End_NLoop
+
+; Left Rect
+        ; set forecolor
+        lda @N
+        clc
+        adc #2
+        jsr _HGRFColor
+        lda #1
+        jsr _HGRBColor
+
+        ; set X0
+        MOVE16I X0, 16
+
+        ; set Y0
+        MOVE8 @Y0, Y0
+
+        ; set XDist
+        MOVE16I XDIST, 79
+
+        ; Set YDist
+        MOVE8I YDIST, 15
+        SUB8 YDIST, @N, YDIST
+
+        ; Frame or fill rectangle
+        jsr @FillFrameRect
+
+ ; Right Rect
+       ; set forecolor
+        lda @N
+        clc
+        adc #3
+        jsr _HGRFColor
+
+        ; set X0
+        MOVE16I X0, 112
+
+        ; set Y0
+        MOVE8 @Y0, Y0
+
+        ; set XDist
+        MOVE16I XDIST, 79
+
+        ; Set YDist
+        MOVE8I YDIST, 14
+        SUB8 YDIST, @N, YDIST
+
+        ; Frame or fill rectangle
+        jsr @FillFrameRect
+
+        ; increment Y
+        ADD8I @Y0, 32, @Y0
+        INC8  @Y
+
+        ; Next N
+        ADD16I @N, 2, @N
+        lda @N
+        cmp #8
+        bcs @EndEndY
+        jmp @Rect_Y_End_NLoop
+@EndEndY
+        jmp @WaitForPress
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@FillFrameRect
+        ; Frame or fill rectangle
+        lda @RectJump
+        beq @FrameRect1
+
+        jsr HFillRect
+        rts
+@FrameRect1
+        jmp HRect
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  Line
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@Line
+        lda #$CD
+        sta Color
+
+        jsr HGRCls
+        jsr HGROn
+
+        lda #2
+        jsr _HGRFColor
+        MOVE16I X0, 159
+        MOVE8I Y0, 99
+        MOVE16I X1, 0
+        MOVE8I Y1, 0
+        jsr _Line
+        
+        lda #3
+        jsr _HGRFColor
+        MOVE16I X1, 79
+        jsr _Line
+        
+        lda #4
+        jsr _HGRFColor
+        MOVE16I X1, 239
+        jsr _Line
+        
+        lda #5
+        jsr _HGRFColor
+        MOVE16I X1, 319
+        jsr _Line
+        
+        lda #6
+        jsr _HGRFColor
+        MOVE8I Y1, 49
+        jsr _Line
+        
+        lda #7
+        jsr _HGRFColor
+        MOVE8I Y1, 149
+        jsr _Line
+        
+        lda #8
+        jsr _HGRFColor
+        MOVE8I Y1, 199        
+        jsr _Line
+        
+        lda #9
+        jsr _HGRFColor
+        MOVE16I X1, 239        
+        jsr _Line
+
+        lda #10
+        jsr _HGRFColor
+        MOVE16I X1, 79        
+        jsr _Line
+
+        lda #11
+        jsr _HGRFColor
+        MOVE16I X1, 0
+        jsr _Line
+
+        lda #14
+        jsr _HGRFColor
+        MOVE8I Y1, 149   
+        jsr _Line
+
+        lda #15
+        jsr _HGRFColor
+        MOVE8I Y1, 49   
+        jsr _Line
+
+        lda #2
+        jsr _HGRFColor
+        MOVE16I X1, 159
+        MOVE8I Y1, 0
+        jsr _Line
+
+        lda #3
+        jsr _HGRFColor
+        MOVE8I Y1, 199
+        jsr _Line
+
+        lda #4
+        jsr _HGRFColor
+        MOVE16I X1, 319
+        MOVE8I Y1, 99
+        jsr _Line
+
+        lda #5
+        jsr _HGRFColor
+        MOVE16I X1, 0
+        jsr _Line
+
+        jmp @WaitForPress
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  Circle
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@Circle
+        lda #$CD
+        sta Color
+
+        jsr HGRCls
+        jsr HGROn
+
+        MOVE8I @Y,0
+        MOVE8I @Y0,32
+        MOVE16I @N,0
+
+@Circle_Loop
+;---------------------------------
+; Left Circle
+
+        lda @N
+        clc
+        adc #2
+        jsr _HGRFColor
+
+        MOVE16I CX, 32
+        MOVE8 @Y0, CY
+        ADD8 CY, @N, CY        
+        MOVE8I R, 16
+        jsr _HCir
+
+;---------------------------------
+; Right Circle
+
+        lda @N
+        clc
+        adc #3
+        jsr _HGRFColor
+
+        MOVE16I CX, 112
+        MOVE8 @Y0, CY
+        ADD8 CY, @N, CY
+        INC8 CY
+        MOVE8I R, 16
+        jsr _HCir
+
+        ; increment Y
+        ADD8I @Y0, 40, @Y0
+        INC8  @Y
+
+        ; Next N
+        ADD16I @N, 2, @N
+        lda @N
+        cmp #8
+        bcs @CircleEnd
+        jmp @Circle_Loop
+        
+@CircleEnd
+        jmp @WaitForPress
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  Bez
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@Bez
+        lda #$CD
+        sta Color
+
+        jsr HGRCls
+        jsr HGROn
+
+        MOVE8I @Y,0
+        MOVE8I @Y0,32
+        MOVE16I @N,0
+
+@Bez_Loop
+;---------------------------------
+; Left Bez
+
+        lda @N
+        clc
+        adc #2
+        jsr _HGRFColor
+
+        MOVE16I BX0, 32
+        MOVE16I BX1, 300
+        MOVE16I BX2, 32
+        
+        MOVE8 @Y0, BY0
+        ADD8 BY0, @N, BY0        
+        ADD8I BY0, 16, BY1
+        ADD8I BY1, 16, BY2
+        jsr _HBez
+                        
+;---------------------------------
+; Right Bez
+
+        lda @N
+        clc
+        adc #3
+        jsr _HGRFColor
+
+        MOVE16I BX0, 182
+        MOVE16I BX1, 450
+        MOVE16I BX2, 182
+        
+        MOVE8 @Y0, BY0
+        ADD8 BY0, @N, BY0        
+        ADD8I BY0, 16, BY1
+        ADD8I BY1, 16, BY2
+        jsr _HBez
+        
+        ; increment Y
+        ADD8I @Y0, 40, @Y0
+        INC8  @Y
+
+        ; Next N
+        ADD16I @N, 2, @N
+        lda @N
+        cmp #8
+        bcs @BezEnd
+        jmp @Bez_Loop
+        
+@BezEnd
+;        jmp @WaitForPress  Fall through to @WaitForPress
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@WaitForPress
+        jsr GETIN
+        beq @WaitForPress
+        jmp @MainLoop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  EXIT
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@Exit
+        lda #147
+        jsr CHROUT
+        rts
+
+;------------------------------------
+
+@TITLE
+        .byte "TEST", 0
+
+;------------------------------------
+@MENU
+        .byte "RECT X START",0
+        .byte "RECT X END",0
+        .byte "RECT Y START",0
+        .byte "RECT Y END",0
+        .byte "FILL RECT X START",0
+        .byte "FILL RECT X END",0
+        .byte "FILL RECT Y START",0
+        .byte "FILL RECT Y END",0
+        .byte "LINE",0
+        .byte "CIRCLE",0
+        .byte "FILL CIRCLE",0
+        .byte "BEZIER CURVE",0
+        .byte "EXIT",0
+        .byte 0,0
+        rts
