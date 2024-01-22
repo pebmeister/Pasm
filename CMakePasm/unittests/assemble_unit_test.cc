@@ -536,18 +536,21 @@ TEST(assemble_unit_test, stmt_regloopexpr_unit_test)
         "    .for .regx = 0 .to 10\n"
         "        sta data, x\n"
         "    .next X\n"
+        "    stx cow\n"
         "\n"
         "    data .ds 11\n"
+        "    cow  .ds 12\n"
         ;
 
     constexpr unsigned char expected[] =
     {
         0xa9, 0xff,
         0xa2, 00,
-        0x9d, 0x0c, 0x10,
+        0x9d, 0x0f, 0x10,
         0xe8,
         0xe0, 0x0b,
-        0x90, 0xf8
+        0x90, 0xf8,
+        0x8e, 0x1a, 0x10,
     };
 
     const auto expect_list =
@@ -560,9 +563,9 @@ TEST(assemble_unit_test, stmt_regloopexpr_unit_test)
         "Final Pass\n"
         "Current File execute_text.a\n"
         "\n"
-        "12 bytes written to execute_text.bin\n"
+        "15 bytes written to execute_text.bin\n"
         "\n"
-        "           data $100C  \n"
+        "           data $100F              cow $101A  \n"
         "\n"
         "; Processing execute_text.a\n"
         "                                                 .org $1000\n"
@@ -571,13 +574,14 @@ TEST(assemble_unit_test, stmt_regloopexpr_unit_test)
         "                                                 .for .regx = 0 .to 10\n"
         "                                                     sta data, x\n"
         "$1002: $A2 $00           ldx #$00                .next X\n"
-        "$1004: $9D $0C $10       sta $100C,x         \n"
+        "$1004: $9D $0F $10       sta $100F,x         \n"
         "$1007: $E8               inx                 \n"
         "$1008: $E0 $0B           cpx #$0B            \n"
         "$100A: $90 $F8           bcc $1004           \n"
+        "$100C: $8E $1A $10       stx $101A               stx cow\n"
         "                                             \n"
         "                                                 data .ds 11\n"
-        ;
+        "                                                 cow  .ds 12\n";
 
     execute_text(code, expected, _countof(expected), expect_list);
     

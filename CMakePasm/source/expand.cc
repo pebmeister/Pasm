@@ -1634,7 +1634,7 @@ int expand_operator_ds_node(const parse_node_ptr p)
         exit(-1);
     }
 
-    if (final_pass)
+//    if (final_pass)
     {
         program_counter += count > 0 ? count : 1;
     }
