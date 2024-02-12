@@ -91,6 +91,7 @@
         ;
         ;   install wedge
         ;
+
 @SETWEDGE
         NEWBYTES = 3
         sei
@@ -1257,7 +1258,8 @@ HGRRect
 ;
 ;********************************************
 CirclePlot
-
+        ; define circle parameters
+        ; and variables
         * = $CE00
         CirSave         .ds 1
         CX_MINUS_CURY   .ds 2
@@ -3088,5 +3090,5 @@ HGRTest
         .byte "FILL CIRCLE",0
         .byte "BEZIER CURVE",0
         .byte "EXIT",0
-        .byte 0,0
+        .byte 0
         rts
