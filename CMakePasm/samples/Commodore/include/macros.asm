@@ -549,12 +549,14 @@
         lda \1 + 3
         sbc \2 + 3
         sta \3 + 3
+
         lda \1
         sbc \2
         sta \3
         lda \1 + 1
         sbc \2 + 1
         sta \3 + 1
+
         .endm
 
 ;********************************************
@@ -1131,15 +1133,15 @@
 ;*                                          *
 ;********************************************
         .macro BCD2STR
-        lda \1                  ;   load the byte to convert
-        and #$F0                ;   get the high nibble
+        lda \1                  ;   load the byte to convert 
+        tax
         lsr                     ;   shift to low nibble
         lsr
         lsr
         lsr
         ora #'0'                ;   or '0' to make it numeric
         sta \2                  ;   save the PETASCII low byte
-        lda \1                  ;   reload the byte to convert
+        txa                     ;   reload the byte to convert
         and #$0F                ;   get the lo nibble
         ora #'0'                ;   or '0' to make it numeric
         sta \2 + 1              ;   save the PETASCII high byte
@@ -1232,6 +1234,29 @@
 
 ;********************************************
 ;*                                          *
+;*  BEQ16                                   *
+;*                                          *
+;*  16bit beq                               *
+;*                                          *
+;*  \1  a       16-bit                      *
+;*  \2  b       16 bit Number               *
+;*  \3  Destination a = b                   *
+;*                                          *
+;*  destroys    a                           *
+;*                                          *
+;********************************************
+        .macro BEQ16I
+        lda \1 + 1
+        cmp #>\2
+        bne @exit
+        lda \1
+        cmp #<\2
+        beq \3
+  @exit
+        .endm
+
+;********************************************
+;*                                          *
 ;*  BNE16                                   *
 ;*                                          *
 ;*  16bit beq                               *
@@ -1249,6 +1274,28 @@
         bne \3
         lda \1
         cmp \2
+        bne \3
+        .endm
+
+;********************************************
+;*                                          *
+;*  BNE16I                                  *
+;*                                          *
+;*  16bit beq                               *
+;*                                          *
+;*  \1  a       16-bit                      *
+;*  \2  b       16 bi value                 *
+;*  \3  Destination a != b                  *
+;*                                          *
+;*  destroys    a                           *
+;*                                          *
+;********************************************
+        .macro BNE16I
+        lda \1 + 1
+        cmp #>\2
+        bne \3
+        lda \1
+        cmp #<\2
         bne \3
         .endm
 
@@ -1278,6 +1325,30 @@
 
 ;********************************************
 ;*                                          *
+;*  BLT16I                                  *
+;*                                          *
+;*  16bit bcc                               *
+;*                                          *
+;*  \1  a       16-bit                      *
+;*  \2  b       16 bit number                *
+;*  \3  Destination a < b                   *
+;*                                          *
+;*  destroys    a                           *
+;*                                          *
+;********************************************
+        .macro BLT16I
+        lda \1 + 1
+        cmp #>\2
+        bcc \3
+        bne @exit
+        lda \1
+        cmp #<\2
+        bcc \3
+@exit
+        .endm
+
+;********************************************
+;*                                          *
 ;*  BLE16                                   *
 ;*                                          *
 ;*  16bit branch less than or equal         *
@@ -1301,4 +1372,82 @@
 @exit
         .endm
 
+;********************************************
+;*                                          *
+;*  BLE16I                                  *
+;*                                          *
+;*  16bit branch less than or equal         *
+;*                                          *
+;*  \1  a       16-bit                      *
+;*  \2  b       16 bit number               *
+;*  \3  Destination a <= b                  *
+;*                                          *
+;*  destroys    a                           *
+;*                                          *
+;********************************************
+        .macro BLE16I
+        lda \1 + 1
+        cmp #>\2
+        bcc \3
+        bne @exit
+        lda \1
+        cmp #<\2
+        bcc \3
+        beq \3
+@exit
+        .endm
+
+;********************************************
+;*                                          *
+;*  BGE16                                   *
+;*                                          *
+;*  16bit Greater than or equal             *
+;*                                          *
+;*  \1  a       16-bit                      *
+;*  \2  b       16 bit                      *
+;*  \3  Destination a >= b                  *
+;*                                          *
+;*  destroys    a                           *
+;*                                          *
+;********************************************
+        .macro BGE16
+        lda \1 + 1
+        cmp \2 + 1
+        beq @bg1
+        bcs \3
+        bcc @exit       
+@bg1
+        lda \1
+        cmp \2
+        bcs \3
+@exit
+        .endm
+
+;********************************************
+;*                                          *
+;*  BGE16I                                  *
+;*                                          *
+;*  16bit Greater than or equal             *
+;*                                          *
+;*  \1  a       16-bit                      *
+;*  \2  b       16 bit number               *
+;*  \3  Destination a >= b                  *
+;*                                          *
+;*  destroys    a                           *
+;*                                          *
+;********************************************
+        .macro BGE16I
+        lda \1 + 1
+        cmp #>\2
+        beq @bg1        
+        bcs \3
+        bcc @exit       
+@bg1
+        lda \1
+        cmp #<\2
+        bcs \3
+@exit
+        .endm
+
         .print on
+ 
