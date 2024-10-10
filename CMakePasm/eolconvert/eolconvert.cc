@@ -61,7 +61,8 @@ int main(const int argc, char** argv)
 
 #ifdef WIN32
         CHAR my_documents[MAX_PATH];
-        if (const HRESULT result = SHGetFolderPath(nullptr, CSIDL_PERSONAL, nullptr, SHGFP_TYPE_CURRENT, my_documents); result == ERROR_SUCCESS)
+        const HRESULT result = SHGetFolderPath(nullptr, CSIDL_PERSONAL, nullptr, SHGFP_TYPE_CURRENT, (LPSTR)my_documents);
+        if (result == ERROR_SUCCESS)
         {
             strcat(my_documents, "\\pasm\\");
             install_root_path = realpath(my_documents, NULL);
@@ -78,6 +79,7 @@ int main(const int argc, char** argv)
             }
         }
 #endif
+        cout << "install root path " << install_root_path << '\n';
 
         return (process_directory(source_path, source_root_path, install_root_path) > 0) ? 0 : -1;
     }
@@ -283,3 +285,4 @@ bool is_text_file(const fs::path& path)
 
     return false;
 }
+
