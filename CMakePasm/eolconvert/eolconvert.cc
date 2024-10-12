@@ -287,3 +287,4 @@ bool is_text_file(const fs::path& path)
 
     return false;
 }
+
