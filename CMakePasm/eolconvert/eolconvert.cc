@@ -1,3 +1,4 @@
+
 #include <algorithm>
 #include <iostream>
 #include <filesystem>
@@ -22,6 +23,7 @@ int process_directories(const set<fs::path>& directories, const fs::path& source
 int process_directory(const fs::path& directory, const fs::path& source_root, const fs::path& install_path);
 int process_files(const set<fs::path>& files, const fs::path& source_root, const fs::path& install_path);
 int process_file(const fs::path& path, const fs::path& source_root, const fs::path& install_path);
+char* extract_directory(int n, string path);
 
 bool is_eol(uint8_t ch);
 int replace_eol(const fs::path& path, const fs::path& out_path);
@@ -37,56 +39,80 @@ fs::path base_path(const fs::path& path, const fs::path& source_root, const fs::
 //--------------------------------------------------------------------------//
 int main(const int argc, char** argv)
 {
-    cout << "EXECUTE eolconvert.exe\n";
+    for (auto a = 0; a < argc; ++a)
+        cout << "'" << argv[a] << "' ";
+    cout << '\n';
+    
+    fs::path install_root_path;
+    fs::path source_path = realpath("../../CMakePasm/samples", NULL);
+    fs::path source_root_path = extract_directory(1, source_path.string());
 
-    return 0;
-    if (argc > 1)
+    if (!is_directory(source_path))
     {
-        fs::path source_root_path;
-        fs::path install_root_path;
-
-
-        const fs::path source_path = realpath(argv[1], NULL);
-        if (!is_directory(source_path))
-        {
-            cout << source_path << " is not a directory.";
-            return -1;
-        }
-        cout << "source path " << source_path << '\n';
-
-        if (argc > 2)
-        {
-            source_root_path = argv[2];
-
-            cout << "source root path " << source_root_path << '\n';
-        }
-
+        cout << source_path << " is not a directory.";
+        return 0;
+    }
+    cout << ":::::::::: source root path " << source_root_path << '\n';
+    cout << ":::::::::: source path " << source_path << '\n';
+ 
 #ifdef WIN32
-        CHAR my_documents[MAX_PATH];
-        const HRESULT result = SHGetFolderPath(nullptr, CSIDL_PERSONAL, nullptr, SHGFP_TYPE_CURRENT, (LPSTR)my_documents);
-        if (result == ERROR_SUCCESS)
+    CHAR my_documents[MAX_PATH];
+    HRESULT result = SHGetFolderPath(nullptr, CSIDL_PERSONAL, nullptr, SHGFP_TYPE_CURRENT, (LPSTR)my_documents);
+    if (result == ERROR_SUCCESS)
+    {
+        strcat(my_documents, "\\Pasm\\");
+        if (! fs::exists(my_documents))
         {
-            strcat(my_documents, "\\pasm\\");
-            install_root_path = realpath(my_documents, NULL);
-        }
-
-#else
-        if (argc > 3)
-        {
-            install_root_path = realpath(argv[3], NULL);
-            if (!is_directory(install_root_path))
+            try
             {
-                cout << install_root_path << " is not a directory.";
-                return -1;
+                fs::create_directory(my_documents);
+            }
+            catch (...)
+            {
+                cout << "attempt to create directory  " << my_documents << " FAILED\n";
+                return 1;
             }
         }
-#endif
-        cout << "install root path " << install_root_path << '\n';
-
-        return (process_directory(source_path, source_root_path, install_root_path) > 0) ? 0 : -1;
+        install_root_path = realpath(my_documents, NULL);
     }
-    return -1;
+
+#endif
+
+    cout << ":::::::::: install root path " << install_root_path << '\n';
+    auto count = process_directory(source_path, source_root_path, install_root_path); 
+    auto funresult =  count > 0 ? 0 : -1; 
+    return 0;
 }
+
+char* extract_directory(int n, string path)
+{
+    char buffer[1024] = { 0 };
+    int count = 0;
+    int len = path.length();
+    int index = len - 1;
+    while (count < n && index >= 0)
+    {
+        auto ch = path[index];
+        if (!isalnum(ch) )
+        {
+            ++count;
+            if (count == n)
+            {
+                index++;
+                auto i = 0;
+                for (; index < len; ++i)
+                {
+                    buffer[i] = path[index];
+                    index++;
+                }
+                buffer[i] = ch;
+                return (char*)string(buffer).c_str();
+            }
+        }
+        index--;
+    }
+    return NULL;
+} 
 
 //--------------------------------------------------------------------------//
 int process_files(const set<fs::path>& files, const fs::path& source_root, const fs::path& install_path)
@@ -130,9 +156,18 @@ int process_directory(const fs::path& directory, const fs::path& source_root, co
     set<fs::path> files;            // contains files
 
     const auto dest_path = base_path(directory, source_root, install_path);
+
     if (! exists(dest_path))
     {
-        create_directory(dest_path);
+        try
+        {
+            create_directory(dest_path);
+        }
+        catch (...)
+        {
+            cout << "attempt to create directory  " << dest_path << " FAILED\n";
+            return 1;
+        }
     }
 
     auto result = 0;
@@ -165,7 +200,6 @@ int replace_eol(const fs::path& path, const fs::path& out_path)
 {
     if (exists(path))
     {
-        cout << out_path.string().c_str() << '\n';
 
         if (auto is_text = is_text_file(path); !is_text)
         {
@@ -241,13 +275,15 @@ fs::path base_path(const fs::path& path, const fs::path& source_root, const fs::
     if (source_root.empty() || install_path.empty())
         return path;
 
-    //cout << "filename       " << path.filename() << '\n';
-    //cout << "extension      " << path.extension() << '\n';
-    //cout << "parent_path    " << path.parent_path() << '\n';
-    //cout << "relative_path  " << path.relative_path() << '\n';
-    //cout << "root_directory " << path.root_directory() << '\n';
-    //cout << "root_name      " << path.root_name() << '\n';
-    //cout << "root_path      " << path.root_path() << '\n';
+//    cout <<
+//        "filename       " << path.filename() << '\n' <<
+//        "extension      " << path.extension() << '\n' <<
+//        "parent_path    " << path.parent_path() << '\n' <<
+//        "relative_path  " << path.relative_path() << '\n' <<
+//        "root_directory " << path.root_directory() << '\n' <<
+//        "root_name      " << path.root_name() << '\n' <<
+//        "root_path      " << path.root_path() << 
+//        "\n\n\n";
 
     string p;
     string r;
@@ -262,10 +298,11 @@ fs::path base_path(const fs::path& path, const fs::path& source_root, const fs::
         p = path.relative_path().string();
         r = source_root.relative_path().string();
     }
+
     const auto pos = p.find(r);
     if (pos != std::string::npos)
     {
-        auto out = install_path.string() + p.substr(pos);
+        fs::path out = install_path.string() + p.substr(pos);
         return out;
     }
 
@@ -287,4 +324,3 @@ bool is_text_file(const fs::path& path)
 
     return false;
 }
-

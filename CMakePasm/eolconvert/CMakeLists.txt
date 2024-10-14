@@ -16,16 +16,15 @@ add_executable(eolconvert
     eolconvert.cc)
 
 if (${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Windows")
-    message(STATUS "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/../../CMakePasm/samples     samples\\")
+    set (SAMPLEPATH "../../CMakePasm/samples/")
+    message(STATUS "sample path is " ${SAMPLEPATH})
     
     add_custom_target(execute_eolconvert
-      COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/eolconvert.exe
-      "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/../../CMakePasm/samples" "samples\\"
+      COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}eolconvert
     )
 else()
     add_custom_target(execute_eolconvert
-      COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/eolconvert
-      "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/../../CMakePasm/samples/"
+      COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}eolconvert "${SAMPLEPATH}"
     )
 endif()
 
