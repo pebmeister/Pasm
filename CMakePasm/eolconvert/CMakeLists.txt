@@ -1,7 +1,6 @@
 message(STATUS "processing eolconvert")
 
 set(CPACK_NSIS_MODIFY_PATH ON)
-
 set(EOLBIN ${CMAKE_BINARY_DIR}/eolconvert/bin/)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EOLBIN}$<CONFIG>/)
 message(STATUS "EOLCONVERT EXE DIRECTORY " ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
@@ -15,18 +14,9 @@ endif()
 add_executable(eolconvert
     eolconvert.cc)
 
-if (${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Windows")
-    set (SAMPLEPATH "../../CMakePasm/samples/")
-    message(STATUS "sample path is " ${SAMPLEPATH})
-    
-    add_custom_target(execute_eolconvert
-      COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}eolconvert
-    )
-else()
-    add_custom_target(execute_eolconvert
-      COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}eolconvert "${SAMPLEPATH}"
-    )
-endif()
+add_custom_target(execute_eolconvert
+    COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}eolconvert
+)
 
 # include directory for main
 target_include_directories(${PROJECT_NAME} PUBLIC 

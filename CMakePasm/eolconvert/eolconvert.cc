@@ -39,8 +39,8 @@ fs::path base_path(const fs::path& path, const fs::path& source_root, const fs::
 //--------------------------------------------------------------------------//
 int main(const int argc, char** argv)
 {
-    for (auto a = 0; a < argc; ++a)
-        cout << "'" << argv[a] << "' ";
+    for (auto arg = 0; arg < argc; ++arg)
+        cout << "'" << argv[arg] << "' ";
     cout << '\n';
     
     fs::path install_root_path;
@@ -52,8 +52,6 @@ int main(const int argc, char** argv)
         cout << source_path << " is not a directory.";
         return 0;
     }
-    cout << ":::::::::: source root path " << source_root_path << '\n';
-    cout << ":::::::::: source path " << source_path << '\n';
  
 #ifdef WIN32
     CHAR my_documents[MAX_PATH];
@@ -78,6 +76,8 @@ int main(const int argc, char** argv)
 
 #endif
 
+    cout << ":::::::::: source root path " << source_root_path << '\n';
+    cout << ":::::::::: source path " << source_path << '\n';
     cout << ":::::::::: install root path " << install_root_path << '\n';
     auto count = process_directory(source_path, source_root_path, install_root_path); 
     auto funresult =  count > 0 ? 0 : -1; 
@@ -100,9 +100,9 @@ char* extract_directory(int n, string path)
             {
                 index++;
                 auto i = 0;
-                for (; index < len; ++i)
+                while (index < len)
                 {
-                    buffer[i] = path[index];
+                    buffer[i++] = path[index];
                     index++;
                 }
                 buffer[i] = ch;
@@ -132,8 +132,32 @@ int process_file(const fs::path& path, const fs::path& source_root, const fs::pa
     if (exists(path))        
     {
         const auto out_path = base_path(path, source_root, install_path);
-        replace_eol(path, out_path);
-        result++;
+        if (is_text_file(path))
+        {
+            cout << "process TEXT file ::" << path.string() << "\n";
+            replace_eol(path, out_path);
+            result++;
+        }
+        else
+        {
+            cout << "process BINARY file ::" << path.string() << "\n";
+            {           
+                if (exists(out_path))
+                {
+                    if (path.string() != out_path.string())
+                    {
+                        cout << "removing :: " << out_path << "\n";
+                        filesystem::remove(out_path);
+                    }
+                }
+                if (path.string() != out_path.string())
+                {
+                    cout << "copying to :: " << out_path << "\n";
+                    copy_file(path, out_path);
+                }
+            }
+            result++;
+        }
     }
 
     return result;
@@ -200,16 +224,6 @@ int replace_eol(const fs::path& path, const fs::path& out_path)
 {
     if (exists(path))
     {
-
-        if (auto is_text = is_text_file(path); !is_text)
-        {
-            if (exists(out_path))
-            {
-                filesystem::remove(out_path);
-            }
-            copy_file(path, out_path);
-            return 1;
-        }
 
         ifstream file;
         file.open(path.string().c_str(), ios::binary);

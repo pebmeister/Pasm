@@ -69,7 +69,7 @@ add_library(engine
     pass.cc)
  
 # executable
-add_executable(${PROJECT_NAME} 
+add_executable(${PROJECT_NAME}
     main.cc)
 
 # add dependencies
