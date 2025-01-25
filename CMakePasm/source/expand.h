@@ -2,8 +2,6 @@
 
 #include "node.h"
 
-extern void init_expander(void);
-extern void destroy_expander(void);
 extern int expand_node(parse_node_ptr p);
 extern void reset_macro_dict(void);
 extern char* last_label;
@@ -17,4 +15,11 @@ extern int get_op_byte_count(parse_node_ptr p);
 extern int sym_value_changed;
 extern int print_list_state;
 extern int end_expansion;
-extern dictionary_ptr macro_dict;
+
+typedef struct macro_dict_entry {
+public:
+    int times_executed;
+} macro_dict_entry;
+
+extern std::allocator<macro_dict_entry> macro_entry_allocator;
+extern std::map<std::string, macro_dict_entry*> macro_dict;

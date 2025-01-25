@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <map>
 
 #include "error.h"
 #include "expand.h"

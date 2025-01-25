@@ -10,7 +10,7 @@
 // ReSharper disable CppPointerConversionDropsQualifiers
 // ReSharper disable CppClangTidyClangDiagnosticIncompatiblePointerTypesDiscardsQualifiers
 #pragma warning(disable : 4996 4090)
-
+#include <map>
 #include "node.h"
 
 #include <ctype.h>

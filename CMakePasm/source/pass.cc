@@ -6,6 +6,7 @@
 // ReSharper disable CppClangTidyCertErr33C
 #include <stdio.h>
 #include <stdlib.h>
+#include <map>
 
 #include "error.h"
 #include "expand.h"
@@ -63,9 +64,6 @@ void reset_lex(void)
     head_node->type = type_head_node;
 
     reset_macro_dict();
-
-    // initialize expander
-    init_expander();
 
     if (changed_sym_stack == nullptr)
     {
@@ -213,6 +211,7 @@ int assemble(void)
             }
         }
         pass++;
+
     } while (error_count == 0 && pass < max_passes && clean_pass_count < 1);
 
     if (pass >= max_passes)
@@ -272,7 +271,6 @@ int assemble(void)
 
         fclose(sym_file);
     }
-
 
     // generate the list file
     if (list_file_name != nullptr)

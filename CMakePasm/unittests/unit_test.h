@@ -1,7 +1,6 @@
 #include <iostream>
 #include <fstream>
 
-#include "dictionary.h"
 #include "error.h"
 #include "expand.h"
 #include "file.h"

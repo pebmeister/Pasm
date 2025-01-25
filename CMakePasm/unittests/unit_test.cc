@@ -879,34 +879,23 @@ void initialize()
 
 void destroy()
 {
-    if (internal_buffer != nullptr)
-    {
+    if (internal_buffer != nullptr) {
         free(internal_buffer);
         internal_buffer = nullptr;
     }
-    if (file_stack != nullptr)
-    {
+    if (file_stack != nullptr) {
         free_stack(file_stack);
         file_stack = nullptr;
     }
-    if (ifdef_stack != nullptr)
-    {
+    if (ifdef_stack != nullptr) {
         free_stack(ifdef_stack);
         ifdef_stack = nullptr;
     }
-    if (macro_dict != nullptr)
-    {
-        dict_destroy(macro_dict);
-        macro_dict = nullptr;
-    }
-    if (symbol_dictionary != nullptr)
-    {
-        dict_destroy(symbol_dictionary);
-        symbol_dictionary = nullptr;
-    }
 
-    if (macro_params_stack != nullptr)
-    {
+    macro_dict.clear();
+    symbol_dictionary.clear();
+
+    if (macro_params_stack != nullptr) {
         free_stack(macro_params_stack);
         macro_params_stack = nullptr;
     }
@@ -999,28 +988,30 @@ void execute_text(const char* text, const unsigned char* expected, const size_t 
             fseek(console, 0, SEEK_SET);
             buffer = static_cast<unsigned char*>(malloc(pos + 1));
             EXPECT_NOT_NULL(buffer);
-            memset(buffer, 0, pos + 1);
-            fread(buffer, 1, pos, console);
-            fclose(console);
+            if (buffer) {
+                memset(buffer, 0, pos + 1);
+                fread(buffer, 1, pos, console);
+                fclose(console);
 
+                EXPECT_TRUE(pos >= len);
+                result = strncmp(expected_text, reinterpret_cast<char*>(buffer), len);
+                if (result != 0) {
+                    EXPECT_STREQ(expected_text, reinterpret_cast<char*>(buffer));
 
-            EXPECT_TRUE(pos >= len);
-            result = strncmp(expected_text, reinterpret_cast<char*>(buffer), len);
-            if (result != 0)
-            {
-                for (auto i = 0; i < len; ++i)
-                {
-                    auto e = expected_text[i];
-                    auto a = static_cast<char>(buffer[i]);
-                    if (e != a)
-                    {
-                        EXPECT_EQ(e, a);
-                    }
+                    //for (auto i = 0; i < len; ++i)
+                    //{
+                    //    auto e = expected_text[i];
+                    //    auto a = static_cast<char>(buffer[i]);
+                    //    if (e != a)
+                    //    {
+                    //        EXPECT_EQ(e, a);
+                    //    }
+                    //}
                 }
-            }
-            EXPECT_EQ(0, result);
+                EXPECT_EQ(0, result);
 
-            free(buffer);
+                free(buffer);
+            }
         }
     }
 

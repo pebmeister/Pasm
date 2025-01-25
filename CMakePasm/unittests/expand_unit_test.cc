@@ -30,8 +30,7 @@ static void expand_unit_test_method_cleanup()
     program_counter = 0;
     generate_output_reset();
 
-    dict_destroy(symbol_dictionary);
-    symbol_dictionary = nullptr;
+    symbol_dictionary.clear();
 
     if (changed_sym_stack != nullptr)
     {
@@ -1999,19 +1998,18 @@ TEST(expand_unit_test, expand_operator_end_section_node_test)
     output_file = nullptr;
     remove(output_file_name);
 
+    auto symbol_ptr = symbol_dictionary.find("EXPAND_OPERATOR_INSIDE_SECTION");
+    EXPECT_TRUE(symbol_ptr == symbol_dictionary.end());
 
-    auto symbol_ptr = static_cast<symbol_table_ptr>(dict_search(symbol_dictionary, "expand_operator_inside_section"));
-    EXPECT_NULL(symbol_ptr);
+    symbol_ptr = symbol_dictionary.find("SECTION_ONE.EXPAND_OPERATOR_INSIDE_SECTION");
+    EXPECT_FALSE(symbol_ptr == symbol_dictionary.end());
 
-    symbol_ptr = static_cast<symbol_table_ptr>(dict_search(symbol_dictionary, "Section_One.expand_operator_inside_section"));
-    EXPECT_NOT_NULL(symbol_ptr);
+    symbol_ptr = symbol_dictionary.find("EXPAND_OPERATOR_GLOBAL");
+    EXPECT_FALSE(symbol_ptr == symbol_dictionary.end());
 
-    symbol_ptr = static_cast<symbol_table_ptr>(dict_search(symbol_dictionary, "expand_operator_global"));
-    EXPECT_NOT_NULL(symbol_ptr);
+    symbol_ptr = symbol_dictionary.find("EXPAND_OPERATOR_GLOBAL_2");
+    EXPECT_FALSE(symbol_ptr == symbol_dictionary.end());
 
-    symbol_ptr = static_cast<symbol_table_ptr>(dict_search(symbol_dictionary, "expand_operator_global_2"));
-    EXPECT_NOT_NULL(symbol_ptr);
-    
     expand_unit_test_method_cleanup();
 }
 
@@ -2931,17 +2929,21 @@ TEST(expand_unit_test, expand_operator_section_node_test)
             label_node((char*)"expand_operator_global_2"),
             constant_node(program_counter, -1)));
 
-    auto symbol_ptr = static_cast<symbol_table_ptr>(dict_search(symbol_dictionary, "expand_operator_inside_section"));
-    EXPECT_NULL(symbol_ptr);
+    auto symbol_ptr = symbol_dictionary.find("EXPAND_OPERATOR_INSIDE_SECTION");
+    auto found = symbol_ptr != symbol_dictionary.end();
+    EXPECT_FALSE(found);
 
-    symbol_ptr = static_cast<symbol_table_ptr>(dict_search(symbol_dictionary, "Section_One.expand_operator_inside_section"));
-    EXPECT_NOT_NULL(symbol_ptr);
+    symbol_ptr = symbol_dictionary.find("SECTION_ONE.EXPAND_OPERATOR_INSIDE_SECTION");
+    found = symbol_ptr != symbol_dictionary.end();
+    EXPECT_TRUE(found);
 
-    symbol_ptr = static_cast<symbol_table_ptr>(dict_search(symbol_dictionary, "expand_operator_global"));
-    EXPECT_NOT_NULL(symbol_ptr);
+    symbol_ptr = symbol_dictionary.find("EXPAND_OPERATOR_GLOBAL");
+    found = symbol_ptr != symbol_dictionary.end();
+    EXPECT_TRUE(found);
 
-    symbol_ptr = static_cast<symbol_table_ptr>(dict_search(symbol_dictionary, "expand_operator_global_2"));
-    EXPECT_NOT_NULL(symbol_ptr);
+    symbol_ptr = symbol_dictionary.find("EXPAND_OPERATOR_GLOBAL_2");
+    found = symbol_ptr != symbol_dictionary.end();
+    EXPECT_TRUE(found);
 
     expand_unit_test_method_cleanup();
 }

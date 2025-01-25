@@ -52,7 +52,6 @@ add_library(parser
     
 # engine
 add_library(engine 
-    dictionary.cc
     error.cc 
     expand.cc 
     file.cc

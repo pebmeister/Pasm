@@ -74,9 +74,6 @@ int parse_arguments(const int argc, char* argv[])
 
     cpu_mode = cpu_6502;
 
-    // Init Ex 
-    init_expander();
-
     while (arg_index < argc)
     {
         // help

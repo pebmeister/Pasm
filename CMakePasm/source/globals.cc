@@ -4,6 +4,7 @@
 
 // ReSharper disable CppClangTidyConcurrencyMtUnsafe
 #include <fstream>
+#include <map>
 
 #include "pasm.h"
 #include "sym.h"

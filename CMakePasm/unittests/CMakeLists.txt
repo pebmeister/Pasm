@@ -24,7 +24,6 @@ add_executable(
   unittest
   unit_test.cc
   assemble_unit_test.cc
-  dictionary_unit_test.cc
   error_unit_test.cc
   expand_unit_test.cc
   file_unit_test.cc

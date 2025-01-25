@@ -1,8 +1,8 @@
 #pragma once
 #include <stdbool.h>
+#include <string>
+#include <map>
 
-
-#include "dictionary.h"
 #include "stacks.h"
 
 typedef struct plus_minus_sym
@@ -29,7 +29,6 @@ typedef struct symbol_table
     void* macro_node;
 } symbol_table, * symbol_table_ptr;
 
-extern int print_symbol_element(const element_ptr e, FILE* file);
 extern int print_symbol(symbol_table_ptr sym, FILE* file);
 
 extern int find_minus_symbol(int depth, const char* file, int line);
@@ -52,7 +51,7 @@ extern void dump_changed_symbols(FILE* file);
 
 extern plus_minus_symbol* minus_symbol_table;
 extern plus_minus_symbol* plus_symbol_table;
-extern dictionary_ptr symbol_dictionary;
+extern std::map<std::string, symbol_table_ptr> symbol_dictionary;
 extern stack_ptr macro_params_stack;
 extern int max_macro_param;
 

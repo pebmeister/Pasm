@@ -16,8 +16,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
+#include <map>
 
-#include "dictionary.h"
 #include "error.h"
 #include "memory.h"
 
@@ -42,7 +42,8 @@ size_t total_allocated_bytes = 0;
 bool track_malloc = true;
 
 // ReSharper disable once CppZeroConstantCanBeReplacedWithNullptr
-static dictionary_ptr alloc_dict = NULL;
+std::map<void*, memory_entry*> alloc_dict;
+std::allocator<memory_entry> memory_entry_allocator;
 
 void* pasm_malloc(const size_t size, const char* function, const int line)
 {
@@ -51,18 +52,18 @@ void* pasm_malloc(const size_t size, const char* function, const int line)
     const bool temp = track_malloc;
     track_malloc = false;
 
-    if (alloc_dict == NULL)
-    {
-        alloc_dict = dict_create(sizeof(memory_entry), -1);
-    }
+    auto entry = memory_entry_allocator.allocate(1);
+    entry->function = (char*) STRDUP(function);
+    entry->line = line;
+    entry->size = size;
+    entry->memory = malloc(size);
+    entry->times_deleted = 0;
+    alloc_dict[entry->memory] = entry;
 
-    memory_entry entry = { size, strdup(function), line, malloc(size), 0 };
-
-    dict_insert(&alloc_dict, entry.memory, &entry);
-    total_allocated_bytes += entry.size;
+    total_allocated_bytes += entry->size;
 
     track_malloc = temp;
-    return entry.memory;
+    return entry->memory;
 }
 
 void* pasm_realloc(void* memory, const size_t size, const char* function, const int line)
@@ -71,45 +72,31 @@ void* pasm_realloc(void* memory, const size_t size, const char* function, const 
 
     const bool temp = track_malloc;
     track_malloc = false;
-
-    if (alloc_dict == NULL)
-    {
-        alloc_dict = dict_create(sizeof(memory_entry), -1);
-    }
-
-    memory_entry* old_entry = static_cast<memory_entry*>(dict_search(alloc_dict, memory));
-    memory_entry entry;
-    if (old_entry)
-    {
+    void* old_memory = nullptr;
+    auto alloc_search = alloc_dict.find(memory);
+    if (alloc_search != alloc_dict.end()) {
+        auto old_entry = alloc_dict[memory];
+        old_memory = old_entry->memory;
         total_allocated_bytes -= old_entry->size;
-        void* temp_ptr = realloc(old_entry->memory, size);
-        if (temp_ptr != NULL)
-        {
-            old_entry->memory = temp_ptr;
-            old_entry->size = size;
-        }
-        entry = *old_entry;
+        alloc_dict.erase(alloc_search);
     }
-    else
-    {
-        entry.memory = malloc(size);
-        entry.size = size;
-        entry.function = strdup(function);
-        entry.line = line;
-        entry.times_deleted = 0;
+    auto entry = memory_entry_allocator.allocate(1);
+    entry->function = (char*)STRDUP(function);
+    entry->line = line;
+    entry->size = size;
+    entry->memory = realloc(old_memory, size);
+    entry->times_deleted = 0;
+    alloc_dict[entry->memory] = entry;
 
-        dict_insert(&alloc_dict, entry.memory, &entry);
-    }
-    total_allocated_bytes += entry.size;
+    total_allocated_bytes += entry->size;
+
     track_malloc = temp;
-    return entry.memory;
+    return entry->memory;
 }
-
 
 void pasm_free(void* memory)
 {
-    if (!track_malloc)
-    {
+    if (!track_malloc) {
         free(memory);
         return;
     }
@@ -117,27 +104,20 @@ void pasm_free(void* memory)
     const bool temp = track_malloc;
     track_malloc = false;
 
-    if (alloc_dict == NULL)
-    {
-        error(error_free_without_malloc);
-        exit(-1);
-    }
-    memory_entry* entry = static_cast<memory_entry*>(dict_search(alloc_dict, memory));
-    if (entry)
-    {
-        if (entry->times_deleted == 0)
-        {
+    auto search_alloc = alloc_dict.find(memory);
+    if (search_alloc != alloc_dict.end()) {
+        auto entry = alloc_dict[memory];
+        if (entry->times_deleted == 0) {
             total_allocated_bytes -= entry->size;
             entry->times_deleted++;
-            dict_delete(alloc_dict, entry);
+            memory_entry_allocator.destroy(entry);
+            alloc_dict.erase(entry);
         }
-        else
-        { 
+        else {
             error(error_free_unknown_pointer);
         }
     }
-    else
-    {
+    else {
         error(error_free_unknown_pointer);
         // exit(-1);
     }
@@ -152,9 +132,8 @@ const char* pasm_strdup(const char* str, const char* function, const int line)
     return dup;
 }
 
-int print_memory(const element_ptr e, FILE* file)
+int print_memory(memory_entry* me, FILE* file)
 {
-    const memory_entry* me = static_cast<memory_entry*>(e->value);
     if (stricmp(me->function, "allocate_node") == 0 && me->size == sizeof(parse_node))
     {
         const parse_node_ptr p = static_cast<parse_node_ptr>(me->memory);
@@ -187,5 +166,7 @@ int stricmp(char const *a, char const *b)
 
 void dump_memory(FILE* file)
 {
-    dump_dictionary(alloc_dict, print_memory, console);
+    for (const auto& [key, value] : alloc_dict) {
+        print_memory(value, console);
+    }
 }

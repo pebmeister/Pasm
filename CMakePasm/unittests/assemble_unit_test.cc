@@ -12,8 +12,8 @@ static void assemble_unit_test_method_initialize()
     free_parse_tree();
     program_counter = 0;
     generate_output_reset();
-    dict_destroy(symbol_dictionary);
-    symbol_dictionary = 0;
+    symbol_dictionary.clear();
+    symbol_dictionary.clear();
     reset_lex();
 }
 
@@ -2385,7 +2385,6 @@ TEST(assemble_unit_test, opcode_opcode_a_unit_test)
         "Current File execute_text.a\n"
         "\n"
         "1 bytes written to execute_text.bin\n"
-        "\n"
         "\n"
         "\n"
         "; Processing execute_text.a\n"

@@ -16,9 +16,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <map>
 
 #include "expand.h"
-#include "dictionary.h"
 #include "node.h"
 #include "opcodes.h"
 #include "pasm.tab.h"
@@ -32,8 +32,7 @@
 extern bool Debug_AddList;
 extern void print_node(parse_node_ptr p, std::ostream& file);
 
-enum
-{
+enum {
     max_macro_param_name_len = 25
 };
 
@@ -51,18 +50,17 @@ int sym_value_changed = 0;
 // nest level of expand_node();
 int expand_level = 0;
 
-dictionary_ptr macro_dict = nullptr;
+std::allocator<macro_dict_entry> macro_entry_allocator;
+std::map<std::string, macro_dict_entry*> macro_dict;
 
 int print_list_state = 1;
-
 
 // ReSharper disable once CppInconsistentNaming
 
 /// <summary>
 /// how to expand_node an expression
 /// </summary>
-enum ExprExpansionType
-{
+enum ExprExpansionType {
     macro_parameter,
     data_bytes,
     data_strings,
@@ -79,8 +77,7 @@ typedef int (*expr)(parse_node_ptr p);
 //
 // table lookup for operators
 //
-typedef struct op_table
-{
+typedef struct op_table {
     int tag;
     expr function;
 } op_table;
@@ -172,8 +169,6 @@ int expand_operator_include_node(parse_node_ptr p);
 int expand_operator_load_node(parse_node_ptr p);
 int expand_operator_fill_node(parse_node_ptr p);
 
-static dictionary_ptr create_op_table_dictionary(op_table table[], size_t size);
-
 //
 // end_expansion flag
 int end_expansion = 0;
@@ -211,99 +206,68 @@ static parse_node_ptr generate_fill_node2 = nullptr;
 //
 static ExprExpansionType expansion_type = macro_parameter;
 
-dictionary_ptr expand_operator_table_dictionary = nullptr;
-dictionary_ptr expand_table_dictionary = nullptr;
-
-/// <summary>
-/// Initialize expander
-/// create dictionaries
-/// </summary>
-void init_expander(void)
+std::map<int, expr> expand_table_dictionary =
 {
-    if (expand_operator_table_dictionary != nullptr && expand_table_dictionary != nullptr) return;
+    { type_con,         expand_constant_node                    },
+    { type_id,          expand_id_node                          },
+    { type_label,       expand_label_node                       },
+    { type_macro_id,    expand_macro_id_node                    },
+    { type_macro_ex,    expand_macro_expansion_node             },
+    { type_data,        expand_data_node                        },
+    { type_op_code,     expand_op_code_node                     },
+    { type_print,       expand_print_state_node                 },
+    { type_opr,         expand_operator_node                    }
+};
 
-    op_table expand_operator_table[] =
-    {
-        { LOBYTE,       expand_operator_lo_byte_node                },
-        { HIBYTE,       expand_operator_hi_byte_node                },
-        { PCASSIGN,     expand_operator_program_counter_assign_node },
-        { ORG,          expand_operator_org_node                    }, 
-        { EXPRLIST,     expand_operator_expression_list_node        },
-        { MACRO,        expand_operator_macro_definition_node       },
-        { WHILE,        expand_operator_while_node                  },
-        { REPEAT,       expand_operator_repeat_node                 },
-        { SECTION,      expand_operator_section_node                },
-        { ENDSECTION,   expand_operator_end_section_node            },
-        { DO,           expand_operator_do_node                     },
-        { FOR,          expand_operator_for_node                    },
-        { REGX,         expand_operator_for_reg_node                },
-        { REGY,         expand_operator_for_reg_node                },
-        { IF,           expand_operator_if_node                     },
-        { PRINT,        expand_operator_print_node                  },
-        { PRINTALL,     expand_operator_print_all_node              },
-        { DS,           expand_operator_ds_node                     },
-        { STATEMENT,    expand_operator_statement_node              },
-        { END,          expand_operator_end_node                    },
-        { EQU,          expand_operator_equ_node                    },
-        { '=',          expand_operator_equ_node                    },
-        { UMINUS,       expand_operator_uminus_node                 },
-        { '~',          expand_operator_ones_complement_node        },
-        { '+',          expand_operator_plus_node                   },
-        { '-',          expand_operator_minus_node                  },
-        { '*',          expand_operator_multiply_node               },
-        { '/',          expand_operator_divide_node                 },
-        { BIT_OR,       expand_operator_bit_or_node                 },
-        { BIT_AND,      expand_operator_bit_and_node                },
-        { '^',          expand_operator_xor_node                    },
-        { '<',          expand_operator_less_than_node              },
-        { '>',          expand_operator_greater_than_node           },
-        { EQ,           expand_operator_equal_node                  },
-        { NE,           expand_operator_not_equal_node              },
-        { GE,           expand_operator_greater_than_or_equal_node  },
-        { LE,           expand_operator_less_than_or_equal_node     },
-        { OR,           expand_operator_or_node                     },
-        { AND,          expand_operator_and_node                    },
-        { NOT,          expand_operator_not_node                    },
-        { SHIFT_LEFT,   expand_operator_shift_left_node             },
-        { SHIFT_RIGHT,  expand_operator_shift_right_node            },
-        { VAR,          expand_operator_variable_node               },
-        { INC,          expand_operator_include_node                },
-        { LOAD,         expand_operator_load_node                   },
-        { FILL,         expand_operator_fill_node                   },
-    };
-#define NUM_OPR_EXP (sizeof(expand_operator_table) / sizeof(struct op_table))
-
-    op_table expand_table[] =
-    {
-        { type_con,         expand_constant_node                    },
-        { type_id,          expand_id_node                          },
-        { type_label,       expand_label_node                       },
-        { type_macro_id,    expand_macro_id_node                    },
-        { type_macro_ex,    expand_macro_expansion_node             },
-        { type_data,        expand_data_node                        },
-        { type_op_code,     expand_op_code_node                     },
-        { type_print,       expand_print_state_node                 },
-        { type_opr,         expand_operator_node                    }
-    };
-#define NUM_EX_EXP (sizeof(expand_table) / sizeof(struct op_table))
-
-    expand_operator_table_dictionary = create_op_table_dictionary(expand_operator_table, NUM_OPR_EXP);
-    expand_table_dictionary = create_op_table_dictionary(expand_table, NUM_EX_EXP);
-}
-
-void destroy_expander(void)
+std::map<int, expr> expand_operator_table_dictionary =
 {
-    if (expand_table_dictionary)
-    {
-        dict_destroy(expand_table_dictionary);
-        expand_table_dictionary = nullptr;
-    }
-    if (expand_operator_table_dictionary)
-    {
-        dict_destroy(expand_operator_table_dictionary);
-        expand_operator_table_dictionary = nullptr;
-    }
-}
+    { LOBYTE,       expand_operator_lo_byte_node                },
+    { HIBYTE,       expand_operator_hi_byte_node                },
+    { PCASSIGN,     expand_operator_program_counter_assign_node },
+    { ORG,          expand_operator_org_node                    },
+    { EXPRLIST,     expand_operator_expression_list_node        },
+    { MACRO,        expand_operator_macro_definition_node       },
+    { WHILE,        expand_operator_while_node                  },
+    { REPEAT,       expand_operator_repeat_node                 },
+    { SECTION,      expand_operator_section_node                },
+    { ENDSECTION,   expand_operator_end_section_node            },
+    { DO,           expand_operator_do_node                     },
+    { FOR,          expand_operator_for_node                    },
+    { REGX,         expand_operator_for_reg_node                },
+    { REGY,         expand_operator_for_reg_node                },
+    { IF,           expand_operator_if_node                     },
+    { PRINT,        expand_operator_print_node                  },
+    { PRINTALL,     expand_operator_print_all_node              },
+    { DS,           expand_operator_ds_node                     },
+    { STATEMENT,    expand_operator_statement_node              },
+    { END,          expand_operator_end_node                    },
+    { EQU,          expand_operator_equ_node                    },
+    { '=',          expand_operator_equ_node                    },
+    { UMINUS,       expand_operator_uminus_node                 },
+    { '~',          expand_operator_ones_complement_node        },
+    { '+',          expand_operator_plus_node                   },
+    { '-',          expand_operator_minus_node                  },
+    { '*',          expand_operator_multiply_node               },
+    { '/',          expand_operator_divide_node                 },
+    { BIT_OR,       expand_operator_bit_or_node                 },
+    { BIT_AND,      expand_operator_bit_and_node                },
+    { '^',          expand_operator_xor_node                    },
+    { '<',          expand_operator_less_than_node              },
+    { '>',          expand_operator_greater_than_node           },
+    { EQ,           expand_operator_equal_node                  },
+    { NE,           expand_operator_not_equal_node              },
+    { GE,           expand_operator_greater_than_or_equal_node  },
+    { LE,           expand_operator_less_than_or_equal_node     },
+    { OR,           expand_operator_or_node                     },
+    { AND,          expand_operator_and_node                    },
+    { NOT,          expand_operator_not_node                    },
+    { SHIFT_LEFT,   expand_operator_shift_left_node             },
+    { SHIFT_RIGHT,  expand_operator_shift_right_node            },
+    { VAR,          expand_operator_variable_node               },
+    { INC,          expand_operator_include_node                },
+    { LOAD,         expand_operator_load_node                   },
+    { FILL,         expand_operator_fill_node                   },
+};
 
 //
 // Validate - label name
@@ -324,10 +288,8 @@ int is_plus_minus_symbol_name_valid(char* name)
 //
 int expand_constant_node(const parse_node_ptr p)
 {
-    if (p->con.is_program_counter)
-    {
-        if (p->con.value != program_counter)
-        {
+    if (p->con.is_program_counter) {
+        if (p->con.value != program_counter) {
             p->con.value = program_counter;
         }
     }
@@ -353,29 +315,23 @@ int expand_operator_fill_node(const parse_node_ptr p)
     const int byt = expand_node(p->op[0]);
     int count = expand_node(p->op[1]);
 
-    if (byt < 0 || byt > 255)
-    {
+    if (byt < 0 || byt > 255) {
         error(error_value_out_of_range);
         exit(-1);
     }
-    if (count < 0)
-    {
+    if (count < 0) {
         error(error_value_out_of_range);
         exit(-1);
     }
-    if (final_pass) 
-    {
+    if (final_pass) {
         data_size = 0;
         generate_fill_node2 = nullptr;
         generate_fill_node1 = nullptr;
 
-        while (count > 0)
-        {
-            if (count > 1)
-            {
+        while (count > 0) {
+            if (count > 1) {
                 data_size = data_word;
-                if (generate_fill_node2 == nullptr)
-                {
+                if (generate_fill_node2 == nullptr) {
                     generate_fill_node2 = data_node(data_word, constant_node(byt << 8 | byt, false));
                 }
                 int bytes = generate_output(output_file, generate_fill_node2);
@@ -386,11 +342,9 @@ int expand_operator_fill_node(const parse_node_ptr p)
                 count -= bytes;
 
             }
-            else if (count == 1)
-            {
+            else if (count == 1) {
                 data_size = data_byte;
-                if (generate_fill_node1 == nullptr)
-                {
+                if (generate_fill_node1 == nullptr) {
                     generate_fill_node1 = data_node(data_byte, constant_node(byt, false));
                 }
                 int bytes = generate_output(output_file, generate_fill_node1);
@@ -403,8 +357,7 @@ int expand_operator_fill_node(const parse_node_ptr p)
             }
         }
     }
-    else
-    {
+    else {
         program_counter += count > 0 ? count : 1;
     }
     return byt;
@@ -417,8 +370,7 @@ int expand_operator_load_node(const parse_node_ptr p)
 {
     const char* file = p->op[0]->str.value;
     FILE* fd = open_file(file, "rb");
-    if (fd == nullptr)
-    {
+    if (fd == nullptr) {
         error(error_cant_open_include_file);
     }
 
@@ -427,28 +379,25 @@ int expand_operator_load_node(const parse_node_ptr p)
     fseek(fd, 0, SEEK_SET);
     size_t pos = ftell(fd);
 
-    while (!feof(fd) && len - pos > 0)
-    {
+    while (!feof(fd) && len - pos > 0) {
         pos = ftell(fd);
-        if (len - pos > 1)
-        {
+        if (len - pos > 1) {
             const unsigned char a = fgetc(fd);
             const unsigned char b = fgetc(fd);
 
             data_size = 2;
             expand_node(
-                data_node(data_size, 
-                operator_node(EXPRLIST, 1,
-                    constant_node((a | b << 8) & 0xFFFF, false))));
+                data_node(data_size,
+                    operator_node(EXPRLIST, 1,
+                        constant_node((a | b << 8) & 0xFFFF, false))));
             continue;
         }
-        if (len - pos > 0)
-        {
+        if (len - pos > 0) {
             data_size = 1;
             const unsigned char ch = fgetc(fd);
             expand_node(
-                data_node(data_size, 
-                    operator_node(EXPRLIST, 1, 
+                data_node(data_size,
+                    operator_node(EXPRLIST, 1,
                         constant_node(ch, false))));
         }
         pos = ftell(fd);
@@ -463,8 +412,7 @@ int expand_operator_load_node(const parse_node_ptr p)
 int expand_operator_variable_node(const parse_node_ptr p)
 {
     const parse_node_ptr pp = p->op[0];
-    if (pp)
-    {
+    if (pp) {
         expansion_type = symbol;
         return expand_node(pp);
     }
@@ -474,8 +422,7 @@ int expand_operator_variable_node(const parse_node_ptr p)
 
 int expand_plus_minus_node(const parse_node_ptr p)
 {
-    if (!is_plus_minus_symbol_name_valid(p->id.name))
-    {
+    if (!is_plus_minus_symbol_name_valid(p->id.name)) {
         error(error_adding_symbol);
         return 0;
     }
@@ -486,8 +433,7 @@ int expand_plus_minus_node(const parse_node_ptr p)
 
     const symbol_table_ptr sym = p->id.i == nullptr ? add_symbol(p->id.name) : p->id.i;
     sym->is_plus_minus = true;
-    if (index >= 0)
-    {
+    if (index >= 0) {
         sym->value = p->id.name[0] == '-'
             ? minus_symbol_table[index].value
             : plus_symbol_table[index].value;
@@ -509,17 +455,14 @@ int expand_id_node(const parse_node_ptr p)
         return expand_plus_minus_node(p);
 
     symbol_table_ptr sym = p->id.i;
-    if (p->id.name[0] == '@')
-    {
+    if (p->id.name[0] == '@') {
         sym = add_symbol(p->id.name);
         p->id.i = sym;
     }
-    if (sym == nullptr)
-    {
+    if (sym == nullptr) {
         sym = add_symbol(p->id.name);
         p->id.i = sym;
-        if (sym == nullptr)
-        {
+        if (sym == nullptr) {
             // FatalError(error_out_of_memory);
             return 0;
         }
@@ -536,16 +479,15 @@ int expand_label_node(const parse_node_ptr p)
         return expand_plus_minus_node(p);
 
     symbol_table_ptr symbol_ptr = p->id.i;
-    if (symbol_ptr == nullptr)
-    {
+    if (symbol_ptr == nullptr) {
         p->id.i = add_symbol(p->id.name);
         symbol_ptr = p->id.i;
-        if (symbol_ptr == nullptr)
-        {
+        if (symbol_ptr == nullptr) {
             error(error_out_of_memory);
             exit(-1);
         }
     }
+    symbol_ptr->is_label = true;
     if (!symbol_ptr->is_initialized && p->number_of_ops > 0)
         expand_node(p->op[0]);
 
@@ -556,7 +498,7 @@ int expand_label_node(const parse_node_ptr p)
 // Reg loop
 //
 int expand_operator_for_reg_node(const parse_node_ptr p)
-{        
+{
     // must convert to 1 or 0
     const int is_reg_x = p->opr.opr == REGX ? 1 : 0;
 
@@ -568,8 +510,7 @@ int expand_operator_for_reg_node(const parse_node_ptr p)
     int* for_loop_counter = is_reg_x ? &for_x_count : &for_y_count;
 
     // check for nested loop
-    if (*for_loop_counter > 0)
-    {
+    if (*for_loop_counter > 0) {
         error(error_for_reg_cant_be_nested);
         return 0;
     }
@@ -578,8 +519,7 @@ int expand_operator_for_reg_node(const parse_node_ptr p)
     const int start = expand_node(p->op[0]);
 
     // range check
-    if (start < 0 || start > 255)
-    {
+    if (start < 0 || start > 255) {
         error(error_value_out_of_range);
         return 0;
     }
@@ -588,8 +528,7 @@ int expand_operator_for_reg_node(const parse_node_ptr p)
     const int end = expand_node(p->op[1]);
 
     // range check
-    if (end < 0 || end > 255)
-    {
+    if (end < 0 || end > 255) {
         error(error_value_out_of_range);
         return 0;
     }
@@ -599,19 +538,17 @@ int expand_operator_for_reg_node(const parse_node_ptr p)
 
     // check for loop that would have zero iterations
     // we may want to warn user
-    if ((increment_flag > 0 && start > end) || (increment_flag < 0 && start < end))
-    {
+    if ((increment_flag > 0 && start > end) || (increment_flag < 0 && start < end)) {
         return 0;
     }
 
     // increment nest level
-    if (++*for_loop_counter != 1)
-    {
+    if (++*for_loop_counter != 1) {
         error(error_value_out_of_range);
     }
 
     // inject (ldx | ldy) #start opcode node
-    const parse_node_ptr loop_initialize = opcode_node(ld_op, I, 1, 
+    const parse_node_ptr loop_initialize = opcode_node(ld_op, I, 1,
         constant_node(start, false));
     expand_node(loop_initialize);
 
@@ -622,10 +559,8 @@ int expand_operator_for_reg_node(const parse_node_ptr p)
     expand_node(p->op[2]);
 
     // optimize start = end
-    if (start == end)
-    {
-        if (--*for_loop_counter != 0)
-        {
+    if (start == end) {
+        if (--*for_loop_counter != 0) {
             error(error_value_out_of_range);
         }
         return 0;
@@ -636,42 +571,34 @@ int expand_operator_for_reg_node(const parse_node_ptr p)
     expand_node(loop_next);
 
     // check to see if we need a compare
-    if (end != 0)
-    {
+    if (end != 0) {
         parse_node_ptr cmp_node;
-        if (increment_flag > 0 && end < 255)
-        {
+        if (increment_flag > 0 && end < 255) {
             cmp_node = opcode_node(cmp_op, I, 1, constant_node(end + 1, false));
         }
-        else
-        {
+        else {
             cmp_node = opcode_node(cmp_op, I, 1, constant_node(end, false));
         }
         expand_node(cmp_node);
     }
 
     // figure out branch condition
-    if (increment_flag > 0)
-    {
-        if (end < 255)
-        {
-            loop_branch = opcode_node(_bcc, r, 1, 
+    if (increment_flag > 0) {
+        if (end < 255) {
+            loop_branch = opcode_node(_bcc, r, 1,
                 constant_node(start_loop_program_counter, false));
         }
-        else
-        {
-            loop_branch = opcode_node(_bne, r, 1, 
+        else {
+            loop_branch = opcode_node(_bne, r, 1,
                 constant_node(start_loop_program_counter, false));
         }
     }
-    else if (increment_flag < 0)
-    {
+    else if (increment_flag < 0) {
         loop_branch = opcode_node(_bcs, r, 1, constant_node(start_loop_program_counter, 0));
     }
     expand_node(loop_branch);
 
-    if (--*for_loop_counter != 0)
-    {
+    if (--*for_loop_counter != 0) {
         error(error_value_out_of_range);
     }
     return 0;
@@ -686,8 +613,7 @@ int expand_data_node(const parse_node_ptr p)
 
     expansion_type = data_bytes;
     data_size = p->data.size;
-    if (p->data.size == data_string)
-    {
+    if (p->data.size == data_string) {
         expansion_type = data_strings;
         data_size = 0;
     }
@@ -701,12 +627,10 @@ int expand_data_node(const parse_node_ptr p)
 int expand_operator_section_node(const parse_node_ptr p)
 {
     char* name = p->op[0]->id.name;
-    if (current_scope != nullptr)
-    {
+    if (current_scope != nullptr) {
         const size_t len = strlen(current_scope) + strlen(name) + 2;
         char* temp_name = static_cast<char*>(MALLOC(len));
-        if (temp_name == nullptr)
-        {
+        if (temp_name == nullptr) {
             error(error_out_of_memory);
             exit(-1);
         }
@@ -715,11 +639,9 @@ int expand_operator_section_node(const parse_node_ptr p)
         FREE(current_scope);
         current_scope = temp_name;
     }
-    else
-    {
-        current_scope = (char*) STRDUP(name);  // NOLINT(clang-diagnostic-incompatible-pointer-types-discards-qualifiers)
-        if (current_scope == nullptr)
-        {
+    else {
+        current_scope = (char*)STRDUP(name);  // NOLINT(clang-diagnostic-incompatible-pointer-types-discards-qualifiers)
+        if (current_scope == nullptr) {
             error(error_out_of_memory);
             return 0;
         }
@@ -735,8 +657,7 @@ int expand_operator_section_node(const parse_node_ptr p)
 /// <returns>0 in all paths</returns>
 int expand_operator_end_section_node(parse_node_ptr p)
 {
-    if (current_scope == nullptr)
-    {
+    if (current_scope == nullptr) {
         error(error_end_section_without_section);
         return 0;
     }
@@ -746,8 +667,7 @@ int expand_operator_end_section_node(parse_node_ptr p)
         index--;
     if (index >= 0)
         current_scope[index] = 0;
-    else
-    {
+    else {
         FREE(current_scope);
         current_scope = nullptr;
     }
@@ -761,35 +681,34 @@ int get_op_byte_count(const parse_node_ptr p)
     if (p->type != type_op_code)
         return byte_count;
 
-    switch (p->opcode.mode)
-    {
-    case A:     /* Accumulator          */
-    case i:     /* implied              */
-        byte_count = 0;
-        break;
+    switch (p->opcode.mode) {
+        case A:     /* Accumulator          */
+        case i:     /* implied              */
+            byte_count = 0;
+            break;
 
-    case I:     /* immediate            */
-    case r:     /* relative             */
-    case zp:    /* zero page            */
-    case zpi:   /* zero page indirect   */
-    case zpx:   /* zero page x          */
-    case zpy:   /* zero page y          */
-    case izx:  /* zero page indirect x */
-    case izy:  /* zero page indirect y */
-        byte_count = 1;
-        break;
+        case I:     /* immediate            */
+        case r:     /* relative             */
+        case zp:    /* zero page            */
+        case zpi:   /* zero page indirect   */
+        case zpx:   /* zero page x          */
+        case zpy:   /* zero page y          */
+        case izx:  /* zero page indirect x */
+        case izy:  /* zero page indirect y */
+            byte_count = 1;
+            break;
 
-    case a:     /* absolute             */
-    case ax:    /* absolute x           */
-    case ay:    /* absolute y           */
-    case aix:   /* absolute indirect x  */
-    case ind:   /* absolute indirect    */
-        byte_count = 2;
-        break;
+        case a:     /* absolute             */
+        case ax:    /* absolute x           */
+        case ay:    /* absolute y           */
+        case aix:   /* absolute indirect x  */
+        case ind:   /* absolute indirect    */
+            byte_count = 2;
+            break;
 
-    default:
-        error(error_invalid_opcode_or_mode);
-        return 0;
+        default:
+            error(error_invalid_opcode_or_mode);
+            return 0;
     }
     return byte_count;
 }
@@ -808,171 +727,157 @@ int expand_op_code_node(const parse_node_ptr p)
         origin_specified = true;
 
     p->opcode.program_counter = program_counter;
- 
-    switch (p->opcode.mode)
-    {
-    default:
-    case A:     /* Accumulator          */
-    case i:     /* implied              */
-        op_bytes = 0;
-        break;
 
-    case I:     /* immediate            */
-    case zp:    /* zero page            */
-    case zpi:   /* zero page indirect   */
-    case zpx:   /* zero page x          */
-    case zpy:   /* zero page y          */
-    case izx:   /* zero page indirect x */
-    case izy:   /* zero page indirect y */
-        op_bytes = 1;
-        break;
+    switch (p->opcode.mode) {
+        default:
+        case A:     /* Accumulator          */
+        case i:     /* implied              */
+            op_bytes = 0;
+            break;
 
-    case r:     /* relative             */
-        op_bytes = 2;
-        break;
+        case I:     /* immediate            */
+        case zp:    /* zero page            */
+        case zpi:   /* zero page indirect   */
+        case zpx:   /* zero page x          */
+        case zpy:   /* zero page y          */
+        case izx:   /* zero page indirect x */
+        case izy:   /* zero page indirect y */
+            op_bytes = 1;
+            break;
 
-    case a:     /* absolute             */
-        op_bytes = 2;
-        mode_check = zp;
-        break;
+        case r:     /* relative             */
+            op_bytes = 2;
+            break;
 
-    case aix:   /* absolute indirect x   */
-        op_bytes = 2;
-        mode_check = izx;
-        break;
+        case a:     /* absolute             */
+            op_bytes = 2;
+            mode_check = zp;
+            break;
 
-    case ax:    /* absolute x           */
-        op_bytes = 2;
-        mode_check = zpx;
-        break;
+        case aix:   /* absolute indirect x   */
+            op_bytes = 2;
+            mode_check = izx;
+            break;
 
-    case ay:    /* absolute y           */
-        op_bytes = 2;
-        mode_check = zpy;
-        break;
+        case ax:    /* absolute x           */
+            op_bytes = 2;
+            mode_check = zpx;
+            break;
 
-    case ind:   /* absolute indirect    */
-        op_bytes = 2;
-        mode_check = zpi;
-        break;
+        case ay:    /* absolute y           */
+            op_bytes = 2;
+            mode_check = zpy;
+            break;
+
+        case ind:   /* absolute indirect    */
+            op_bytes = 2;
+            mode_check = zpi;
+            break;
     }
 
-    if (op_bytes > 0 && !has_uninitialized_symbol(p))
-    {
+    if (op_bytes > 0 && !has_uninitialized_symbol(p)) {
         int out_of_range = 0;
         int large_op = 0;
         int code2;
-        for (int index = 0; index < p->number_of_ops; index++)
-        {
+        for (int index = 0; index < p->number_of_ops; index++) {
             const parse_node_ptr pp = p->op[index];
             int op_value = expand_node(pp);
 
             // fix for local labels
             const char ch = (pp->type == type_id) ? pp->id.name[0] : 0;
-            if (op_value == 0 && p->opcode.mode == r && p->number_of_ops == 1 && pp->type == type_id 
-                && (ch == '@' || ch == '-' || ch =='+') )
+            if (op_value == 0 && p->opcode.mode == r && p->number_of_ops == 1 && pp->type == type_id
+                && (ch == '@' || ch == '-' || ch == '+'))
                 op_value = program_counter;
 
             // ReSharper disable once CppRedundantParentheses
             large_op = large_op | ((op_value & ~0xFF) != 0);
 
             out_of_range = out_of_range | ((op_value & ~0xFFFF) != 0 || (op_bytes < 2 && large_op));
-            if (out_of_range && op_bytes < 2 && (op_value & ~0xFFFF) == 0)
-            {
-                switch (p->opcode.mode)
-                {
-                case zp:
-                    mode_check = a;
-                    break;
+            if (out_of_range && op_bytes < 2 && (op_value & ~0xFFFF) == 0) {
+                switch (p->opcode.mode) {
+                    case zp:
+                        mode_check = a;
+                        break;
 
-                case zpi:
-                    mode_check = ind;
-                    break;
+                    case zpi:
+                        mode_check = ind;
+                        break;
 
-                case zpx:
-                    mode_check = ax;
-                    break;
+                    case zpx:
+                        mode_check = ax;
+                        break;
 
-                case zpy:
-                    mode_check = ay;
-                    break;
+                    case zpy:
+                        mode_check = ay;
+                        break;
 
-                default:
-                    error(error_value_out_of_range);
-                    break;
+                    default:
+                        error(error_value_out_of_range);
+                        break;
                 }
                 code2 = get_op_code(p->opcode.instruction, mode_check);
-                if (code2 != -1)
-                {
+                if (code2 != -1) {
                     p->opcode.mode = mode_check;
                     p->opcode.opcode = code2;
                 }
-                else
-                {
+                else {
                     error(error_value_out_of_range);
                 }
                 break;
             }
 
-            if (p->opcode.mode == r && p->number_of_ops == 1)
-            {
+            if (p->opcode.mode == r && p->number_of_ops == 1) {
                 // make sure a branch is in range
                 const int op = op_value - (p->opcode.program_counter + 2);
 
-                if (op > 128 || op < -127)
-                {
+                if (op > 128 || op < -127) {
                     // reverse the logic and insert a jmp
-                    switch (p->opcode.instruction)
-                    {
-                    default:
-                        break;
+                    switch (p->opcode.instruction) {
+                        default:
+                            break;
 
-                    case _bcs:
-                        p->opcode.instruction = _bcc;
-                        break;
+                        case _bcs:
+                            p->opcode.instruction = _bcc;
+                            break;
 
-                    case _bcc:
-                        p->opcode.instruction = _bcs;
-                        break;
+                        case _bcc:
+                            p->opcode.instruction = _bcs;
+                            break;
 
-                    case _bne:
-                        p->opcode.instruction = _beq;
-                        break;
+                        case _bne:
+                            p->opcode.instruction = _beq;
+                            break;
 
-                    case _beq:
-                        p->opcode.instruction = _bne;
-                        break;
+                        case _beq:
+                            p->opcode.instruction = _bne;
+                            break;
 
-                    case _bmi:
-                        p->opcode.instruction = _bpl;
-                        break;
+                        case _bmi:
+                            p->opcode.instruction = _bpl;
+                            break;
 
-                    case _bpl:
-                        p->opcode.instruction = _bmi;
-                        break;
+                        case _bpl:
+                            p->opcode.instruction = _bmi;
+                            break;
                     }
                     code2 = get_op_code(p->opcode.instruction, r);
-                    if (code2 != -1)
-                    {
+                    if (code2 != -1) {
                         const parse_node_ptr target = p->op[index];
                         const parse_node_ptr jmp = opcode_node(_jmp, a, 1, target);
 
-                        if (target == nullptr || jmp == nullptr)
-                        {
+                        if (target == nullptr || jmp == nullptr) {
                             error(error_out_of_memory);
                             exit(-1);
                         }
 
                         p->opcode.opcode = code2;
-                        if (final_pass)
-                        {
+                        if (final_pass) {
                             p->op[index] = constant_node(program_counter + 5, 0);
                             generate_list_node(p);
                             generate_output(output_file, p);
                         }
                         program_counter += get_op_code_byte_count(p) + 1;
-                        if (final_pass)
-                        {
+                        if (final_pass) {
                             jmp->opcode.program_counter = program_counter;
                             generate_list_node(jmp);
                             generate_output(output_file, jmp);
@@ -990,19 +895,16 @@ int expand_op_code_node(const parse_node_ptr p)
         }
 
         // page zero optimization
-        if (!large_op && p->opcode.mode != mode_check)
-        {
+        if (!large_op && p->opcode.mode != mode_check) {
             code2 = get_op_code(p->opcode.instruction, mode_check);
-            if (code2 != -1)
-            {
+            if (code2 != -1) {
                 p->opcode.mode = mode_check;
                 p->opcode.opcode = code2;
             }
         }
     }
-    
-    if (final_pass)
-    {
+
+    if (final_pass) {
         generate_list_node(p);
         generate_output(output_file, p);
     }
@@ -1018,8 +920,7 @@ int expand_op_code_node(const parse_node_ptr p)
 
 int expand_print_state_node(const parse_node_ptr p)
 {
-    if (final_pass)
-    {
+    if (final_pass) {
         generate_list_node(p);
 
         if (p->pr.print_state)
@@ -1097,8 +998,7 @@ int expand_operator_org_node(const parse_node_ptr p)
 {
     program_counter_assigned++;
 
-    if (org_origin_specified)
-    {
+    if (org_origin_specified) {
         error(error_org_specified_more_than_once);
         return 0;
     }
@@ -1120,11 +1020,9 @@ int expand_operator_expression_list_node(const parse_node_ptr p)
     symbol_table_ptr symbol_ptr = nullptr;
     char sym_name[max_macro_param_name_len] = { 0 };
 
-    for (int index = 0; index < p->number_of_ops; index++)
-    {
+    for (int index = 0; index < p->number_of_ops; index++) {
         const parse_node_ptr pp = p->op[index];
-        if (pp->type == type_opr && pp->opr.opr == EXPRLIST)
-        {
+        if (pp->type == type_opr && pp->opr.opr == EXPRLIST) {
             expand_node(pp);
             continue;
         }
@@ -1134,168 +1032,149 @@ int expand_operator_expression_list_node(const parse_node_ptr p)
 
         switch (expansion_type)  // NOLINT(hicpp-multiway-paths-covered)
         {
-        case symbol:
-            switch (pp->type)  // NOLINT(clang-diagnostic-switch-enum)
-            {
-            case type_id:
-            case type_label:
-                symbol_ptr = pp->id.i;
-                if (symbol_ptr == nullptr)
+            case symbol:
+                switch (pp->type)  // NOLINT(clang-diagnostic-switch-enum)
                 {
-                    pp->id.i = add_symbol(pp->id.name);
-                    symbol_ptr = pp->id.i;
-                    if (symbol_ptr == nullptr)
-                    {
-                        error(error_adding_symbol);
+                    case type_id:
+                    case type_label:
+                        symbol_ptr = pp->id.i;
+                        if (symbol_ptr == nullptr) {
+                            pp->id.i = add_symbol(pp->id.name);
+                            symbol_ptr = pp->id.i;
+                            if (symbol_ptr == nullptr) {
+                                error(error_adding_symbol);
+                                break;
+                            }
+                            symbol_ptr->is_var = true;
+                        }
+                        symbol_ptr->value = pp->type == type_label ? program_counter : 0;
+                        symbol_ptr->is_initialized = true;
                         break;
-                    }
-                    symbol_ptr->is_var = true;
-                }
-                symbol_ptr->value = pp->type == type_label ? program_counter : 0;
-                symbol_ptr->is_initialized = true;
-                break;
 
-            default:
-                if (symbol_ptr != nullptr)
-                {
-                    set_symbol_value(symbol_ptr, expand_node(pp));
-                    symbol_ptr = nullptr;
-                }
-                else
-                {
-                    error(error_initializing_variable);
-                    return 0;
+                    default:
+                        if (symbol_ptr != nullptr) {
+                            set_symbol_value(symbol_ptr, expand_node(pp));
+                            symbol_ptr = nullptr;
+                        }
+                        else {
+                            error(error_initializing_variable);
+                            return 0;
+                        }
+                        break;
                 }
                 break;
-            }
-            break;
 
-        case macro_parameter:
-            switch (pp->type)  // NOLINT(clang-diagnostic-switch-enum)
-            { 
-            case type_con:
-            case type_id:
-            case type_label:
-            case type_opr:
-                break;
-
-            case type_macro_id:
-            case type_macro_ex:
-            case type_data:
-            case type_str:
-            default:
-                error(error_value_out_of_range);
-                return 0;
-            }
-            if (++macro_parameter_index > max_macro_param)
-                max_macro_param = macro_parameter_index;
-
-            sprintf(sym_name, "\\%d", macro_parameter_index);
-            symbol_ptr = add_symbol(sym_name);
-            if (symbol_ptr != nullptr)
-            {
-                set_symbol_value(symbol_ptr, expand_node(pp));
-                symbol_ptr->is_initialized = true;
-            }
-            else
-            {
-                error(error_out_of_memory);
-                exit(-1);
-            }
-            break;
-
-        case data_bytes:
-            if (!has_uninitialized_symbol(pp))
-            {
-                if (final_pass)
+            case macro_parameter:
+                switch (pp->type)  // NOLINT(clang-diagnostic-switch-enum)
                 {
-                    switch (pp->type)  // NOLINT(clang-diagnostic-switch-enum)
-                    {
                     case type_con:
                     case type_id:
                     case type_label:
                     case type_opr:
-                    case type_str:
                         break;
 
                     case type_macro_id:
                     case type_macro_ex:
                     case type_data:
+                    case type_str:
                     default:
                         error(error_value_out_of_range);
                         return 0;
+                }
+                if (++macro_parameter_index > max_macro_param)
+                    max_macro_param = macro_parameter_index;
+
+                sprintf(sym_name, "\\%d", macro_parameter_index);
+                symbol_ptr = add_symbol(sym_name);
+                if (symbol_ptr != nullptr) {
+                    set_symbol_value(symbol_ptr, expand_node(pp));
+                    symbol_ptr->is_initialized = true;
+                }
+                else {
+                    error(error_out_of_memory);
+                    exit(-1);
+                }
+                break;
+
+            case data_bytes:
+                if (!has_uninitialized_symbol(pp)) {
+                    if (final_pass) {
+                        switch (pp->type)  // NOLINT(clang-diagnostic-switch-enum)
+                        {
+                            case type_con:
+                            case type_id:
+                            case type_label:
+                            case type_opr:
+                            case type_str:
+                                break;
+
+                            case type_macro_id:
+                            case type_macro_ex:
+                            case type_data:
+                            default:
+                                error(error_value_out_of_range);
+                                return 0;
+                        }
+                        generate_list_node(pp);
+                        generate_output(output_file, pp);
                     }
+                }
+                if (pp->type == type_str) {
+                    int length = pp->str.len;
+                    if (length % 2 && data_size == 2)
+                        length++;
+                    program_counter += length;
+                    break;
+                }
+                program_counter += data_size;
+                break;
+
+            case data_strings:
+                if (pp->type != type_str && pp->type != type_con &&
+                    pp->type != type_opr && pp->type != type_id &&
+                    pp->type != type_label) {
+                    error(error_value_out_of_range);
+                    return 0;
+                }
+                if (final_pass) {
                     generate_list_node(pp);
                     generate_output(output_file, pp);
                 }
-            }
-            if (pp->type == type_str)
-            {
-                int length = pp->str.len;
-                if (length % 2 && data_size == 2)
-                    length++;
-                program_counter += length;
-                break;
-            }
-            program_counter += data_size;
-            break;
-
-        case data_strings:
-            if (pp->type != type_str && pp->type != type_con &&
-                pp->type != type_opr && pp->type != type_id && 
-                pp->type != type_label)
-            {
-                error(error_value_out_of_range);
-                return 0;
-            }
-            if (final_pass)
-            {
-                generate_list_node(pp);
-                generate_output(output_file, pp);
-            }
-            if (pp->type == type_str)
-            {
-                program_counter += pp->str.len;
-            }
-            else
-            {
-                const int op = expand_node(pp);
-                const int hi = (op & 0xFF00) >> 8;
-                if (hi != 0)
+                if (pp->type == type_str) {
+                    program_counter += pp->str.len;
+                }
+                else {
+                    const int op = expand_node(pp);
+                    const int hi = (op & 0xFF00) >> 8;
+                    if (hi != 0)
+                        program_counter++;
                     program_counter++;
-                program_counter++;
-            }
-            break;
+                }
+                break;
 
-        case print_all:
-        case print:
-            if (pp->type == type_str)
-            {
-                if (final_pass || expansion_type == print_all)
-                {
-                    fprintf(console, " ");
-                    for (int char_index = 0; char_index < pp->str.len; char_index++)
-                    {
-                        fprintf(console, "%c", pp->str.value[char_index]);
+            case print_all:
+            case print:
+                if (pp->type == type_str) {
+                    if (final_pass || expansion_type == print_all) {
+                        fprintf(console, " ");
+                        for (int char_index = 0; char_index < pp->str.len; char_index++) {
+                            fprintf(console, "%c", pp->str.value[char_index]);
+                        }
                     }
                 }
-            }
-            else
-            {
-                const int op = expand_node(pp);
-                const int hi = (op & 0xFF00) >> 8;
-                const int lo = op & 0xFF;
+                else {
+                    const int op = expand_node(pp);
+                    const int hi = (op & 0xFF00) >> 8;
+                    const int lo = op & 0xFF;
 
-                if (final_pass || expansion_type == print_all)
-                {
-                    if (hi)
-                    {
-                        fprintf(console, " $%02X", hi);
+                    if (final_pass || expansion_type == print_all) {
+                        if (hi) {
+                            fprintf(console, " $%02X", hi);
+                        }
+                        fprintf(console, " $%02X", lo);
                     }
-                    fprintf(console, " $%02X", lo);
                 }
-            }
-            break;
+                break;
         }
     }
     return 0;
@@ -1304,33 +1183,21 @@ int expand_operator_expression_list_node(const parse_node_ptr p)
 /// <summary>
 /// Holds the number of times a macro is executed
 /// </summary>
-struct macro_dict_entry
-{
-    int times_executed;
-};
 
 /// <summary>
-/// Create a Macro entry
+/// Create or return a Macro entry
 /// </summary>
-macro_dict_entry* create_macro_entry(const char* name)
+static macro_dict_entry* create_macro_entry(std::string name)
 {
-    // ReSharper disable once CppTooWideScope
-    if (macro_dict == nullptr)
-        macro_dict = dict_create(sizeof(macro_dict_entry*), 0);
+    auto macro_entry = macro_dict.find(name);
 
-    auto* macro_dict_entry = static_cast<struct macro_dict_entry*>(dict_search(macro_dict, name));
-    if (macro_dict_entry == nullptr)
-    {
-        macro_dict_entry = static_cast<struct macro_dict_entry*>(MALLOC(sizeof(struct macro_dict_entry)));
-        if (macro_dict_entry == nullptr)
-        {
-            error(error_out_of_memory);
-            exit(-1);
-        }
-        macro_dict_entry->times_executed = 0;
-        dict_insert(&macro_dict, const_cast<char*>(name), macro_dict_entry);
+    if (macro_dict.find(name) == macro_dict.end()) {
+        auto entry = macro_entry_allocator.allocate(1);
+        entry->times_executed = 0;
+        macro_dict[name] = entry;
     }
-    return macro_dict_entry;
+
+    return macro_dict[name];
 }
 
 /// <summary>
@@ -1338,20 +1205,11 @@ macro_dict_entry* create_macro_entry(const char* name)
 /// </summary>
 void reset_macro_dict(void)
 {
+    for (const auto& [key, value] : macro_dict) {
+        macro_entry_allocator.destroy(value);
+    }
     code_generated = 0;
-
-    if (macro_dict == nullptr)
-    {
-        macro_dict = dict_create(sizeof(macro_dict_entry*), 0);
-    }
-    for (int index = 0; index < macro_dict->size; index++)
-    {
-        for (element_ptr element = macro_dict->table[index]; element != nullptr; element = element->next)
-        {
-            auto* entry = static_cast<struct macro_dict_entry*>(element->value);
-            entry->times_executed = 0;
-        }
-    }
+    macro_dict.clear();
 }
 
 /// <summary>
@@ -1370,8 +1228,7 @@ int expand_macro_id_node(const parse_node_ptr p)
     expand_id_node(p);
 
     const symbol_table_ptr sym = p->id.i;
-    if (!sym || !sym->macro_node)
-    {
+    if (!sym || !sym->macro_node) {
         last_label = temp;
         return 0;
     }
@@ -1400,7 +1257,7 @@ int expand_macro_expansion_node(const parse_node_ptr p)
 
     char* temp = last_label;
     sprintf(internal_buffer, "%s::%.4X", p->macro.name, macro_dict_entry->times_executed);
-    last_label = (char*) STRDUP(internal_buffer);
+    last_label = (char*)STRDUP(internal_buffer);
 
     if (p->macro.macro != nullptr)
         expand_node(static_cast<parse_node_ptr>(p->macro.macro));
@@ -1425,8 +1282,7 @@ int expand_operator_macro_definition_node(const parse_node_ptr p)
     create_macro_entry(macro_id->id.name);
 
     const symbol_table_ptr sym = add_symbol(macro_id->id.name);
-    if (sym == nullptr)
-    {
+    if (sym == nullptr) {
         error(error_out_of_memory);
         exit(-1);
     }
@@ -1446,12 +1302,10 @@ int expand_operator_macro_definition_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_while_node(const parse_node_ptr p)
 {
-    while (expand_node(p->op[0]))
-    {
+    while (expand_node(p->op[0])) {
         expand_node(p->op[1]);
 
-        if (program_counter > max_address)
-        {
+        if (program_counter > max_address) {
             error(error_infinite_loop_detected);
             return 0;
         }
@@ -1466,12 +1320,10 @@ int expand_operator_while_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_repeat_node(const parse_node_ptr p)
 {
-    do
-    {
+    do {
         expand_node(p->op[0]);
 
-        if (program_counter > max_address)
-        {
+        if (program_counter > max_address) {
             error(error_infinite_loop_detected);
             return 0;
         }
@@ -1486,11 +1338,9 @@ int expand_operator_repeat_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_do_node(const parse_node_ptr p)
 {
-    do
-    {
+    do {
         expand_node(p->op[0]);
-        if (program_counter > max_address)
-        {
+        if (program_counter > max_address) {
             error(error_infinite_loop_detected);
             return 0;
         }
@@ -1512,13 +1362,11 @@ int expand_operator_for_node(const parse_node_ptr p)
         step_val = expand_node(p->op[4]);
 
     const parse_node_ptr pp = p->op[0];
-    if (pp->op[0]->type == type_id)
-    {
+    if (pp->op[0]->type == type_id) {
         if (pp->op[0]->id.i == nullptr)
             pp->op[0]->id.i = add_symbol(pp->op[0]->id.name);
         start_sym = pp->op[0]->id.i;
-        if (start_sym == nullptr)
-        {
+        if (start_sym == nullptr) {
             error(error_out_of_memory);
             exit(-1);
         }
@@ -1529,23 +1377,19 @@ int expand_operator_for_node(const parse_node_ptr p)
         p->op[3]->id.i = add_symbol(p->op[3]->id.name);
 
     const symbol_table_ptr sym = p->op[3]->id.i;
-    if (sym == nullptr)
-    {
+    if (sym == nullptr) {
         error(error_out_of_memory);
         exit(-1);
     }
     const int end_value = expand_node(p->op[1]);
 
-    if (start_sym && start_sym != sym)
-    {
+    if (start_sym && start_sym != sym) {
         error(error_expected_next);
         return 0;
     }
 
-    if (unroll_loop)
-    {
-        do
-        {
+    if (unroll_loop) {
+        do {
             if (step_val > 0 && sym->value > end_value)
                 break;
             if (step_val < 0 && sym->value < end_value)
@@ -1553,16 +1397,14 @@ int expand_operator_for_node(const parse_node_ptr p)
 
             expand_node(p->op[2]);
 
-            if (program_counter > max_address)
-            {
+            if (program_counter > max_address) {
                 error(error_infinite_loop_detected);
                 return 0;
             }
             set_symbol_value(sym, sym->value + step_val);
         } while (true);
     }
-    else
-    {
+    else {
         error(error_value_out_of_range);
     }
     return 0;
@@ -1575,12 +1417,10 @@ int expand_operator_for_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_if_node(const parse_node_ptr p)
 {
-    if (expand_node(p->op[0]))
-    {
+    if (expand_node(p->op[0])) {
         expand_node(p->op[1]);
     }
-    else if (p->number_of_ops > 2)
-    {
+    else if (p->number_of_ops > 2) {
         expand_node(p->op[2]);
     }
     return 0;
@@ -1594,8 +1434,7 @@ int expand_operator_if_node(const parse_node_ptr p)
 int expand_operator_print_all_node(const parse_node_ptr p)
 {
     expansion_type = print_all;
-    for (int index = 0; index < p->number_of_ops; index++)
-    {
+    for (int index = 0; index < p->number_of_ops; index++) {
         expand_node(p->op[index]);
     }
     fprintf(console, "\n");
@@ -1610,8 +1449,7 @@ int expand_operator_print_all_node(const parse_node_ptr p)
 int expand_operator_print_node(const parse_node_ptr p)
 {
     expansion_type = print;
-    for (int index = 0; index < p->number_of_ops; index++)
-    {
+    for (int index = 0; index < p->number_of_ops; index++) {
         expand_node(p->op[index]);
     }
     if (final_pass)
@@ -1628,17 +1466,16 @@ int expand_operator_ds_node(const parse_node_ptr p)
 {
     const int op = expand_node(p->op[0]);
     int count = op;
-    if (count < 0)
-    {
+    if (count < 0) {
         error(error_value_out_of_range);
         exit(-1);
     }
 
-//    if (final_pass)
+    //    if (final_pass)
     {
         program_counter += count > 0 ? count : 1;
     }
-    
+
     return op;
 }
 
@@ -1652,8 +1489,7 @@ int expand_operator_statement_node(const parse_node_ptr p)
     if (p->number_of_ops < 1)
         return 0;
 
-    for (int index = 0; index < p->number_of_ops; index++)
-    {
+    for (int index = 0; index < p->number_of_ops; index++) {
         expand_node(p->op[index]);
     }
     return 0;
@@ -1679,17 +1515,14 @@ int expand_operator_equ_node(const parse_node_ptr p)
 {
     const int op = expand_node(p->op[1]);
 
-    if (stricmp(p->op[0]->id.name, "-") == 0)
-    {
+    if (stricmp(p->op[0]->id.name, "-") == 0) {
         int index = find_minus_symbol_definition(current_file_name, yylineno);
         if (index < 0) add_minus_symbol(current_file_name, yylineno, op);
 
         index = find_minus_symbol(strlen(p->op[0]->id.name), current_file_name, yylineno);
 
-        if (index >= 0)
-        {
-            if (minus_symbol_table[index].value != op)
-            {
+        if (index >= 0) {
+            if (minus_symbol_table[index].value != op) {
                 minus_symbol_table[index].value = op;
                 sym_value_changed++;
             }
@@ -1697,17 +1530,14 @@ int expand_operator_equ_node(const parse_node_ptr p)
         return op;
     }
 
-    if (stricmp(p->op[0]->id.name, "+") == 0)
-    {
+    if (stricmp(p->op[0]->id.name, "+") == 0) {
         int index = find_plus_symbol_definition(current_file_name, yylineno);
         if (index < 0) add_plus_symbol(current_file_name, yylineno, op);
 
         index = find_plus_symbol(strlen(p->op[0]->id.name), current_file_name, yylineno - 1);
 
-        if (index >= 0)
-        {
-            if (plus_symbol_table[index].value != op)
-            {
+        if (index >= 0) {
+            if (plus_symbol_table[index].value != op) {
                 plus_symbol_table[index].value = op;
                 sym_value_changed++;
             }
@@ -1718,20 +1548,16 @@ int expand_operator_equ_node(const parse_node_ptr p)
     if (p->op[0]->id.i == nullptr || p->op[0]->id.name[0] == '@')
         p->op[0]->id.i = add_symbol(p->op[0]->id.name);
     symbol_table_ptr sym = p->op[0]->id.i;
-    if (sym == nullptr)
-    {
+    if (sym == nullptr) {
         error(error_out_of_memory);
         exit(-1);
     }
 
-    if (!sym->is_initialized || sym->value != op)
-    {
-        if (!sym->scope && current_scope)
-        {
+    if (!sym->is_initialized || sym->value != op) {
+        if (!sym->scope && current_scope) {
             const int len = strlen(sym->name) + strlen(current_scope) + 2;
             char* temp = static_cast<char*>(MALLOC(len));
-            if (temp == nullptr)
-            {
+            if (temp == nullptr) {
                 error(error_out_of_memory);
                 exit(-1);
             }
@@ -1809,8 +1635,7 @@ int expand_operator_multiply_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_divide_node(const parse_node_ptr p)
 {
-    if (expand_node(p->op[1]) == 0)
-    {
+    if (expand_node(p->op[1]) == 0) {
         error(error_divide_by_zero);
         return 0;
     }
@@ -1874,7 +1699,7 @@ int expand_operator_greater_than_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_or_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) || expand_node(p->op[1]);
+    return expand_node(p->op[0]) || expand_node(p->op[1]); // intentional logical or NOT BIT OR!
 }
 
 /// <summary>
@@ -1884,7 +1709,7 @@ int expand_operator_or_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_and_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) && expand_node(p->op[1]);
+    return expand_node(p->op[0]) && expand_node(p->op[1]); // intentional logical and NOT BIT AND!
 }
 
 /// <summary>
@@ -1934,13 +1759,12 @@ int expand_operator_less_than_or_equal_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_node(const parse_node_ptr p)
 {
-    const expr* fun = static_cast<expr*>(dict_search(expand_operator_table_dictionary, (void*)static_cast<size_t>(p->opr.opr)));
-
-    if (fun)
-        return (*fun)(p);
-
-    error(error_unknown_operator_type);
-    return 0;
+    if (expand_operator_table_dictionary.find(p->opr.opr) == expand_operator_table_dictionary.end()) {
+        error(error_unknown_operator_type);
+        return 0;
+    }
+    auto fun = expand_operator_table_dictionary[p->opr.opr];
+    return (*fun)(p);
 }
 
 /// <summary>
@@ -1955,31 +1779,21 @@ int expand_node(const parse_node_ptr p)
 
     expand_level++;
 
-    if (end_expansion)
-    {
+    if (end_expansion) {
         expand_level--;
         return 0;
     }
 
-    if (expand_table_dictionary == nullptr)
-    {
-        init_expander();
+    if (expand_table_dictionary.find(p->type) == expand_table_dictionary.end()) {
+        error(error_unknown_operator_type);
+        return 0;
     }
 
-    const expr* fun = static_cast<expr*>(dict_search(expand_table_dictionary, (void*)p->type));
-
-    if (fun)
-    {
-        const int result = (*fun)(p);
-        expand_level--;
-
-        return result;
-    }
-
-    error(error_unknown_node_type);  
-
+    auto fun = expand_table_dictionary[p->type];
+    const int result = (*fun)(p);
     expand_level--;
-    return 0;
+
+    return result;
 }
 
 /// <summary>
@@ -1988,8 +1802,7 @@ int expand_node(const parse_node_ptr p)
 /// <param name="p">The node pointer.</param>
 int is_uninitialized_symbol(const parse_node_ptr p)
 {
-    if (p->type == type_label || p->type == type_id)
-    {
+    if (p->type == type_label || p->type == type_id) {
         if (p->id.i == nullptr)
             return true;
         const symbol_table_ptr sym = p->id.i;
@@ -2007,37 +1820,25 @@ int is_uninitialized_symbol(const parse_node_ptr p)
 /// <param name="p">The p.</param>
 bool has_uninitialized_symbol(const parse_node_ptr p)
 {
-    for (int index = 0; index < p->number_of_ops; index++)
-    {
+    for (int index = 0; index < p->number_of_ops; index++) {
         if (has_uninitialized_symbol(p->op[index]) || is_uninitialized_symbol(p->op[index]))
             return true;
     }
     return false;
 }
 
-static dictionary_ptr create_op_table_dictionary(op_table table[], const size_t size)
-{
-    dictionary_ptr dictionary = dict_create(sizeof(op_table), -1);
-    for (size_t i = 0; i < size; ++i)
-    {
-        dict_insert(&dictionary, (void*)static_cast<size_t>(table[i].tag), &table[i].function);
-    }
-    return dictionary;
-}
-
-int print_op_table(const element_ptr e, FILE* file) 
-{
-    fprintf(file, "%p\n", e->key);
-    fprintf(file, "%p\n", e->value);
-    return 0;
-}
-
 void dump_op_table(void)
 {
-    dump_dictionary(expand_operator_table_dictionary, print_op_table, console);
+    for (const auto& [key, value] : expand_operator_table_dictionary) {
+        fprintf(console, "%d\n", key);
+        fprintf(console, "%p\n", value);
+    }
 }
 
 void dump_table_dictionary(void)
 {
-    dump_dictionary(expand_table_dictionary, print_op_table, console);
+    for (const auto& [key, value] : expand_table_dictionary) {
+        fprintf(console, "%d\n", key);
+        fprintf(console, "%p\n", value);
+    }
 }
