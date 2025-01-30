@@ -99,12 +99,10 @@ void error2(const int err_num, const char* parameter)
 {
     assert(err_num > error_start && err_num < error_max);
     assert(internal_buffer != NULL);
-    if (strlen(errors[err_num]) + strlen(parameter) + 2 < max_line_len)
-    {
+    if (strlen(errors[err_num]) + strlen(parameter) + 2 < max_line_len) {
         sprintf(internal_buffer, "%s %s", errors[err_num], parameter);  // NOLINT(cert-err33-c)
     }
-    else
-    {
+    else {
         error(err_num);
     }
     yyerror(internal_buffer);
@@ -116,8 +114,7 @@ void error2(const int err_num, const char* parameter)
 /// <param name="s">The s.</param>
 void yymessage(const char* s)
 {
-    if (yyin && current_file_name != NULL && internal_buffer != NULL)
-    {
+    if (yyin && current_file_name != NULL && internal_buffer != NULL) {
         int current_line;
 
         fprintf(console_error, "%s File %s near line %d\n", s, current_file_name, yylineno + 1);
@@ -127,10 +124,8 @@ void yymessage(const char* s)
         for (current_line = 1; current_line < yylineno - 2; current_line++)
             fgets(internal_buffer, max_line_len, yyin);
 
-        for (; current_line < yylineno + 3; current_line++)
-        {
-            if (!feof(yyin))
-            {
+        for (; current_line < yylineno + 3; current_line++) {
+            if (!feof(yyin)) {
                 *internal_buffer = 0;
                 fgets(internal_buffer, max_line_len, yyin);
                 fprintf(console_error, "%-5d  ", current_line);

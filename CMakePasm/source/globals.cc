@@ -5,13 +5,14 @@
 // ReSharper disable CppClangTidyConcurrencyMtUnsafe
 #include <fstream>
 #include <map>
+#include <vector>
 
 #include "pasm.h"
 #include "sym.h"
 
-stack_ptr file_stack = nullptr;
-stack_ptr ifdef_stack = nullptr;
-stack_ptr changed_sym_stack = nullptr;
+std::stack<file_line_stack_entry> file_stack;
+std::stack<int*> ifdef_stack;
+std::vector<symbol_table_ptr> changed_sym_list;
 
 std::ofstream log_file;
 
@@ -50,9 +51,17 @@ extern int minus_symbol_table_size;
 
 void init_globals()
 {
-    file_stack = nullptr;
-    ifdef_stack = nullptr;
-    changed_sym_stack = nullptr;
+    while (file_stack.size() > 0) {
+        file_stack.pop();
+    }
+    while (ifdef_stack.size() > 0) {
+        ifdef_stack.pop();
+    }
+    while (macro_params_stack.size() > 0) {
+        macro_params_stack.pop();
+    }
+
+    changed_sym_list.clear();
 
     if (log_file.is_open())
         log_file.close();
@@ -78,7 +87,6 @@ void init_globals()
     log_file_name = nullptr;
     minus_symbol_table = nullptr;
     minus_symbol_table_index = 0;
-
 
     plus_symbol_table_index = 0;
     plus_symbol_table_size = 0;

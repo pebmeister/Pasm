@@ -23,8 +23,8 @@
 
 bool Debug_Bison = false;
 
-#define B_TOK(str)          { if (Debug_Bison){ fprintf(console, "--------   BISON (%20s)    -------- \n\n", str);} }
-#define E_TOK(str)          { if (Debug_Bison) {fprintf(console, "--------   BISON EX (%20s) -------- \n\n", str); }}
+#define B_TOK(str)          { if (Debug_Bison){ fprintf(console, "--------   BISON (%20s)    -------- \n\n", str); }}
+#define E_TOK(str)          { if (Debug_Bison){ fprintf(console, "--------   BISON EX (%20s) -------- \n\n", str); }}
 
 %}
 

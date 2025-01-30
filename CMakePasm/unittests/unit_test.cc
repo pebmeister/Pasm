@@ -3,6 +3,23 @@
 #include "parseargs.h"
 #include "pass.h"
 
+
+int test_strnicmp(char const* a, char const* b, size_t n)
+{
+    size_t sz = 0;
+    while (*b && sz < n) {
+        int d = tolower(*a) - tolower(*b);
+        if (d) {
+            return d;
+        }
+        a++;
+        b++;
+        sz++;
+    }
+    if (sz == n) return 0;
+    return tolower(*a);
+}
+
 ops_ptr cpu_6502_illegal_ops = new ops[21]
 {
     {
@@ -39,7 +56,7 @@ ops_ptr cpu_6502_illegal_ops = new ops[21]
         _lax,
         7,
         new int[7] { zp, I, zpy, izx, izy, a, ay },
-        new int[7] { 0xA7, 0xAB, 0xB7, 0xA3, 0xB3, 0xAF, 0xBF}
+        new int[7] { 0xA7, 0xAB, 0xB7, 0xA3, 0xB3, 0xAF, 0xBF }
     },
     {
         _dcp,
@@ -389,7 +406,7 @@ ops_ptr cpu_65c02_ops = new ops[55]
         _adc,
         9,
         new int[9] { I, zp, zpx, a, ax, ay, izx, izy, ind },
-        new int[9] { 0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71, 0x72}
+        new int[9] { 0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71, 0x72 }
     },
     {
         _and,
@@ -449,7 +466,7 @@ ops_ptr cpu_65c02_ops = new ops[55]
         _sbc,
         9,
         new int[9] { I, zp, zpx, a, ax, ay, izx, izy, ind },
-        new int[9] { 0xE9, 0xE5, 0xF5, 0xED, 0xFD, 0xF9 , 0xE1, 0xF1, 0xF2  }
+        new int[9] { 0xE9, 0xE5, 0xF5, 0xED, 0xFD, 0xF9 , 0xE1, 0xF1, 0xF2 }
     },
     {
         _sta,
@@ -474,10 +491,10 @@ ops_ptr cpu_6502_ops = new ops[56]
         _adc,
         8,
         new int[8] { I, zp, zpx, a, ax, ay, izx, izy },
-        new int[8] { 0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71}
+        new int[8] { 0x69, 0x65, 0x75, 0x6D, 0x7D, 0x79, 0x61, 0x71 }
     },
     {
-        _and, 
+        _and,
         8,
         new int[8] { I, zp, zpx, a, ax, ay, izx, izy },
         new int[8] { 0x29, 0x25, 0x35, 0x2D, 0x3D, 0x39, 0x21, 0x31 }
@@ -625,13 +642,13 @@ ops_ptr cpu_6502_ops = new ops[56]
         _inx,
         1,
         new int[1] { i },
-        new int[1] { 0xE8}
+        new int[1] { 0xE8 }
     },
     {
         _iny,
         1,
         new int[1] { i },
-        new int[1] { 0xC8}
+        new int[1] { 0xC8 }
     },
     {
         _jmp,
@@ -642,7 +659,7 @@ ops_ptr cpu_6502_ops = new ops[56]
     {
         _jsr,
         1,
-        new int[1] { a  },
+        new int[1] { a },
         new int[1] { 0x20 }
     },
     {
@@ -816,10 +833,8 @@ char* escape_string(const char* str)
 {
     int len = static_cast<int>(strlen(str)) + 1;
     const int original_len = len;
-    for (auto i = 0; i < len; ++i)
-    {
-        if (str[i] == '\\')
-        {
+    for (auto i = 0; i < len; ++i) {
+        if (str[i] == '\\') {
             ++len;
         }
     }
@@ -827,11 +842,9 @@ char* escape_string(const char* str)
     auto out_index = 0;
     const auto out_str = static_cast<char*>(malloc(len + 1));
     if (out_str == nullptr) return nullptr;
-    for (auto original_index = 0; original_index < original_len; ++original_index)
-    {
+    for (auto original_index = 0; original_index < original_len; ++original_index) {
         out_str[out_index++] = str[original_index];
-        if (str[original_index] == '\\')
-        {
+        if (str[original_index] == '\\') {
             out_str[out_index++] = '\\';
         }
     }
@@ -848,17 +861,18 @@ void initialize()
     console_error = stdout;
     yyout = stdout;
 
-    if (internal_buffer == nullptr)
-    {
+    if (internal_buffer == nullptr) {
         internal_buffer = static_cast<char*>(malloc(max_line_len));
     }
-    if (file_stack == nullptr)
-    {
-        file_stack = create_stack(sizeof(file_line_stack_entry));
+    
+    while (file_stack.size() > 0) {
+        file_stack.pop();
     }
-    if (ifdef_stack == nullptr)
-    {
-        ifdef_stack = create_stack(sizeof(int));
+    while (ifdef_stack.size() > 0) {
+        ifdef_stack.pop();
+    }
+    while (macro_params_stack.size() > 0) {
+        macro_params_stack.pop();
     }
 
     final_pass = false;
@@ -883,22 +897,19 @@ void destroy()
         free(internal_buffer);
         internal_buffer = nullptr;
     }
-    if (file_stack != nullptr) {
-        free_stack(file_stack);
-        file_stack = nullptr;
+    while (file_stack.size() > 0) {
+        file_stack.pop();
     }
-    if (ifdef_stack != nullptr) {
-        free_stack(ifdef_stack);
-        ifdef_stack = nullptr;
+    while (ifdef_stack.size() > 0) {
+        ifdef_stack.pop();
+    }
+    while (macro_params_stack.size() > 0) {
+        macro_params_stack.pop();
     }
 
     macro_dict.clear();
     symbol_dictionary.clear();
 
-    if (macro_params_stack != nullptr) {
-        free_stack(macro_params_stack);
-        macro_params_stack = nullptr;
-    }
 }
 
 size_t char_to_w_string(std::string s, std::wstring& ws)
@@ -909,40 +920,92 @@ size_t char_to_w_string(std::string s, std::wstring& ws)
     return ws.length();
 }
 
-void execute_text(const char* text, const unsigned char* expected, const size_t count, const char* expected_text)
+static int test = 1;
+
+static std::string replace_name(std::string& buffer, std::string replace_file_name, std::string replace_bin_name)
 {
-    const char* in_file_name =  (char*)"execute_text.a";
-    const char* out_file_name = (char*)"execute_text.bin";
-    const char* console_name =  (char*)"console.txt";
-    
-    FILE* temp_file = open_file((char*)in_file_name, "w");
+    const char* file_name_search = "$$FILE_NAME$$";
+    const char* bin_name_search = "$$BIN_FILE$$";
+    auto file_search_len = strlen(file_name_search);
+    auto bin_search_len = strlen(bin_name_search);
+    std::string out;
+    auto i = 0;
+
+    auto len = buffer.length();
+    while (i < len) {
+        if ((len - i) - file_search_len > 0) {
+            if (test_strnicmp(&buffer[i], file_name_search, file_search_len) == 0) {
+                out += replace_file_name;
+                i += file_search_len;
+                continue;
+            }
+        }
+        if ((len - i) - bin_search_len > 0) {
+            if (test_strnicmp(&buffer[i], bin_name_search, bin_search_len) == 0) {
+                out += replace_bin_name;
+                i += bin_search_len;
+                continue;
+            }
+        }
+        out += buffer[i++];
+    }
+    return out;
+}
+
+void compare_string_buffers(char* str1, char* str2, size_t len)
+{
+    char* start_match = str1;
+    for (auto i = 0; i < len; ++i) {
+        if (str1[i] != str2[i]) {
+            auto t = str1[i];
+            str1[i] = 0;
+            fprintf(stdout, "Matching %d chars\n[%s]", i, str1);
+            str1[i] = t;
+
+            fprintf(stdout, "[%c] [%c]\n", str1[i], str2[i]);
+            EXPECT_EQ(str1[i], str2[i]);
+            break;
+        }
+    }
+}
+
+void execute_text(std::string &text, const unsigned char* expected, const size_t count, std::string expected_text)
+{
+    bool failed = false;
+    std::string in_file_name = "test_" + std::to_string(test) + ".a";
+    std::string out_file_name = "test_" + std::to_string(test) + ".bin";
+    std::string console_name = "console.txt";
+    test++;
+
+    FILE* temp_file = open_file(in_file_name.c_str(), "w");
     EXPECT_NOT_NULL(temp_file);
 
-    fwrite(text, 1,  strlen(text), temp_file);
+    fwrite(text.c_str(), 1, text.length(), temp_file);
+    fflush(temp_file);
     fclose(temp_file);
 
-    console = open_file("console.txt", "w");
+    console = open_file(console_name.c_str(), "w");
     EXPECT_NOT_NULL(console);
     console_error = console;
     yyout = console;
-    
+
     input_file_count = 0;
     char* argv[] =
     {
         (char*)"pasm.exe",
         (char*)"-v",
-        (char*)in_file_name,
+        (char*)in_file_name.c_str(),
         (char*)"-o",
-        (char*)out_file_name
+        (char*)out_file_name.c_str()
     };
     int argc = _countof(argv);
     EXPECT_EQ(5, argc);
-    
+
     int result = parse_arguments(argc, argv);
     EXPECT_EQ(1, result);
 
     result = assemble();
-
+    
     fflush(console);
     fclose(console);
     console = stdout;
@@ -950,11 +1013,10 @@ void execute_text(const char* text, const unsigned char* expected, const size_t 
     if (result != 0)
         EXPECT_EQ(0, result);
 
-    if (result == 0)
-    {
+    if (result == 0) {
         auto* buffer = static_cast<unsigned char*>(malloc(count));
         EXPECT_NOT_NULL(buffer);
-        output_file = open_file(out_file_name, "rb");
+        output_file = open_file(out_file_name.c_str(), "rb");
         EXPECT_NOT_NULL(output_file);
 
         fseek(output_file, 0, SEEK_END);
@@ -966,61 +1028,56 @@ void execute_text(const char* text, const unsigned char* expected, const size_t 
         fread(buffer, 1, count, output_file);
         fclose(output_file);
 
-        for (size_t i = 0; i < count; ++ i)
-        {
+        for (size_t i = 0; i < count; ++i) {
             const auto e = expected[i];
             const auto a = buffer[i];
-            if (e != a)
-            {
+            if (e != a) {
                 EXPECT_EQ(e, a);
             }
         }
 
         free(buffer);
 
-        if (expected_text != nullptr)
-        {
-            console = open_file("console.txt", "r");
-            const auto len = strlen(expected_text);
+        if (expected_text.length() > 0) {
+
+            auto text = replace_name(expected_text, in_file_name, out_file_name);
+
+            console = open_file(console_name.c_str(), "r");
+            const auto len = text.length();
 
             fseek(console, 0, SEEK_END);
             pos = ftell(console);
-            fseek(console, 0, SEEK_SET);
-            buffer = static_cast<unsigned char*>(malloc(pos + 1));
-            EXPECT_NOT_NULL(buffer);
-            if (buffer) {
-                memset(buffer, 0, pos + 1);
-                fread(buffer, 1, pos, console);
-                fclose(console);
+            EXPECT_TRUE(pos != 0);
+            if (pos > 0) {
+                fseek(console, 0, SEEK_SET);
+                buffer = static_cast<unsigned char*>(malloc(pos + 1));
+                EXPECT_NOT_NULL(buffer);
+                if (buffer) {
+                    memset(buffer, 0, pos + 1);
+                    fread(buffer, 1, pos, console);
+                    fclose(console);
 
-                EXPECT_TRUE(pos >= len);
-                result = strncmp(expected_text, reinterpret_cast<char*>(buffer), len);
-                if (result != 0) {
-                    EXPECT_STREQ(expected_text, reinterpret_cast<char*>(buffer));
+                    EXPECT_TRUE(pos >= len);
+                    result = strncmp(text.c_str(), reinterpret_cast<char*>(buffer), len);
+                    if (result != 0) {
+                        failed = true;
+                        compare_string_buffers((char*)text.c_str(), (char*)buffer, len);
+                    }
+                    EXPECT_EQ(0, result);
 
-                    //for (auto i = 0; i < len; ++i)
-                    //{
-                    //    auto e = expected_text[i];
-                    //    auto a = static_cast<char>(buffer[i]);
-                    //    if (e != a)
-                    //    {
-                    //        EXPECT_EQ(e, a);
-                    //    }
-                    //}
+                    free(buffer);
                 }
-                EXPECT_EQ(0, result);
-
-                free(buffer);
             }
         }
     }
 
-    if (expected_text != nullptr)
-    {
+    if (!expected_text.empty()) {
         console = stdout;
     }
-    remove(in_file_name);
-    remove(out_file_name);
+    if (!failed) {
+        remove(in_file_name.c_str());
+        remove(out_file_name.c_str());
+    }
     input_file_count = 0;
     reset_lex();
 }

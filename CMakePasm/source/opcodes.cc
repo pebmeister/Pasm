@@ -7,14 +7,12 @@
 cpu cpu_mode = cpu_6502;
 int allow_illegal_op_codes = 0;
 
-typedef struct instruction_look_up
-{   
+typedef struct instruction_look_up {
     int instruction;
     char* name;
 } instruction_look_up;
 
-typedef struct mode_look_up
-{
+typedef struct mode_look_up {
     int mode;
     char* name;
 } mode_look_up;
@@ -446,25 +444,22 @@ static int ops65c02[_maxOpcode][max_addressing_mode + 1] =
  */
 int get_op_code(const int instruction, const int addressing_mode)
 {
-
     if ((instruction >= 0 && instruction < _maxOpcode) &&
-        (addressing_mode >= 0 && addressing_mode < max_addressing_mode))
-    {
+        (addressing_mode >= 0 && addressing_mode < max_addressing_mode)) {
         if (!allow_illegal_op_codes && instruction >= _illegalStart && cpu_mode == cpu_6502)
             return -1;
 
         switch (cpu_mode)  // NOLINT(hicpp-multiway-paths-covered)
         {
-        case cpu_6502:
-            return ops6502[instruction][addressing_mode + 1];
+            case cpu_6502:
+                return ops6502[instruction][addressing_mode + 1];
 
-        case cpu_65C02:
-            return ops65c02[instruction][addressing_mode + 1];
+            case cpu_65C02:
+                return ops65c02[instruction][addressing_mode + 1];
         }
     }
     return -1;
 }
-
 
 /**
  * \brief Get string representation of instruction

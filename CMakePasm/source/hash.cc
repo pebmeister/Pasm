@@ -12,8 +12,7 @@ unsigned int hash_function(const char* key)
 {
     unsigned int hash = 0;
 
-    for (unsigned long index = 0; key[index]; ++index)
-    {
+    for (unsigned long index = 0; key[index]; ++index) {
         hash += index % 2 ? tolower(key[index]) : toupper(key[index]);
         hash += hash << 10;
         hash ^= hash >> 6;
@@ -28,9 +27,9 @@ unsigned int hash_pointer_function(const void* key)
 {
     unsigned int hash = 0;
 
-    for (size_t index = 0; index < sizeof(void*); ++index)
-    {
-        const unsigned char b = (((unsigned long long)key) & (0xFF << (8 * index))) >> (8 * index);  // NOLINT(clang-diagnostic-implicit-int-conversion)
+    for (size_t index = 0; index < sizeof(void*); ++index) {
+        auto shift = 8 * index;
+        const unsigned char b = (((unsigned long long)key) & (0xFFULL << shift)) >> shift;  // NOLINT(clang-diagnostic-implicit-int-conversion)
 
         hash += b;
         hash += hash << 10;

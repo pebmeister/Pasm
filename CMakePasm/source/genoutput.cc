@@ -51,8 +51,7 @@ int write_byte(FILE* file, const unsigned char ch)
 {
     // ReSharper disable once CppRedundantCastExpression
     const int bytes_written = static_cast<int>(fwrite(&ch, 1, 1, file));
-    if (bytes_written < 1)
-    {
+    if (bytes_written < 1) {
         error(error_writing_output_file);
         return 0;
     }
@@ -65,8 +64,7 @@ int write_word(FILE* file, const int word)
     const unsigned char lo = word & 0xFF;
 
     int bytes_written = write_byte(file, lo);
-    if (bytes_written > 0)
-    {
+    if (bytes_written > 0) {
         bytes_written += write_byte(file, hi);
     }
     return bytes_written;
@@ -77,8 +75,7 @@ int write_string(FILE* file, const char* str)
     const size_t len = strlen(str);
     // ReSharper disable once CppRedundantCastExpression
     const int bytes_written = static_cast<int>(fwrite(str, 1, len, file));
-    if (bytes_written < static_cast<int>(len))
-    {
+    if (bytes_written < static_cast<int>(len)) {
         error(error_writing_output_file);
         return 0;
     }
@@ -94,13 +91,11 @@ int write_header(FILE* file)
         origin = program_counter;
 
     // write header if c64
-    if (output_file_format == c64)
-    {
+    if (output_file_format == c64) {
         bytes_written = write_word(output_file, origin);
         total_bytes_written += (int)bytes_written;
 
-        if (total_bytes_written < 2)
-        {
+        if (total_bytes_written < 2) {
             return -1;
         }
         byte_delta = 2;
@@ -110,12 +105,10 @@ int write_header(FILE* file)
 
 int write_program_counter_pad(FILE* file, const int delta)
 {
-    while (delta + byte_delta > total_bytes_written)
-    {
+    while (delta + byte_delta > total_bytes_written) {
         const int bytes_written = write_byte(output_file, 0);
         total_bytes_written += static_cast<int>(bytes_written);
-        if (bytes_written == 0)
-        {
+        if (bytes_written == 0) {
             return -1;
         }
     }
@@ -126,18 +119,15 @@ int write_string_node(FILE* file, const parse_node_ptr p)
 {
     int bytes_written = write_string(output_file, p->str.value);
     total_bytes_written += (int)bytes_written;
-    if (bytes_written < p->str.len)
-    {
+    if (bytes_written < p->str.len) {
         return -1;
     }
 
     // if using a string with WORD then pad to a word boundary
-    if (data_size == 2 && bytes_written % 2)
-    {
+    if (data_size == 2 && bytes_written % 2) {
         bytes_written = write_byte(output_file, 0);
         total_bytes_written += (int)bytes_written;
-        if (bytes_written == 0)
-        {
+        if (bytes_written == 0) {
             return -1;
         }
     }
@@ -152,22 +142,17 @@ int write_data_node(FILE* file, const parse_node_ptr p)
     const int large_value = (op & ~0xFF) != 0;
     int bytes_written;
 
-    if (overflow && op < 0)
-    {
-        if (data_size != 1)
-        {
-            if (-(op) > 0xFFFE)
-            {
+    if (overflow && op < 0) {
+        if (data_size != 1) {
+            if (-(op) > 0xFFFE) {
                 error(error_value_out_of_range);
                 return 0;
             }
             bytes_written = write_word(output_file, op);
             total_bytes_written += (int)bytes_written;
         }
-        else
-        {
-            if (-(op) > 0xFE)
-            {
+        else {
+            if (-(op) > 0xFE) {
                 error(error_value_out_of_range);
                 return 0;
             }
@@ -175,26 +160,21 @@ int write_data_node(FILE* file, const parse_node_ptr p)
             total_bytes_written += (int)bytes_written;
         }
     }
-    else
-    {
-        if ((data_size == 1 && large_value) || overflow)
-        {
+    else {
+        if ((data_size == 1 && large_value) || overflow) {
             error(error_value_out_of_range);
             return 0;
         }
-        if (data_size == 1 || (data_size == 0 && !large_value))
-        {
+        if (data_size == 1 || (data_size == 0 && !large_value)) {
             bytes_written = write_byte(output_file, op);  // NOLINT(clang-diagnostic-implicit-int-conversion)
             total_bytes_written += (int)bytes_written;
         }
-        else
-        {
+        else {
             bytes_written = write_word(output_file, op);
             total_bytes_written += (int)bytes_written;
         }
     }
-    if (bytes_written < 1)
-    {
+    if (bytes_written < 1) {
         return 0;
     }
     return  bytes_written;
@@ -210,23 +190,19 @@ int write_opcode_node(FILE* file, const parse_node_ptr p)
     // write the opcode byte
     int bytes_written = write_byte(output_file, p->opcode.opcode);  // NOLINT(clang-diagnostic-implicit-int-conversion)
     total_bytes_written += (int)bytes_written;
-    if (bytes_written < 1)
-    {
+    if (bytes_written < 1) {
         error(error_writing_output_file);
         return 0;
     }
 
-    if (bytes > 0)
-    {
+    if (bytes > 0) {
         // expand_node the data bytes
         int op = expand_node(p->op[0]);
-        if (p->opcode.mode == r)
-        {
+        if (p->opcode.mode == r) {
             // make sure a branch is in range
             op -= (p->opcode.program_counter + 2);
 
-            if (op > 128 || op < -127)
-            {
+            if (op > 128 || op < -127) {
                 error(error_value_out_of_range);
                 return 0;
             }
@@ -236,8 +212,7 @@ int write_opcode_node(FILE* file, const parse_node_ptr p)
         data_size = bytes;
         bytes_written = write_data(output_file, op);
         total_bytes_written += (int)bytes_written;
-        if (bytes_written < 1)
-        {
+        if (bytes_written < 1) {
             error(error_writing_output_file);
             return 0;
         }
@@ -266,20 +241,17 @@ int generate_output(FILE* file, const parse_node_ptr p)
         return 0;
 
     // header
-    if (total_bytes_written == 0)
-    {
+    if (total_bytes_written == 0) {
         bytes_written = write_header(file);
-        if (bytes_written < 0)
-        {
+        if (bytes_written < 0) {
             return 0;
         }
     }
 
     const int delta = program_counter - (origin + total_bytes_written);
-    if (delta > 0)
-    {
+    if (delta > 0) {
         error(error_value_out_of_range);
-        exit(-1);        
+        exit(-1);
     }
 
     if (p == NULL)
@@ -287,21 +259,20 @@ int generate_output(FILE* file, const parse_node_ptr p)
 
     switch (p->type)  // NOLINT(clang-diagnostic-switch-enum)
     {
-    case type_str:
-        bytes_written = write_string_node(output_file, p);
-        break;
+        case type_str:
+            bytes_written = write_string_node(output_file, p);
+            break;
 
-    case type_op_code:
-        bytes_written = write_opcode_node(output_file, p);
-        break;
+        case type_op_code:
+            bytes_written = write_opcode_node(output_file, p);
+            break;
 
-    default:
-        bytes_written = write_data_node(output_file, p);
-        break;
+        default:
+            bytes_written = write_data_node(output_file, p);
+            break;
     }
 
-    if (bytes_written < 0)
-    {
+    if (bytes_written < 0) {
         return 0;
     }
     return total_bytes_written - start_bytes;
@@ -319,35 +290,34 @@ int get_op_code_byte_count(const parse_node_ptr p)
     if (p->type != type_op_code)
         return byte_count;
 
-    switch (p->opcode.mode)
-    {
-    case A:     /* Accumulator          */
-    case i:     /* implied              */
-        byte_count = 0;
-        break;
+    switch (p->opcode.mode) {
+        case A:     /* Accumulator          */
+        case i:     /* implied              */
+            byte_count = 0;
+            break;
 
-    case I:     /* immediate            */
-    case r:     /* relative             */
-    case zp:    /* zero page            */
-    case zpi:   /* zero page indirect   */
-    case zpx:   /* zero page x          */
-    case zpy:   /* zero page y          */
-    case izx:   /* zero page indirect x */
-    case izy:   /* zero page indirect y */
-        byte_count = 1;
-        break;
+        case I:     /* immediate            */
+        case r:     /* relative             */
+        case zp:    /* zero page            */
+        case zpi:   /* zero page indirect   */
+        case zpx:   /* zero page x          */
+        case zpy:   /* zero page y          */
+        case izx:   /* zero page indirect x */
+        case izy:   /* zero page indirect y */
+            byte_count = 1;
+            break;
 
-    case a:     /* absolute             */
-    case ax:    /* absolute x           */
-    case ay:    /* absolute y           */
-    case aix:   /* absolute indirect x  */
-    case ind:   /* absolute indirect    */
-        byte_count = 2;
-        break;
+        case a:     /* absolute             */
+        case ax:    /* absolute x           */
+        case ay:    /* absolute y           */
+        case aix:   /* absolute indirect x  */
+        case ind:   /* absolute indirect    */
+            byte_count = 2;
+            break;
 
-    default:
-        error(error_invalid_opcode_or_mode);
-        return 0;
+        default:
+            error(error_invalid_opcode_or_mode);
+            return 0;
     }
     return byte_count;
 }

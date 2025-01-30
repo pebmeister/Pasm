@@ -12,7 +12,6 @@
 #include "node.h"
 #include "opcodes.h"
 #include "pasm.h"
-#include "stacks.h"
 #include "str.h"
 #include "sym.h"
 
@@ -33,7 +32,7 @@ extern void initialize();
 extern void destroy();
 extern char* escape_string(const char* str);
 extern size_t char_to_w_string(std::string s, std::wstring& ws);
-extern void execute_text(const char* text, const unsigned char* expected, size_t count, const char* expected_text);
+extern void execute_text(std::string& text, const unsigned char* expected, const size_t count, std::string expected_text);
 
 extern ops_ptr cpu_6502_illegal_ops;
 extern ops_ptr cpu_65c02_ops;

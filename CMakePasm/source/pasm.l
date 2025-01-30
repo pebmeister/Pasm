@@ -1,7 +1,7 @@
 %option case-insensitive yylineno noyywrap
  
 %{
-#pragma warning(disable:6011 6387 4996 4090  4244)
+#pragma warning(disable:6011 6387 4996 4090 4244 4005)
 
 
 #include <stdbool.h>
@@ -13,7 +13,7 @@
 #include "node.h"
 #include "opcodes.h"
 #include "pasm.tab.h"
-#include "stacks.h"
+
 #include "memory.h"
 
 int do_count = 0;
@@ -159,7 +159,7 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
                                 P_TOK("IF_DEF")
                                 SV_TOK
                                 int last_if = 0;
-                                ifdef_stack->push(ifdef_stack->instance, &last_if);
+                                ifdef_stack.push(&last_if);
 
                                 char* p = yytext;
                                 SKIP_WHITE(p)
@@ -174,7 +174,7 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
                                 P_TOK("IF_DEF")
                                 SV_TOK
                                 int last_if = 0;
-                                ifdef_stack->push(ifdef_stack->instance, &last_if);
+                                ifdef_stack.push(&last_if);
 
                                 char* p = yytext;
                                 SKIP_WHITE(p)
@@ -189,12 +189,12 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
                                 P_TOK("IF")
                                 SV_TOK
                                 int last_if = 1; 
-                                ifdef_stack->push(ifdef_stack->instance, &last_if); 
+                                ifdef_stack.push(&last_if); 
                             }
 <IF_DEF>".ELSE"             {
                                 P_TOK("ELSE")
                                 SV_TOK
-                                int last_if = * (int*) ifdef_stack->top(ifdef_stack->instance);
+                                int last_if = * (int*) ifdef_stack.top();
                                 if (last_if == 0)
                                 {
                                     if (final_pass)
@@ -207,8 +207,8 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
 <IF_DEF>".ENDIF"            {
                                 P_TOK("ENDIF")
                                 SV_TOK
-                                ifdef_stack->pop(ifdef_stack->instance); 
-                                if (ifdef_stack->instance->index < 0)
+                                ifdef_stack.pop(); 
+                                if (ifdef_stack.size() == 0)
                                 {
                                     if (final_pass)
                                     {
@@ -221,9 +221,9 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
 ".ENDIF"                    {  
                                 P_TOK("ENDIF")
                                 SV_TOK
-                                if (ifdef_stack->instance->index < 0) return ENDIF;
+                                if (ifdef_stack.size() == 0) return ENDIF;
 
-                                int last_if = * (int*) ifdef_stack->pop(ifdef_stack->instance);
+                                int last_if = * (int*)ifdef_stack.top(); ifdef_stack.pop();
                                 if (last_if != 0) 
                                 {
                                     return ENDIF; 
@@ -232,12 +232,12 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
 ".IF"                       { 
                                 P_TOK("IF")
                                 SV_TOK 
-                                int last_if = 1; ifdef_stack->push(ifdef_stack->instance, &last_if); return IF; 
+                                int last_if = 1; ifdef_stack.push(&last_if); return IF; 
                             }
 ".ELSE"                     {
                                 P_TOK("ELSE")
                                 SV_TOK
-                                int last_if = * (int*) ifdef_stack->top(ifdef_stack->instance);
+                                int last_if = * (int*) ifdef_stack.top();
                                 if (last_if != 0)
                                 {
                                     return ELSE;
@@ -433,12 +433,12 @@ $[0-9A-Fa-f]*               { SV_TOK INT(1, 16)}
                                 if (final_pass) generate_list_node(NULL);
                                 
                                 yypop_buffer_state();
-                                if (file_stack->instance->index >= 0)
+                                if (file_stack.size() > 0)
                                 {
-
-                                    const file_line_stack_entry* file_line = (file_line_stack_entry*) file_stack->pop(file_stack->instance);
-                                    current_file_name = file_line->file;
-                                    yylineno = file_line->line;
+                                    file_line_stack_entry file_line = file_stack.top();
+                                    file_stack.pop();
+                                    current_file_name = file_line.file;
+                                    yylineno = file_line.line;
 
                                     if (final_pass) generate_list_node(NULL);
                                 }

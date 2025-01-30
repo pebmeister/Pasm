@@ -1,6 +1,14 @@
 #pragma once
+#include <vector>
 #include <stdbool.h>
-#include "stacks.h"
+#include <stack>
+#include "sym.h"
+
+typedef struct file_line_stack_entry {
+    char* file;
+    int line;
+} file_line_stack_entry;
+
 
 enum
 {
@@ -13,12 +21,6 @@ enum
     bin,
     c64
 };
-
-typedef struct file_line_stack_entry
-{
-    char* file;
-    int line;
-} file_line_stack_entry;
 
 extern void reset_lex(void);
 extern void parse_pass(void);
@@ -39,9 +41,9 @@ extern int program_counter;
 extern int input_file_count;
 extern int program_origin_default;
 
-extern stack_ptr file_stack;
-extern stack_ptr ifdef_stack;
-extern stack_ptr changed_sym_stack;
+extern std::stack<file_line_stack_entry> file_stack;
+extern std::stack<int*> ifdef_stack;
+extern std::vector<symbol_table_ptr> changed_sym_list;
 
 extern char* internal_buffer;
 extern char* current_file_name;

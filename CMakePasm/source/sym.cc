@@ -19,7 +19,6 @@
 #include "expand.h"
 #include "memory.h"
 #include "pasm.h"
-#include "stacks.h"
 #include "sym.h"
 
 #include <flex.h>
@@ -27,22 +26,15 @@ bool is_local_sym(const char* name);
 
 #pragma warning(disable: 4996 4267 4090 6386)
 
-typedef struct  macro_stack_entry
-{
-    int num_nodes;
-    int* values;
-} macro_stack_entry;
-
 std::string ToKey(char* key);
 static void sanitize_symbol(symbol_table_ptr symbol);
 static int get_max_macro_parameter(void);
 
-std::allocator<macro_dict_entry> macro_stack_entry_allocator;
 std::allocator<symbol_table> symbol_table_allocator;
 std::allocator<plus_minus_sym> plus_minus_sym_allocator;
 
 std::map<std::string, symbol_table*> symbol_dictionary; 
-stack_ptr macro_params_stack = nullptr;
+std::stack<macro_stack_entry*> macro_params_stack;
 
 // must be less than PLUS_MINUS_TABLE_SIZE
 #define GROW_THRESHOLD 100
@@ -51,6 +43,7 @@ stack_ptr macro_params_stack = nullptr;
 int plus_symbol_table_index = 0;
 int plus_symbol_table_size = 0;
 plus_minus_sym * plus_symbol_table = nullptr;
+std::allocator<macro_stack_entry> macro_stack_entry_allocator;
 
 int minus_symbol_table_index = 0;
 int minus_symbol_table_size = 0;
@@ -112,7 +105,6 @@ symbol_table_ptr add_plus_minus_sym(char* name)
 
     return sym;
 }
-
 
 bool is_local_sym(const char* name)
 {
@@ -266,10 +258,7 @@ symbol_table_ptr set_symbol_value(const symbol_table_ptr sym, const int value)
         sym->value = value;
         if (!sym->is_macro_param && !sym->is_var) {
             sym_value_changed++;
-            if (changed_sym_stack == nullptr) {
-                changed_sym_stack = create_stack(sizeof(symbol_table));
-            }
-            changed_sym_stack->push(changed_sym_stack->instance, sym);
+            changed_sym_list.push_back(sym);
         }
     }
     return sym;
@@ -279,10 +268,8 @@ int find_plus_symbol_definition(const char* file, const int line)
 {
     if (plus_symbol_table_index <= 0) return -1;
 
-    for (int index = 0; index < plus_symbol_table_index; ++index)
-    {
-        if (compare_plus_minus_sym_value(&plus_symbol_table[index], file, line) == 0)
-        {
+    for (int index = 0; index < plus_symbol_table_index; ++index) {
+        if (compare_plus_minus_sym_value(&plus_symbol_table[index], file, line) == 0) {
             return index;
         }
     }
@@ -293,10 +280,8 @@ int find_minus_symbol_definition(const char* file, const int line)
 {
     if (minus_symbol_table_index <= 0) return -1;
 
-    for (int index = 0; index < minus_symbol_table_index; ++index)
-    {
-        if (compare_plus_minus_sym_value(&minus_symbol_table[index], file, line) == 0)
-        {
+    for (int index = 0; index < minus_symbol_table_index; ++index) {
+        if (compare_plus_minus_sym_value(&minus_symbol_table[index], file, line) == 0) {
             return index;
         }
     }
@@ -349,7 +334,7 @@ int find_plus_symbol(const int depth, const char* file, const int line)
 
 void add_minus_symbol(const char* file, const int line, const int value)
 {
-    if (macro_params_stack != nullptr && macro_params_stack->instance->index >= 0) {
+    if (macro_params_stack.size() > 0) {
         error(error_plus_sym_not_allowed_in_macro);
         return;
     }
@@ -379,7 +364,7 @@ void add_minus_symbol(const char* file, const int line, const int value)
 
 void add_plus_symbol(const char* file, const int line, const int value)
 {
-    if (macro_params_stack != nullptr && macro_params_stack->instance->index >= 0) {
+    if (macro_params_stack.size() > 0) {
         error(error_plus_sym_not_allowed_in_macro);
         return;
     }
@@ -413,26 +398,25 @@ int get_max_macro_parameter(void)
 
 void push_macro_params(void)
 {
-    if (macro_params_stack == nullptr) {
-        macro_params_stack = create_stack(sizeof(macro_stack_entry));
-    }
     const int max_macro = get_max_macro_parameter();
 
-    macro_stack_entry macro_stack_param_entry = { 0, nullptr };
+    auto macro_stack_param_entry = macro_stack_entry_allocator.allocate(1);
+    macro_stack_param_entry->num_nodes = 0;
+    macro_stack_param_entry->values = nullptr;
 
     if (max_macro < 0) {
-        macro_stack_param_entry.num_nodes = 0;
+        macro_stack_param_entry->num_nodes = 0;
     }
     else {
-        macro_stack_param_entry.num_nodes = max_macro + 1;
-        macro_stack_param_entry.values = static_cast<int*>(MALLOC(((unsigned long long)max_macro + 1) * sizeof(long)));
+        macro_stack_param_entry->num_nodes = max_macro + 1;
+        macro_stack_param_entry->values = static_cast<int*>(MALLOC(((unsigned long long)max_macro + 1) * sizeof(long)));
 
-        macro_stack_param_entry.values[0] = 0;
-        for (int index = 1; index <= max_macro; index++) {
+        macro_stack_param_entry->values[0] = 0;
+        for (int index = 1; index <= max_macro; index++) { 
             // ReSharper disable once CppLocalVariableMayBeConst
             symbol_table_ptr tmp_ptr = look_up_macro_param(index);
             if (tmp_ptr != nullptr) {
-                macro_stack_param_entry.values[index] = tmp_ptr->value;
+                macro_stack_param_entry->values[index] = tmp_ptr->value;
             }
             else {
                 error(error_macro_parameter_not_found);
@@ -441,17 +425,18 @@ void push_macro_params(void)
         }
     }
 
-    macro_params_stack->push(macro_params_stack->instance, &macro_stack_param_entry);
+    macro_params_stack.push(macro_stack_param_entry);
 }
 
 void pop_macro_params(void)
 {
-    if (macro_params_stack == nullptr || macro_params_stack->instance->index < 0) {
+    if (macro_params_stack.size() < 1) {
         error(error_macro_parameter_under_flow);
         exit(-1);
     }
 
-    auto* macro_stack_param_entry_ptr = static_cast<macro_stack_entry*>(macro_params_stack->pop(macro_params_stack->instance));
+    auto* macro_stack_param_entry_ptr = macro_params_stack.top();
+    macro_params_stack.pop();
 
     for (int index = 1; index < macro_stack_param_entry_ptr->num_nodes; index++) {
         const symbol_table_ptr tmp_ptr = look_up_macro_param(index);
@@ -468,7 +453,7 @@ void pop_macro_params(void)
         macro_stack_param_entry_ptr->values = nullptr;
     }
     macro_stack_param_entry_ptr->num_nodes = 0;
-
+    macro_stack_entry_allocator.destroy(macro_stack_param_entry_ptr);
 }
 
 void sanitize_symbol(const symbol_table_ptr symbol)
@@ -561,6 +546,7 @@ int print_symbol(symbol_table_ptr sym, FILE* file)
 {
     fprintf(file, "\n");
     fprintf(file, "    name:           %s\n", sym->name);
+    fprintf(file, "    name:           %s\n", sym->scope);
     fprintf(file, "    fullname:       %s\n", sym->fullname);
     fprintf(file, "    value:          %d\n", sym->value);
     fprintf(file, "    macro_node:     %p\n", sym->macro_node);
@@ -669,12 +655,11 @@ int unresolved_symbol_count(void)
 void dump_changed_symbols(FILE* file)
 {
     int column = 1;
-    for (int i = 0; i <= changed_sym_stack->instance->index; ++i) {
-        const auto current_entry = static_cast<symbol_table_ptr>(changed_sym_stack->item_at(changed_sym_stack->instance, i));
+    for (auto& changd_sym : changed_sym_list) {
 
         const int columns = 5;
-        const char* name = current_entry->name;
-        const int value = current_entry->value;
+        const char* name = changd_sym->name;
+        const int value = changd_sym->value;
         fprintf(file, "%15s $%4.4X  ", name, value);
         if (column == columns) {
             fprintf(file, "\n");

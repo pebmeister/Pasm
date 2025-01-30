@@ -2,8 +2,12 @@
 #include <stdbool.h>
 #include <string>
 #include <map>
+#include <stack>
 
-#include "stacks.h"
+typedef struct  macro_stack_entry {
+    int num_nodes;
+    int* values;
+} macro_stack_entry;
 
 typedef struct plus_minus_sym
 {
@@ -52,6 +56,6 @@ extern void dump_changed_symbols(FILE* file);
 extern plus_minus_symbol* minus_symbol_table;
 extern plus_minus_symbol* plus_symbol_table;
 extern std::map<std::string, symbol_table_ptr> symbol_dictionary;
-extern stack_ptr macro_params_stack;
+extern std::stack<macro_stack_entry*> macro_params_stack;
 extern int max_macro_param;
 

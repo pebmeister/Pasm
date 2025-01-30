@@ -17,7 +17,6 @@
 #include "memory.h"
 #include "pasm.h"
 #include "pasm.tab.h"
-#include "stacks.h"
 
 const int max_passes = 20;
 
@@ -44,11 +43,9 @@ void reset_lex(void)
     origin_specified = false;
     org_origin_specified = false;
 
-    if (internal_buffer == nullptr)
-    {
+    if (internal_buffer == nullptr) {
         internal_buffer = static_cast<char*>(MALLOC(max_line_len));
-        if (internal_buffer == nullptr)
-        {
+        if (internal_buffer == nullptr) {
             error(error_out_of_memory);
             exit(-1);
         }
@@ -56,8 +53,7 @@ void reset_lex(void)
 
     // reset the the head node
     current_node = head_node = allocate_node(0);
-    if (current_node == nullptr)
-    {
+    if (current_node == nullptr) {
         error(error_out_of_memory);
         exit(-1);
     }
@@ -65,33 +61,17 @@ void reset_lex(void)
 
     reset_macro_dict();
 
-    if (changed_sym_stack == nullptr)
-    {
-        changed_sym_stack = create_stack(sizeof(symbol_table));
+    changed_sym_list.clear();
+
+    while (file_stack.size() > 0) {
+        file_stack.pop();
     }
-    else
-    {
-        changed_sym_stack->clear(changed_sym_stack->instance);
-    }
-    if (file_stack == nullptr)
-    {
-        file_stack = create_stack(sizeof(file_line_stack_entry));
-    }
-    else
-    {
-        file_stack->clear(file_stack->instance);
-    }
-    if (ifdef_stack == nullptr)
-    {
-        ifdef_stack = create_stack(sizeof(int));
-    }
-    else
-    {
-        ifdef_stack->clear(ifdef_stack->instance);
+
+    while (ifdef_stack.size() > 0) {
+        ifdef_stack.pop();
     }
     in_macro_definition = 0;
 }
-
 
 /**
  * \brief Parse one pass iterating through all files
@@ -101,25 +81,21 @@ void parse_pass(void)
     reset_lex();
 
     // loop through each input line_content
-    for (int in_file_index = 0; in_file_index < input_file_count; in_file_index++)
-    {
+    for (int in_file_index = 0; in_file_index < input_file_count; in_file_index++) {
         // initialize line number and set line_content name
         yylineno = 0;
 
         current_file_name = input_files[in_file_index];
         yyin = open_file(current_file_name, "r");
-        if (yyin == nullptr)
-        {
+        if (yyin == nullptr) {
             error2(error_cant_open_input_file, current_file_name);
             exit(-1);
         }
 
-        if (log_file.is_open())
-        {
+        if (log_file.is_open()) {
             log_file << "Current File " << current_file_name << std::endl;
         }
-        if (verbose)
-        {
+        if (verbose) {
             fprintf(console, "Current File %s\n", current_file_name);
         }
 
@@ -129,18 +105,16 @@ void parse_pass(void)
         // reset parser
         yyrestart(yyin);
 
-        if (final_pass)
-        {
+        if (final_pass) {
             generate_list_node(nullptr);
         }
         // parse the line_content
         yyparse();
 
-        if (final_pass)
-        {
+        if (final_pass) {
             generate_list_node(nullptr);
         }
-        
+
         // close the line_content
         fclose(yyin);
 
@@ -150,8 +124,7 @@ void parse_pass(void)
     // free the parse tree
     free_parse_tree();
 
-    if (current_scope)
-    {
+    if (current_scope) {
         FREE(current_scope);
         current_scope = nullptr;
     }
@@ -164,8 +137,7 @@ int assemble(void)
     delete_list_table();
     delete_file_lines();
 
-    if (verbose)
-    {
+    if (verbose) {
         fprintf(console, "\n");
     }
 
@@ -175,21 +147,17 @@ int assemble(void)
 
     pass = 1;
 
-    if (log_file_name != nullptr)
-    {
+    if (log_file_name != nullptr) {
         open_file_stream(log_file, log_file_name, std::ios::trunc | std::ios::out);
-        if (!log_file.is_open())
-        {
+        if (!log_file.is_open()) {
             error(error_opening_log_file);
             return -1;
         }
     }
 
     int clean_pass_count = 0;
-    do
-    {
-        if (verbose)
-        {
+    do {
+        if (verbose) {
             fprintf(console, "Pass %d\n", pass);
         }
 
@@ -201,11 +169,9 @@ int assemble(void)
         else
             clean_pass_count = 0;
 
-        if (verbose && clean_pass_count == 0 && pass > 3)
-        {
+        if (verbose && clean_pass_count == 0 && pass > 3) {
             fprintf(console, "%d unresolved symbols %d symbols value changed\n\n", unresolved_count, sym_value_changed);
-            if (unresolved_count > 0)
-            {
+            if (unresolved_count > 0) {
                 fprintf(console, "Unresolved symbols:\n");
                 dump_unresolved_symbols(console);
             }
@@ -214,10 +180,8 @@ int assemble(void)
 
     } while (error_count == 0 && pass < max_passes && clean_pass_count < 1);
 
-    if (pass >= max_passes)
-    {
-        if (sym_value_changed > 0)
-        {
+    if (pass >= max_passes) {
+        if (sym_value_changed > 0) {
             fprintf(console, "check symbols:\n");
             dump_changed_symbols(console);
         }
@@ -225,8 +189,7 @@ int assemble(void)
         return -1;
     }
 
-    if (error_count > 0)
-    {
+    if (error_count > 0) {
         fprintf(console_error, "%d error(s)\n", error_count);
         return -1;
     }
@@ -237,11 +200,9 @@ int assemble(void)
     // set final pass flag
     final_pass = true;
 
-    if (output_file_name != nullptr)
-    {
+    if (output_file_name != nullptr) {
         output_file = fopen(output_file_name, "wb");
-        if (output_file == nullptr)
-        {
+        if (output_file == nullptr) {
             error(error_opening_output_file);
             return -1;
         }
@@ -250,18 +211,15 @@ int assemble(void)
     parse_pass();
 
     // close output line_content
-    if (output_file != nullptr)
-    {
+    if (output_file != nullptr) {
         fclose(output_file);
         fprintf(console, "\n%d bytes written to %s\n\n", total_bytes_written, output_file_name);
     }
 
     // generate symbol line_content
-    if (sym_file_name != nullptr)
-    {
+    if (sym_file_name != nullptr) {
         sym_file = fopen(sym_file_name, "w");
-        if (sym_file == nullptr)
-        {
+        if (sym_file == nullptr) {
             error(error_opening_symbol_file);
             return -1;
         }
@@ -273,23 +231,19 @@ int assemble(void)
     }
 
     // generate the list file
-    if (list_file_name != nullptr)
-    {
+    if (list_file_name != nullptr) {
         list_file = fopen(list_file_name, "w");
-        if (list_file == nullptr)
-        {
+        if (list_file == nullptr) {
             error(error_opening_list_file);
         }
-        else
-        {
+        else {
             generate_list_file(list_file);
             fclose(list_file);
         }
     }
 
     // generate verbose output
-    if (verbose)
-    {
+    if (verbose) {
         dump_symbols(console);
         reset_file_lines();
         generate_list_file(console);

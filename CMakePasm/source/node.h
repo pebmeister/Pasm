@@ -21,7 +21,7 @@ typedef enum
 typedef struct
 {
     int value;                      /* value of constant */
-    int is_program_counter;         /* TRUE is value is PC */
+    int is_program_counter;         /* TRUE if value is PC */
 } constant_node_struct;
 
 typedef struct
@@ -35,7 +35,7 @@ typedef struct
 typedef struct
 {
     char* name;
-    symbol_table_ptr i;          /* symbol entry */
+    symbol_table_ptr symbol_table_ptr;          /* symbol entry */
 } id_node_struct;
 
 /* operators */

@@ -30,11 +30,9 @@ file_line_node* get_file_line(char* file, const int line)
     for (; current_file_entry != nullptr && stricmp(current_file_entry->filename, file) != 0; current_file_entry = current_file_entry->next)
         prev = current_file_entry;
 
-    if (!current_file_entry)
-    {
+    if (!current_file_entry) {
         current_file_entry = static_cast<file_entry*>(MALLOC(sizeof(file_entry)));
-        if (current_file_entry)
-        {
+        if (current_file_entry) {
             memset(current_file_entry, 0, sizeof(file_entry));
             current_file_entry->filename = file;
             current_file_entry->lines = read_file_lines(file);
@@ -42,13 +40,11 @@ file_line_node* get_file_line(char* file, const int line)
                 prev->next = current_file_entry;
         }
     }
-    if (current_file_entry)
-    {
+    if (current_file_entry) {
         if (source_file_list == nullptr)
             source_file_list = current_file_entry;
 
-        if (stricmp(current_file_entry->filename, file) == 0)
-        {
+        if (stricmp(current_file_entry->filename, file) == 0) {
             file_line_node* line_entry = current_file_entry->lines;
             for (; line_entry && line_entry->line_number < line; line_entry = line_entry->next)
                 ;
@@ -64,8 +60,7 @@ const char* source_indent_format = "%-45s%s";
 void delete_list_table(void)
 {
     list_table_ptr list_node = list_head;
-    while (list_node)
-    {
+    while (list_node) {
         const list_table_ptr next = list_node->next;
         FREE(list_node->output);
         FREE(list_node->filename);
@@ -86,18 +81,15 @@ void generate_list_file(FILE* list_file)
 
     current_file_name = list_head->filename;
     fprintf(list_file, "; Processing %s\n", current_file_name);
-    for (int line = 1; line < list_head->line; ++line)
-    {
+    for (int line = 1; line < list_head->line; ++line) {
         internal_buffer[0] = 0;
         file_line_node* source_list = get_file_line(list_node->filename, line);
 
         if (list_node->list_directive)
             continue;
 
-        if (source_list->displayed == 0)
-        {
-            if (state)
-            {
+        if (source_list->displayed == 0) {
+            if (state) {
                 sprintf(internal_buffer, source_indent_format, "", source_list->line_content);
                 fputs(internal_buffer, list_file);
             }
@@ -106,23 +98,17 @@ void generate_list_file(FILE* list_file)
     }
 
     // loop through all list  nodes
-    for (; list_node; list_node = list_node->next)
-    {
-        if (current_file_name == nullptr || stricmp(current_file_name, list_node->filename))
-        {
-
-
+    for (; list_node; list_node = list_node->next) {
+        if (current_file_name == nullptr || stricmp(current_file_name, list_node->filename)) {
             current_file_name = list_node->filename;
             fprintf(list_file, "; Processing %s\n", current_file_name);
         }
 
-        if (list_node->print_state != state)
-        {
+        if (list_node->print_state != state) {
             state = list_node->print_state;
             continue;
         }
-        if (list_node->list_directive)
-        {
+        if (list_node->list_directive) {
             continue;
         }
 
@@ -143,40 +129,31 @@ void generate_list_file(FILE* list_file)
             continue;
 
         internal_buffer[0] = 0;
-        if (source_list->displayed == 0)
-        {
-            if (state)
-            {
+        if (source_list->displayed == 0) {
+            if (state) {
                 sprintf(internal_buffer, source_indent_format, list_node->output, source_list->line_content);
             }
             source_list->displayed++;
         }
-        else
-        {
-            if (state)
-            {
+        else {
+            if (state) {
                 sprintf(internal_buffer, source_indent_format, list_node->output, "\n");
             }
         }
         fputs(internal_buffer, list_file);
 
-        for (source_list = source_list->next; source_list && source_list->line_number <= end_line; source_list = source_list->next)
-        {
+        for (source_list = source_list->next; source_list && source_list->line_number <= end_line; source_list = source_list->next) {
             internal_buffer[0] = 0;
-            sprintf(internal_buffer, source_indent_format, "","");
+            sprintf(internal_buffer, source_indent_format, "", "");
             fputs(internal_buffer, list_file);
-            if (source_list->displayed == 0)
-            {
-                if (state)
-                {
+            if (source_list->displayed == 0) {
+                if (state) {
                     fprintf(list_file, "%s", source_list->line_content);
                 }
                 source_list->displayed++;
             }
-            else
-            {
-                if (state)
-                {
+            else {
+                if (state) {
                     fputs("\n", list_file);
                 }
             }
@@ -189,10 +166,8 @@ void generate_list_file(FILE* list_file)
  */
 void reset_file_lines(void)
 {
-    for (const file_entry * file_entry = source_file_list; file_entry != nullptr; file_entry = file_entry->next)
-    {
-        for (file_line_node* file_line_ptr = file_entry->lines; file_line_ptr != nullptr; file_line_ptr = file_line_ptr->next)
-        {
+    for (const file_entry* file_entry = source_file_list; file_entry != nullptr; file_entry = file_entry->next) {
+        for (file_line_node* file_line_ptr = file_entry->lines; file_line_ptr != nullptr; file_line_ptr = file_line_ptr->next) {
             file_line_ptr->displayed = 0;
         }
     }
@@ -212,8 +187,7 @@ void delete_file_lines(void)
  */
 list_table_ptr add_list(const char* file, int line, const char* output)
 {
-    if (Debug_AddList)
-    {
+    if (Debug_AddList) {
         fprintf(console, "add_list (%s) (%d) \'%s'\n\n", file, line, output);
     }
 
@@ -222,8 +196,7 @@ list_table_ptr add_list(const char* file, int line, const char* output)
 
     // ReSharper disable once CppLocalVariableMayBeConst
     auto var_ptr = static_cast<list_table_ptr>(MALLOC(sizeof(list_table)));
-    if (var_ptr == nullptr)
-    {
+    if (var_ptr == nullptr) {
         error(error_out_of_memory);
         exit(-1);
     }
@@ -231,22 +204,19 @@ list_table_ptr add_list(const char* file, int line, const char* output)
     var_ptr->print_state = print_list_state;
 
     var_ptr->filename = (char*)STRDUP(file);
-    if (var_ptr->filename == nullptr)
-    {
+    if (var_ptr->filename == nullptr) {
         error(error_out_of_memory);
         exit(-1);
     }
     var_ptr->line = line + 1;
-    var_ptr->output = (char*) STRDUP(output);
-    if (var_ptr->output == nullptr)
-    {
+    var_ptr->output = (char*)STRDUP(output);
+    if (var_ptr->output == nullptr) {
         error(error_out_of_memory);
         exit(-1);
     }
     list_table_ptr tmp_ptr = list_head;
 
-    if (list_head == nullptr)
-    {
+    if (list_head == nullptr) {
         list_head = var_ptr;
         return var_ptr;
     }

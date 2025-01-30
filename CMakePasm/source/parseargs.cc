@@ -6,6 +6,7 @@
 // ReSharper disable CppClangTidyClangDiagnosticDeprecatedDeclarations
 // ReSharper disable CppClangTidyConcurrencyMtUnsafe
 
+#pragma warning(disable: 4005)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

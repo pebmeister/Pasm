@@ -21,8 +21,7 @@
 
 #pragma warning(disable:4996 4090)
 
-enum
-{
+enum {
     path_max = 4096
 };
 
@@ -37,18 +36,15 @@ void open_file_stream(std::ofstream& file, const char* filename, const std::ios:
 
     if (directories == nullptr) return;
 
-    for (char* directory = directories; *directory != 0;)
-    {
+    for (char* directory = directories; *directory != 0;) {
         char* p = path;
         int len = 0;
-        while (*directory != 0 && *directory != ';' && len < (path_max - 1))
-        {
+        while (*directory != 0 && *directory != ';' && len < (path_max - 1)) {
             ++len;
             *p++ = *directory++;
         }
         *p = 0;
-        if (len + strlen(filename) + 2 >= path_max)
-        {
+        if (len + strlen(filename) + 2 >= path_max) {
             error2(error_path_name_too_long, path);
             exit(-1);  // NOLINT(concurrency-mt-unsafe)
         }
@@ -73,8 +69,7 @@ void open_file_stream(std::ofstream& file, const char* filename, const std::ios:
  */
 FILE* open_file(const char* file, const char* mode)
 {
-    if (file == NULL)
-    {
+    if (file == NULL) {
         return NULL;
     }
 
@@ -83,18 +78,15 @@ FILE* open_file(const char* file, const char* mode)
 
     if (directories == NULL) return NULL;
 
-    for (char* dir = directories; *dir != 0;)
-    {
+    for (char* dir = directories; *dir != 0;) {
         char* p = path;
         int len = 0;
-        while (*dir != 0 && *dir != ';' && len < (path_max -1))
-        {
+        while (*dir != 0 && *dir != ';' && len < (path_max - 1)) {
             ++len;
             *p++ = *dir++;
         }
         *p = 0;
-        if (len + strlen(file) + 2 >= path_max)
-        {
+        if (len + strlen(file) + 2 >= path_max) {
             error2(error_path_name_too_long, path);
             exit(-1);  // NOLINT(concurrency-mt-unsafe)
         }
@@ -125,30 +117,24 @@ file_line_node* read_file_lines(const char* file_name)
     file_line_node* head_file_node = NULL;
     file_line_node* file_node = NULL;
     FILE* file = open_file(file_name, "r");
-    if (file == NULL)
-    {
+    if (file == NULL) {
         error(error_opening_list_file);
         return NULL;
     }
-    while (!feof(file))
-    {
+    while (!feof(file)) {
         internal_buffer[0] = 0;
-        if (fgets(internal_buffer, max_line_len, file))
-        {
-            if (file_node == NULL)
-            {
+        if (fgets(internal_buffer, max_line_len, file)) {
+            if (file_node == NULL) {
                 // ReSharper disable once CppCStyleCast
                 file_node = (file_line_node*)MALLOC(sizeof(file_line_node));
                 head_file_node = file_node;
             }
-            else
-            {
+            else {
                 // ReSharper disable once CppCStyleCast
                 file_node->next = (file_line_node*)MALLOC(sizeof(file_line_node));
                 file_node = file_node->next;
             }
-            if (file_node == NULL)
-            {
+            if (file_node == NULL) {
                 error(error_out_of_memory);
                 return NULL;
             }
@@ -169,8 +155,7 @@ file_line_node* read_file_lines(const char* file_name)
 void free_file_lines(file_line_node* file_lines)
 {
     file_line_node* temp = file_lines;
-    while (temp != NULL)
-    {
+    while (temp != NULL) {
         file_line_node* next = temp->next;
         FREE(temp->line_content);
         FREE(temp);
@@ -187,11 +172,8 @@ int open_include_file(char* file)
 {
     if (final_pass) generate_list_node(NULL);
 
-    file_line_stack_entry file_line;
-    file_line.file = current_file_name;
-    file_line.line = yylineno;
-    
-    file_stack->push(file_stack->instance, &file_line);
+    file_line_stack_entry file_line = { current_file_name, yylineno };
+    file_stack.push(file_line);
 
     current_file_name = file;
 
@@ -200,14 +182,11 @@ int open_include_file(char* file)
 
     if (final_pass) generate_list_node(NULL);
 
-    if (!yyin)
-    {
-        if (file != NULL)
-        {
+    if (!yyin) {
+        if (file != NULL) {
             error2(error_cant_open_include_file, file);
         }
-        else
-        {
+        else {
             error(error_cant_open_include_file);
         }
         exit(-1);  // NOLINT(concurrency-mt-unsafe)

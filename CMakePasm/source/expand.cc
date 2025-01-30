@@ -108,7 +108,6 @@ const int dec[] =
     _dex
 };
 
-
 char* current_scope = nullptr;
 char* last_label = nullptr;
 
@@ -431,7 +430,7 @@ int expand_plus_minus_node(const parse_node_ptr p)
         ? find_minus_symbol(strlen(p->id.name), current_file_name, yylineno)
         : find_plus_symbol(strlen(p->id.name), current_file_name, yylineno);
 
-    const symbol_table_ptr sym = p->id.i == nullptr ? add_symbol(p->id.name) : p->id.i;
+    const symbol_table_ptr sym = p->id.symbol_table_ptr == nullptr ? add_symbol(p->id.name) : p->id.symbol_table_ptr;
     sym->is_plus_minus = true;
     if (index >= 0) {
         sym->value = p->id.name[0] == '-'
@@ -441,7 +440,7 @@ int expand_plus_minus_node(const parse_node_ptr p)
         sym->is_initialized = true;
         sym->times_accessed++;
     }
-    p->id.i = sym;
+    p->id.symbol_table_ptr = sym;
 
     return sym->value;
 }
@@ -454,14 +453,14 @@ int expand_id_node(const parse_node_ptr p)
     if (p->id.name[0] == '-' || p->id.name[0] == '+')
         return expand_plus_minus_node(p);
 
-    symbol_table_ptr sym = p->id.i;
+    symbol_table_ptr sym = p->id.symbol_table_ptr;
     if (p->id.name[0] == '@') {
         sym = add_symbol(p->id.name);
-        p->id.i = sym;
+        p->id.symbol_table_ptr = sym;
     }
     if (sym == nullptr) {
         sym = add_symbol(p->id.name);
-        p->id.i = sym;
+        p->id.symbol_table_ptr = sym;
         if (sym == nullptr) {
             // FatalError(error_out_of_memory);
             return 0;
@@ -478,10 +477,10 @@ int expand_label_node(const parse_node_ptr p)
     if (p->id.name[0] == '-' || p->id.name[0] == '+')
         return expand_plus_minus_node(p);
 
-    symbol_table_ptr symbol_ptr = p->id.i;
+    symbol_table_ptr symbol_ptr = p->id.symbol_table_ptr;
     if (symbol_ptr == nullptr) {
-        p->id.i = add_symbol(p->id.name);
-        symbol_ptr = p->id.i;
+        p->id.symbol_table_ptr = add_symbol(p->id.name);
+        symbol_ptr = p->id.symbol_table_ptr;
         if (symbol_ptr == nullptr) {
             error(error_out_of_memory);
             exit(-1);
@@ -1037,10 +1036,10 @@ int expand_operator_expression_list_node(const parse_node_ptr p)
                 {
                     case type_id:
                     case type_label:
-                        symbol_ptr = pp->id.i;
+                        symbol_ptr = pp->id.symbol_table_ptr;
                         if (symbol_ptr == nullptr) {
-                            pp->id.i = add_symbol(pp->id.name);
-                            symbol_ptr = pp->id.i;
+                            pp->id.symbol_table_ptr = add_symbol(pp->id.name);
+                            symbol_ptr = pp->id.symbol_table_ptr;
                             if (symbol_ptr == nullptr) {
                                 error(error_adding_symbol);
                                 break;
@@ -1227,7 +1226,7 @@ int expand_macro_id_node(const parse_node_ptr p)
 
     expand_id_node(p);
 
-    const symbol_table_ptr sym = p->id.i;
+    const symbol_table_ptr sym = p->id.symbol_table_ptr;
     if (!sym || !sym->macro_node) {
         last_label = temp;
         return 0;
@@ -1287,7 +1286,7 @@ int expand_operator_macro_definition_node(const parse_node_ptr p)
         exit(-1);
     }
 
-    p->id.i = sym;
+    p->id.symbol_table_ptr = sym;
     sym->is_macro_name = true;
     sym->is_initialized = true;
     sym->macro_node = p->op[1];
@@ -1363,9 +1362,9 @@ int expand_operator_for_node(const parse_node_ptr p)
 
     const parse_node_ptr pp = p->op[0];
     if (pp->op[0]->type == type_id) {
-        if (pp->op[0]->id.i == nullptr)
-            pp->op[0]->id.i = add_symbol(pp->op[0]->id.name);
-        start_sym = pp->op[0]->id.i;
+        if (pp->op[0]->id.symbol_table_ptr == nullptr)
+            pp->op[0]->id.symbol_table_ptr = add_symbol(pp->op[0]->id.name);
+        start_sym = pp->op[0]->id.symbol_table_ptr;
         if (start_sym == nullptr) {
             error(error_out_of_memory);
             exit(-1);
@@ -1373,10 +1372,10 @@ int expand_operator_for_node(const parse_node_ptr p)
     }
 
     expand_node(p->op[0]);
-    if (p->op[3]->id.i == nullptr)
-        p->op[3]->id.i = add_symbol(p->op[3]->id.name);
+    if (p->op[3]->id.symbol_table_ptr == nullptr)
+        p->op[3]->id.symbol_table_ptr = add_symbol(p->op[3]->id.name);
 
-    const symbol_table_ptr sym = p->op[3]->id.i;
+    const symbol_table_ptr sym = p->op[3]->id.symbol_table_ptr;
     if (sym == nullptr) {
         error(error_out_of_memory);
         exit(-1);
@@ -1471,10 +1470,7 @@ int expand_operator_ds_node(const parse_node_ptr p)
         exit(-1);
     }
 
-    //    if (final_pass)
-    {
-        program_counter += count > 0 ? count : 1;
-    }
+    program_counter += count > 0 ? count : 1;
 
     return op;
 }
@@ -1545,9 +1541,9 @@ int expand_operator_equ_node(const parse_node_ptr p)
         return op;
     }
 
-    if (p->op[0]->id.i == nullptr || p->op[0]->id.name[0] == '@')
-        p->op[0]->id.i = add_symbol(p->op[0]->id.name);
-    symbol_table_ptr sym = p->op[0]->id.i;
+    if (p->op[0]->id.symbol_table_ptr == nullptr || p->op[0]->id.name[0] == '@')
+        p->op[0]->id.symbol_table_ptr = add_symbol(p->op[0]->id.name);
+    symbol_table_ptr sym = p->op[0]->id.symbol_table_ptr;
     if (sym == nullptr) {
         error(error_out_of_memory);
         exit(-1);
@@ -1803,9 +1799,9 @@ int expand_node(const parse_node_ptr p)
 int is_uninitialized_symbol(const parse_node_ptr p)
 {
     if (p->type == type_label || p->type == type_id) {
-        if (p->id.i == nullptr)
+        if (p->id.symbol_table_ptr == nullptr)
             return true;
-        const symbol_table_ptr sym = p->id.i;
+        const symbol_table_ptr sym = p->id.symbol_table_ptr;
         if (sym->is_macro_param || sym->is_macro_name)
             return false;
 

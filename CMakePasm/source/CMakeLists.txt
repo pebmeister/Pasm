@@ -61,8 +61,7 @@ add_library(engine
     hash.cc
     memory.cc
     node.cc
-    opcodes.cc       
-    stacks.cc
+    opcodes.cc
     str.cc
     sym.cc
     pass.cc)

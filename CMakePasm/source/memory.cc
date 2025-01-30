@@ -23,13 +23,11 @@
 
 #include "node.h"
 #include "pasm.h"
-#include "stacks.h"
 
 #pragma warning(disable: 4090 4996)
 extern bool track_malloc;
 
-typedef struct
-{
+typedef struct {
     size_t size;
     char* function;
     int line;
@@ -53,7 +51,7 @@ void* pasm_malloc(const size_t size, const char* function, const int line)
     track_malloc = false;
 
     auto entry = memory_entry_allocator.allocate(1);
-    entry->function = (char*) STRDUP(function);
+    entry->function = (char*)STRDUP(function);
     entry->line = line;
     entry->size = size;
     entry->memory = malloc(size);
@@ -134,8 +132,7 @@ const char* pasm_strdup(const char* str, const char* function, const int line)
 
 int print_memory(memory_entry* me, FILE* file)
 {
-    if (stricmp(me->function, "allocate_node") == 0 && me->size == sizeof(parse_node))
-    {
+    if (stricmp(me->function, "allocate_node") == 0 && me->size == sizeof(parse_node)) {
         const parse_node_ptr p = static_cast<parse_node_ptr>(me->memory);
         if (!p->allocated)
             return 0;
@@ -149,18 +146,17 @@ int print_memory(memory_entry* me, FILE* file)
 }
 
 #ifndef _WIN32
-int stricmp(char const *a, char const *b) 
+int stricmp(char const* a, char const* b)
 {
-  while (*b) {
-    int d = tolower(*a) - tolower(*b);
-    if (d) 
-    {
-        return d;
-    } 
-    a++;
-    b++;
-  } 
-  return tolower(*a);
+    while (*b) {
+        int d = tolower(*a) - tolower(*b);
+        if (d) {
+            return d;
+        }
+        a++;
+        b++;
+    }
+    return tolower(*a);
 }
 #endif
 
