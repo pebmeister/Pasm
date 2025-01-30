@@ -35,7 +35,7 @@ typedef struct
 typedef struct
 {
     char* name;
-    symbol_table_ptr symbol_table_ptr;          /* symbol entry */
+    symbol_table_ptr symbol_ptr;          /* symbol entry */
 } id_node_struct;
 
 /* operators */

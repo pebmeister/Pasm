@@ -16,7 +16,8 @@
 
 #include "memory.h"
 
-int do_count = 0;
+int last_if = 0;
+static int do_count = 0;
 static char* last_token = nullptr;
 static bool Debug_Token = false;
 extern bool Debug_Bison;
@@ -158,7 +159,7 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
 ".IFDEF"[ \t]+{SYMB}        {
                                 P_TOK("IF_DEF")
                                 SV_TOK
-                                int last_if = 0;
+                                last_if = 0;
                                 ifdef_stack.push(&last_if);
 
                                 char* p = yytext;
@@ -173,7 +174,7 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
 ".IFNDEF"[ \t]+{SYMB}       {
                                 P_TOK("IF_DEF")
                                 SV_TOK
-                                int last_if = 0;
+                                last_if = 0;
                                 ifdef_stack.push(&last_if);
 
                                 char* p = yytext;
@@ -188,13 +189,13 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
 <IF_DEF>".IF"               { 
                                 P_TOK("IF")
                                 SV_TOK
-                                int last_if = 1; 
+                                last_if = 1; 
                                 ifdef_stack.push(&last_if); 
                             }
 <IF_DEF>".ELSE"             {
                                 P_TOK("ELSE")
                                 SV_TOK
-                                int last_if = * (int*) ifdef_stack.top();
+                                last_if = * (int*) ifdef_stack.top();
                                 if (last_if == 0)
                                 {
                                     if (final_pass)
@@ -223,7 +224,7 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
                                 SV_TOK
                                 if (ifdef_stack.size() == 0) return ENDIF;
 
-                                int last_if = * (int*)ifdef_stack.top(); ifdef_stack.pop();
+                                last_if = * (int*)ifdef_stack.top(); ifdef_stack.pop();
                                 if (last_if != 0) 
                                 {
                                     return ENDIF; 
@@ -232,12 +233,12 @@ SYMB                        @?[A-Za-z_][A-Za-z0-9_.]*
 ".IF"                       { 
                                 P_TOK("IF")
                                 SV_TOK 
-                                int last_if = 1; ifdef_stack.push(&last_if); return IF; 
+                                last_if = 1; ifdef_stack.push(&last_if); return IF; 
                             }
 ".ELSE"                     {
                                 P_TOK("ELSE")
                                 SV_TOK
-                                int last_if = * (int*) ifdef_stack.top();
+                                last_if = * (int*) ifdef_stack.top();
                                 if (last_if != 0)
                                 {
                                     return ELSE;

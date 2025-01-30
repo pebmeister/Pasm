@@ -596,33 +596,33 @@ void print_node(parse_node_ptr p, std::ostream& file)
             print_indent(file);
             file << "name " << p->id.name << std::endl;
             print_indent(file);
-            if (p->id.symbol_table_ptr == nullptr) {
+            if (p->id.symbol_ptr == nullptr) {
                 file << "i    (nil)" << std::endl;
             }
             else {
-                file << "i    0x" << std::setfill('0') << std::setw(8) << std::hex << p->id.symbol_table_ptr << std::endl;
+                file << "i    0x" << std::setfill('0') << std::setw(8) << std::hex << p->id.symbol_ptr << std::endl;
             }
-            if (p->id.symbol_table_ptr) {
+            if (p->id.symbol_ptr) {
                 print_indent(file);
-                file << "     fullname     " << p->id.symbol_table_ptr->fullname << std::endl;
+                file << "     fullname     " << p->id.symbol_ptr->fullname << std::endl;
                 print_indent(file);
-                file << "     is_initialized  " << p->id.symbol_table_ptr->is_initialized << std::endl;
+                file << "     is_initialized  " << p->id.symbol_ptr->is_initialized << std::endl;
                 print_indent(file);
-                file << "     value        " << p->id.symbol_table_ptr->value << std::endl;
+                file << "     value        " << p->id.symbol_ptr->value << std::endl;
                 print_indent(file);
-                file << "     ismacroname  " << p->id.symbol_table_ptr->is_macro_name << std::endl;
+                file << "     ismacroname  " << p->id.symbol_ptr->is_macro_name << std::endl;
                 print_indent(file);
-                file << "     ismacroparam " << p->id.symbol_table_ptr->is_macro_param << std::endl;
+                file << "     ismacroparam " << p->id.symbol_ptr->is_macro_param << std::endl;
                 print_indent(file);
-                file << "     isplusminus  " << p->id.symbol_table_ptr->is_plus_minus << std::endl;
+                file << "     isplusminus  " << p->id.symbol_ptr->is_plus_minus << std::endl;
                 print_indent(file);
-                file << "     isvar        " << p->id.symbol_table_ptr->is_var << std::endl;
+                file << "     isvar        " << p->id.symbol_ptr->is_var << std::endl;
                 print_indent(file);
-                file << "     macroNode    " << std::setfill('0') << std::setw(8) << std::hex << p->id.symbol_table_ptr->macro_node << std::endl;
+                file << "     macroNode    " << std::setfill('0') << std::setw(8) << std::hex << p->id.symbol_ptr->macro_node << std::endl;
                 print_indent(file);
-                file << "     scope      " << (p->id.symbol_table_ptr->scope ? p->id.symbol_table_ptr->scope : "NULL") << std::endl;
+                file << "     scope      " << (p->id.symbol_ptr->scope ? p->id.symbol_ptr->scope : "NULL") << std::endl;
                 print_indent(file);
-                file << "     name         " << p->id.symbol_table_ptr->name << std::endl;
+                file << "     name         " << p->id.symbol_ptr->name << std::endl;
             }
             break;
 
@@ -1055,33 +1055,33 @@ void print_node(parse_node_ptr p, std::ofstream& file)
             print_indent(file);
             file << "name " << p->id.name << std::endl;
             print_indent(file);
-            if (p->id.symbol_table_ptr == nullptr) {
+            if (p->id.symbol_ptr == nullptr) {
                 file << "i    (nil)" << std::endl;
             }
             else {
-                file << "i    0x" << std::setfill('0') << std::setw(8) << std::hex << p->id.symbol_table_ptr << std::endl;
+                file << "i    0x" << std::setfill('0') << std::setw(8) << std::hex << p->id.symbol_ptr << std::endl;
             }
-            if (p->id.symbol_table_ptr) {
+            if (p->id.symbol_ptr) {
                 print_indent(file);
-                file << "     fullname     " << p->id.symbol_table_ptr->fullname << std::endl;
+                file << "     fullname     " << p->id.symbol_ptr->fullname << std::endl;
                 print_indent(file);
-                file << "     is_initialized  " << p->id.symbol_table_ptr->is_initialized << std::endl;
+                file << "     is_initialized  " << p->id.symbol_ptr->is_initialized << std::endl;
                 print_indent(file);
-                file << "     value        " << p->id.symbol_table_ptr->value << std::endl;
+                file << "     value        " << p->id.symbol_ptr->value << std::endl;
                 print_indent(file);
-                file << "     ismacroname  " << p->id.symbol_table_ptr->is_macro_name << std::endl;
+                file << "     ismacroname  " << p->id.symbol_ptr->is_macro_name << std::endl;
                 print_indent(file);
-                file << "     ismacroparam " << p->id.symbol_table_ptr->is_macro_param << std::endl;
+                file << "     ismacroparam " << p->id.symbol_ptr->is_macro_param << std::endl;
                 print_indent(file);
-                file << "     isplusminus  " << p->id.symbol_table_ptr->is_plus_minus << std::endl;
+                file << "     isplusminus  " << p->id.symbol_ptr->is_plus_minus << std::endl;
                 print_indent(file);
-                file << "     isvar        " << p->id.symbol_table_ptr->is_var << std::endl;
+                file << "     isvar        " << p->id.symbol_ptr->is_var << std::endl;
                 print_indent(file);
-                file << "     macroNode    " << std::setfill('0') << std::setw(8) << std::hex << p->id.symbol_table_ptr->macro_node << std::endl;
+                file << "     macroNode    " << std::setfill('0') << std::setw(8) << std::hex << p->id.symbol_ptr->macro_node << std::endl;
                 print_indent(file);
-                file << "     scope      " << (p->id.symbol_table_ptr->scope ? p->id.symbol_table_ptr->scope : "NULL") << std::endl;
+                file << "     scope      " << (p->id.symbol_ptr->scope ? p->id.symbol_ptr->scope : "NULL") << std::endl;
                 print_indent(file);
-                file << "     name         " << p->id.symbol_table_ptr->name << std::endl;
+                file << "     name         " << p->id.symbol_ptr->name << std::endl;
             }
             break;
 

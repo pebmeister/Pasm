@@ -22,12 +22,16 @@ const int max_passes = 20;
 
 int program_origin_default = 0x1000;
 
+#define CLEAR_STACK(s)      while ((s).size() > 0) (s).pop()
 /**
  * \brief Reset the Lexer for each pass
  */
+extern int last_if;
+
 void reset_lex(void)
 {
     error_count = 0;
+    last_if = 0;
 
     last_label = nullptr;
 
@@ -62,15 +66,10 @@ void reset_lex(void)
     reset_macro_dict();
 
     changed_sym_list.clear();
+    CLEAR_STACK(file_stack);
+    CLEAR_STACK(ifdef_stack);
+    CLEAR_STACK(macro_params_stack);
 
-    while (file_stack.size() > 0) {
-        file_stack.pop();
-    }
-
-    while (ifdef_stack.size() > 0) {
-        ifdef_stack.pop();
-    }
-    in_macro_definition = 0;
 }
 
 /**
