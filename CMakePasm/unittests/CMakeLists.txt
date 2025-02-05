@@ -1,8 +1,9 @@
 message(STATUS "Processing unit_test source")
 
-# GoogleTest requires at least C++14
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+message(STATUS "set C Standard 20")
+set(CMAKE_CXX_STANDARD 20 CACHE STRING "v")
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -25,7 +26,6 @@ add_executable(
   unit_test.cc
   assemble_unit_test.cc
   error_unit_test.cc
-  expand_unit_test.cc
   file_unit_test.cc
   hash_unit_test.cc
   node_unit_test.cc

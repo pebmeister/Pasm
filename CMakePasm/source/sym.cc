@@ -142,12 +142,12 @@ symbol_table_ptr add_symbol(char* name)
     }
 
     size_t len = strlen(name);
-    if (name[len - 1] == ':')
+    if (len > 1 && name[len - 1] == ':')
         name[len - 1] = 0;
 
     symbol_table_ptr tmp_ptr = look_up_symbol(name);
     if (tmp_ptr != nullptr) {
-        symbol_table_allocator.destroy(sym);
+        symbol_table_allocator.deallocate(sym, 1);
         current_scope = temp_section;
         return tmp_ptr;
     }
@@ -453,7 +453,7 @@ void pop_macro_params(void)
         macro_stack_param_entry_ptr->values = nullptr;
     }
     macro_stack_param_entry_ptr->num_nodes = 0;
-    macro_stack_entry_allocator.destroy(macro_stack_param_entry_ptr);
+    macro_stack_entry_allocator.deallocate(macro_stack_param_entry_ptr, 1);
 }
 
 void sanitize_symbol(const symbol_table_ptr symbol)
@@ -617,7 +617,7 @@ static void dump_symbols_common(filter f, FILE* file)
     }
     fprintf(file, "\n");
 
-    sym_entry_allocator.destroy(entry_array);
+    sym_entry_allocator.deallocate(entry_array, 1);
 }
 
 static bool all_sym_filter(symbol_table* sym) 

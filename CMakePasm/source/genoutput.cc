@@ -197,7 +197,7 @@ int write_opcode_node(FILE* file, const parse_node_ptr p)
 
     if (bytes > 0) {
         // expand_node the data bytes
-        int op = expand_node(p->op[0]);
+        int op = expand_node(p->operands[0]);
         if (p->opcode.mode == r) {
             // make sure a branch is in range
             op -= (p->opcode.program_counter + 2);

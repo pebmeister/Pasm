@@ -1,4 +1,5 @@
 #pragma once
+#include <vector>
 #include "sym.h"
 
 // ***********************************************************************
@@ -77,7 +78,6 @@ typedef struct
 typedef struct parse_node
 {
     node_type_enum type;            /* type of node */
-    bool allocated;
     union
     {
         constant_node_struct con;   /* constants            */
@@ -89,12 +89,8 @@ typedef struct parse_node
         string_node_struct str;		/* string node          */
         print_state_node_struct pr; /* print node           */
     };
-    int number_of_ops;              /* number of operands   */
-    struct parse_node** op;         /* operands             */
-    struct parse_node* next;        /* next node in tree    */
-    struct parse_node* prev;        /* previous node        */
-} parse_node, * parse_node_ptr;
-
+    std::vector<parse_node*> operands; /* operands             */
+} parse_node, *parse_node_ptr;
 
 /* prototypes */
 extern parse_node_ptr operator_node(int opr, int number_of_ops, ...);
@@ -108,13 +104,11 @@ extern parse_node_ptr macro_expand_node(const char* name, parse_node_ptr macro_p
 extern parse_node_ptr data_node(int data_node_size, parse_node_ptr data);
 extern parse_node_ptr print_state_node(int op);
 
-extern parse_node_ptr allocate_node(int number_of_ops);
+extern parse_node_ptr allocate_node(void);
 extern int is_valid_parse_node(parse_node_ptr p);
 extern int is_valid_parse_tree(void);
 extern void remove_parse_node(parse_node_ptr p);
 extern void free_parse_node(parse_node_ptr p);
 extern void free_parse_tree(void);
 extern int generate_list_node(const parse_node_ptr p);
-
-extern parse_node_ptr head_node;
-extern parse_node_ptr current_node;
+extern std::vector<parse_node_ptr> parse_nodes;

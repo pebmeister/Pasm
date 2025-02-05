@@ -16,8 +16,8 @@ if (${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Windows")
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif()
 
-message(STATUS "set C Standard 17")
-set(CMAKE_CXX_STANDARD 17 CACHE STRING "v")
+message(STATUS "set C Standard 20")
+set(CMAKE_CXX_STANDARD 20 CACHE STRING "v")
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -53,18 +53,31 @@ add_library(parser
 # engine
 add_library(engine 
     error.cc 
-    expand.cc 
+    error.h
+    expand.cc
+    expand.h
     file.cc
+    file.h
     genlist.cc
+    genlist.h
     genoutput.cc
+    genoutput.h
     globals.cc
     hash.cc
+    hash.h
     memory.cc
+    memory.h
     node.cc
+    node.h
     opcodes.cc
+    opcodes.h
     str.cc
+    str.h
     sym.cc
-    pass.cc)
+    sym.h
+    pass.cc
+    pass.h
+    pasm.h)
  
 # executable
 add_executable(${PROJECT_NAME}

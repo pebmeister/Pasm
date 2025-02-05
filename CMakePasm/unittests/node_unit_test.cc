@@ -43,7 +43,7 @@ namespace  node_test
     static int count_nodes()
     {
         int count = 0;
-        for (auto node_ptr = head_node; node_ptr != nullptr; node_ptr = node_ptr->next)
+        for (auto& node: parse_nodes)
             ++count;
         return count;
     }
@@ -157,7 +157,7 @@ namespace  node_test
                         valid_node = is_valid_parse_node(opcode_node_ptr);
                         EXPECT_NOT_NULL(opcode_node_ptr);
                         EXPECT_NE(0, valid_node);
-                        EXPECT_EQ(nops, opcode_node_ptr->number_of_ops);
+                        EXPECT_EQ(nops, opcode_node_ptr->operands.size());
                         EXPECT_EQ(static_cast<int>(type_op_code), static_cast<int>(opcode_node_ptr->type));
                         EXPECT_EQ(instruction, opcode_node_ptr->opcode.instruction);
                         EXPECT_EQ(addressing_mode, opcode_node_ptr->opcode.mode);
@@ -258,7 +258,7 @@ namespace  node_test
     {
         node_unit_test_method_initialize();
         for (const char* name : names_) {
-            const auto param_node_ptr = allocate_node(0);
+            const auto param_node_ptr = allocate_node();
             const auto macro_expand_node_ptr = macro_expand_node(name, param_node_ptr);
             auto valid_node = is_valid_parse_node(macro_expand_node_ptr);
             auto is_same(strcmp(name, macro_expand_node_ptr->macro.name));
@@ -306,24 +306,17 @@ namespace  node_test
     TEST(node_unit_test, allocate_node_unit_test)
     {
         node_unit_test_method_initialize();
-        for (auto nops = 0; nops < 10; ++nops) {
-            const auto allocate_node_ptr = allocate_node(nops);
-            EXPECT_NOT_NULL(allocate_node_ptr);
-            EXPECT_EQ(nops, allocate_node_ptr->number_of_ops);
-            if (nops > 0) {
-                EXPECT_NOT_NULL(allocate_node_ptr->op);
-            }
-            else {
-                EXPECT_NULL(allocate_node_ptr->op);
-            }
-        }
+        const auto allocate_node_ptr = allocate_node();
+        EXPECT_NOT_NULL(allocate_node_ptr);
+        EXPECT_EQ(0, allocate_node_ptr->operands.size());
+
         node_unit_test_method_cleanup();
     }
 
     TEST(node_unit_test, is_valid_parse_node_unit_test)
     {
         node_unit_test_method_initialize();
-        const auto is_valid_parse_node_ptr = allocate_node(0);
+        const auto is_valid_parse_node_ptr = allocate_node();
         is_valid_parse_node_ptr->type = static_cast<node_type_enum>(-353);
         EXPECT_NOT_NULL(is_valid_parse_node_ptr);
         EXPECT_FALSE(is_valid_parse_node(is_valid_parse_node_ptr));
@@ -331,9 +324,9 @@ namespace  node_test
         is_valid_parse_node_ptr->type = type_data;
         EXPECT_TRUE(is_valid_parse_node(is_valid_parse_node_ptr));
 
-        const auto is_valid_parse_node_ops_ptr = allocate_node(1);
+        const auto is_valid_parse_node_ops_ptr = allocate_node();
         is_valid_parse_node_ops_ptr->type = type_data;
-        is_valid_parse_node_ops_ptr->op[0] = is_valid_parse_node_ptr;
+        is_valid_parse_node_ops_ptr->operands.push_back(is_valid_parse_node_ptr);
         is_valid_parse_node_ptr->type = static_cast<node_type_enum>(-353);
 
         EXPECT_NOT_NULL(is_valid_parse_node_ops_ptr);
@@ -362,7 +355,7 @@ namespace  node_test
 
         EXPECT_TRUE(is_valid_parse_tree());
 
-        const auto is_valid_parse_node_ptr = allocate_node(0);
+        const auto is_valid_parse_node_ptr = allocate_node();
         is_valid_parse_node_ptr->type = static_cast<node_type_enum>(-353);
 
         EXPECT_FALSE(is_valid_parse_tree());
@@ -374,66 +367,53 @@ namespace  node_test
         node_unit_test_method_initialize();
         const char* expected_lines[] =
         {
-    "NODE [line 0]\n",
-    "    allocated 1\n",
-    "    type typeOpr\n",
-    "    opr '='\n",
-    "    CHILD NODE [line 0]\n",
-    "        allocated 1\n",
-    "        type type_id\n",
-    "        name left_node\n",
-    "        i    (nil)\n",
-    "    CHILD NODE [line 0]\n",
-    "        allocated 1\n",
-    "        type typeCon\n",
-    "        IsPC  0\n",
-    "        value 0x00004554\n",
-    "NODE [line 1]\n",
-    "    allocated 1\n",
-    "    type typeOpCode\n",
-    "    instruction   nop\n",
-    "    mode          implied\n",
-    "    opCode        EA\n",
-    "    PC            0x00000000\n",
-    "NODE [line 2]\n",
-    "    allocated 1\n",
-    "    type type_id\n",
-    "    name test_id_node\n",
-    "    i    (nil)\n",
-    "NODE [line 3]\n",
-    "    allocated 1\n",
-    "    type type_label\n",
-    "    name test_label_node\n",
-    "    i    (nil)\n",
-    "NODE [line 4]\n",
-    "    allocated 1\n",
-    "    type type_macro_id\n",
-    "    name macro_id_node\n",
-    "    i    (nil)\n",
-    "NODE [line 5]\n",
-    "    allocated 1\n",
-    "    type typeCon\n",
-    "    IsPC  0\n",
-    "    value 0x00000055\n",
-    "NODE [line 6]\n",
-    "    allocated 1\n",
-    "    type typeStr\n",
-    "    allocated  string_node\n",
-    "    len        0x0000000B\n",
-    "    value string_node\n",
-    "NODE [line 7]\n",
-    "    allocated 1\n",
-    "NODE [line 8]\n",
-    "    allocated 1\n",
-    "    type typeData\n",
-    "    size 1\n",
-    "    CHILD NODE [line 8]\n",
-    "        allocated 1\n",
-    "        type typeCon\n",
-    "        IsPC  0\n",
-    "        value 0x00000055\n",
-    "NODE [line 9]\n",
-    "    allocated 1\n",
+"NODE [line 0]\n",
+"        type typeOpr\n",
+"    opr '='\n",
+"    CHILD NODE [line 0]\n",
+"                type type_id\n",
+"        name left_node\n",
+"        symbol_ptr    (nil)\n",
+"    CHILD NODE [line 0]\n",
+"                type typeCon\n",
+"        IsPC  0\n",
+"        value 0x00004554\n",
+"NODE [line 1]\n",
+"        type typeOpCode\n",
+"    instruction   nop\n",
+"    mode          implied\n",
+"    opCode        EA\n",
+"    PC            0x00000000\n",
+"NODE [line 2]\n",
+"        type type_id\n",
+"    name test_id_node\n",
+"    symbol_ptr    (nil)\n",
+"NODE [line 3]\n",
+"        type type_label\n",
+"    name test_label_node\n",
+"    symbol_ptr    (nil)\n",
+"NODE [line 4]\n",
+"        type type_macro_id\n",
+"    name macro_id_node\n",
+"    symbol_ptr    (nil)\n",
+"NODE [line 5]\n",
+"        type typeCon\n",
+"    IsPC  0\n",
+"    value 0x00000055\n",
+"NODE [line 6]\n",
+"        type typeStr\n",
+"    allocated  string_node\n",
+"    len        0x0000000B\n",
+"    value string_node\n",
+"NODE [line 7]\n",
+"    NODE [line 8]\n",
+"        type typeData\n",
+"    size 1\n",
+"    CHILD NODE [line 8]\n",
+"                type typeCon\n",
+"        IsPC  0\n",
+"        value 0x00000055\n",
+"NODE [line 9]\n",
         };
         constexpr int number_of_lines = _countof(expected_lines);
 
@@ -443,7 +423,7 @@ namespace  node_test
         EXPECT_TRUE(log_file.is_open());
 
         yylineno = 0;
-        current_node = operator_node('=', 2,
+        auto current_node = operator_node('=', 2,
             id_node("left_node"),
             constant_node(0x4554, false));
         print_node(current_node, log_file);
@@ -486,10 +466,6 @@ namespace  node_test
 
         EXPECT_TRUE(is_valid_parse_tree());
 
-        current_node = head_node;
-        while (current_node) {
-            current_node = current_node->next;
-        }
         if (log_file.is_open())
             log_file.close();
 
@@ -509,7 +485,7 @@ namespace  node_test
     TEST(node_unit_test, free_parse_node_unit_test)
     {
         node_unit_test_method_initialize();
-        current_node = operator_node('=', 2,
+        auto current_node = operator_node('=', 2,
             id_node("left_node"),
             constant_node(0x4554, false));
         current_node = opcode_node(_nop, i, 0);
@@ -525,24 +501,8 @@ namespace  node_test
 
         while (count > 0) {
             const auto last_count = count;
-
-            parse_node_ptr node = head_node->next;
-            if (!node)
-                node = head_node;
-
-            const auto prev = node->prev;
-            const auto next = node->next;
-
-            free_parse_node(node);
-
-            if (prev)
-                prev->next = next;
-            if (next)
-                next->prev = prev;
-
-            if (next == nullptr && prev == nullptr)
-                head_node = nullptr;
-
+            parse_node_ptr node = parse_nodes.back();
+            remove_parse_node(node);
             count = count_nodes();
             EXPECT_TRUE(last_count > count);
         }
@@ -552,7 +512,7 @@ namespace  node_test
     TEST(node_unit_test, remove_parse_node_unit_test)
     {
         node_unit_test_method_initialize();
-        current_node = operator_node('=', 2,
+        auto current_node = operator_node('=', 2,
             id_node("left_node"),
             constant_node(0x4554, false));
         current_node = opcode_node(_nop, i, 0);
@@ -567,9 +527,7 @@ namespace  node_test
         auto count = count_nodes();
 
         while (count > 0) {
-            parse_node_ptr node = head_node;
-            if (node->next)
-                node = node->next;
+            parse_node_ptr node = parse_nodes.front();
 
             const auto last_count = count;
             remove_parse_node(node);
@@ -577,14 +535,14 @@ namespace  node_test
 
             EXPECT_TRUE(last_count > count);
         }
-        EXPECT_NULL(head_node);
+        free_parse_tree();
         node_unit_test_method_cleanup();
     }
 
     TEST(node_unit_test, free_parse_tree_unit_test)
     {
         node_unit_test_method_initialize();
-        current_node = operator_node('=', 2,
+        auto current_node = operator_node('=', 2,
             id_node("left_node"),
             constant_node(0x4554, false));
         current_node = opcode_node(_nop, i, 0);

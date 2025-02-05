@@ -55,21 +55,14 @@ void reset_lex(void)
         }
     }
 
-    // reset the the head node
-    current_node = head_node = allocate_node(0);
-    if (current_node == nullptr) {
-        error(error_out_of_memory);
-        exit(-1);
-    }
-    head_node->type = type_head_node;
-
+    // reset the parse nodes;
+    free_parse_tree();
     reset_macro_dict();
 
     changed_sym_list.clear();
     CLEAR_STACK(file_stack);
     CLEAR_STACK(ifdef_stack);
     CLEAR_STACK(macro_params_stack);
-
 }
 
 /**

@@ -41,9 +41,8 @@ namespace file_test
         yyin = open_file(outfile_name, "r");
         EXPECT_NOT_NULL(yyin);
         fclose(yyin);
-        yyin = nullptr;
-
         remove(outfile_name);
+        yyin = nullptr;
 
         file_unit_test_method_cleanup();
     }

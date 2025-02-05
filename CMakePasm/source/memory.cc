@@ -108,7 +108,7 @@ void pasm_free(void* memory)
         if (entry->times_deleted == 0) {
             total_allocated_bytes -= entry->size;
             entry->times_deleted++;
-            memory_entry_allocator.destroy(entry);
+            memory_entry_allocator.deallocate(entry, 1);
             alloc_dict.erase(entry);
         }
         else {
@@ -134,8 +134,6 @@ int print_memory(memory_entry* me, FILE* file)
 {
     if (stricmp(me->function, "allocate_node") == 0 && me->size == sizeof(parse_node)) {
         const parse_node_ptr p = static_cast<parse_node_ptr>(me->memory);
-        if (!p->allocated)
-            return 0;
     }
 
     fprintf(file, "%s Line %d\n", me->function, me->line);

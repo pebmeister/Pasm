@@ -4,11 +4,12 @@
 #include <stack>
 #include "sym.h"
 
+#define VERSION "3.0"
+
 typedef struct file_line_stack_entry {
     char* file;
     int line;
 } file_line_stack_entry;
-
 
 enum
 {

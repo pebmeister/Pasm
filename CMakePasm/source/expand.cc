@@ -300,7 +300,7 @@ int expand_constant_node(const parse_node_ptr p)
 //
 int expand_operator_include_node(const parse_node_ptr p)
 {
-    char* file = p->op[0]->str.value;
+    char* file = p->operands[0]->str.value;
     open_include_file(file);
 
     return 1;
@@ -311,8 +311,8 @@ int expand_operator_include_node(const parse_node_ptr p)
 //
 int expand_operator_fill_node(const parse_node_ptr p)
 {
-    const int byt = expand_node(p->op[0]);
-    int count = expand_node(p->op[1]);
+    const int byt = expand_node(p->operands[0]);
+    int count = expand_node(p->operands[1]);
 
     if (byt < 0 || byt > 255) {
         error(error_value_out_of_range);
@@ -367,7 +367,7 @@ int expand_operator_fill_node(const parse_node_ptr p)
 //
 int expand_operator_load_node(const parse_node_ptr p)
 {
-    const char* file = p->op[0]->str.value;
+    const char* file = p->operands[0]->str.value;
     FILE* fd = open_file(file, "rb");
     if (fd == nullptr) {
         error(error_cant_open_include_file);
@@ -410,7 +410,7 @@ int expand_operator_load_node(const parse_node_ptr p)
 //
 int expand_operator_variable_node(const parse_node_ptr p)
 {
-    const parse_node_ptr pp = p->op[0];
+    const parse_node_ptr pp = p->operands[0];
     if (pp) {
         expansion_type = symbol;
         return expand_node(pp);
@@ -487,9 +487,12 @@ int expand_label_node(const parse_node_ptr p)
         }
     }
     symbol_ptr->is_label = true;
-    if (!symbol_ptr->is_initialized && p->number_of_ops > 0)
-        expand_node(p->op[0]);
-
+    if (!symbol_ptr->is_initialized) {
+        for (auto& op : p->operands) {
+            expand_node(op);
+        }
+    }
+ 
     return symbol_ptr->is_initialized ? symbol_ptr->value : 0;
 }
 
@@ -515,7 +518,7 @@ int expand_operator_for_reg_node(const parse_node_ptr p)
     }
 
     // get the start value
-    const int start = expand_node(p->op[0]);
+    const int start = expand_node(p->operands[0]);
 
     // range check
     if (start < 0 || start > 255) {
@@ -524,7 +527,7 @@ int expand_operator_for_reg_node(const parse_node_ptr p)
     }
 
     // get the end value
-    const int end = expand_node(p->op[1]);
+    const int end = expand_node(p->operands[1]);
 
     // range check
     if (end < 0 || end > 255) {
@@ -533,7 +536,7 @@ int expand_operator_for_reg_node(const parse_node_ptr p)
     }
 
     // get flag for increment / decrement
-    const int increment_flag = expand_node(p->op[3]);
+    const int increment_flag = expand_node(p->operands[3]);
 
     // check for loop that would have zero iterations
     // we may want to warn user
@@ -555,7 +558,7 @@ int expand_operator_for_reg_node(const parse_node_ptr p)
     const int start_loop_program_counter = program_counter;
 
     // loop body
-    expand_node(p->op[2]);
+    expand_node(p->operands[2]);
 
     // optimize start = end
     if (start == end) {
@@ -625,7 +628,7 @@ int expand_data_node(const parse_node_ptr p)
 //
 int expand_operator_section_node(const parse_node_ptr p)
 {
-    char* name = p->op[0]->id.name;
+    char* name = p->operands[0]->id.name;
     if (current_scope != nullptr) {
         const size_t len = strlen(current_scope) + strlen(name) + 2;
         char* temp_name = static_cast<char*>(MALLOC(len));
@@ -778,13 +781,13 @@ int expand_op_code_node(const parse_node_ptr p)
         int out_of_range = 0;
         int large_op = 0;
         int code2;
-        for (int index = 0; index < p->number_of_ops; index++) {
-            const parse_node_ptr pp = p->op[index];
+        auto op_count = p->operands.size();
+        for (auto& pp: p->operands) {
             int op_value = expand_node(pp);
 
             // fix for local labels
             const char ch = (pp->type == type_id) ? pp->id.name[0] : 0;
-            if (op_value == 0 && p->opcode.mode == r && p->number_of_ops == 1 && pp->type == type_id
+            if (op_value == 0 && p->opcode.mode == r && op_count == 1 && pp->type == type_id
                 && (ch == '@' || ch == '-' || ch == '+'))
                 op_value = program_counter;
 
@@ -825,7 +828,7 @@ int expand_op_code_node(const parse_node_ptr p)
                 break;
             }
 
-            if (p->opcode.mode == r && p->number_of_ops == 1) {
+            if (p->opcode.mode == r && op_count == 1) {
                 // make sure a branch is in range
                 const int op = op_value - (p->opcode.program_counter + 2);
 
@@ -861,7 +864,7 @@ int expand_op_code_node(const parse_node_ptr p)
                     }
                     code2 = get_op_code(p->opcode.instruction, r);
                     if (code2 != -1) {
-                        const parse_node_ptr target = p->op[index];
+                        const parse_node_ptr target = pp;
                         const parse_node_ptr jmp = opcode_node(_jmp, a, 1, target);
 
                         if (target == nullptr || jmp == nullptr) {
@@ -871,7 +874,7 @@ int expand_op_code_node(const parse_node_ptr p)
 
                         p->opcode.opcode = code2;
                         if (final_pass) {
-                            p->op[index] = constant_node(program_counter + 5, 0);
+                            pp = constant_node(program_counter + 5, 0);
                             generate_list_node(p);
                             generate_output(output_file, p);
                         }
@@ -933,7 +936,7 @@ int expand_print_state_node(const parse_node_ptr p)
 //
 int expand_operator_not_node(const parse_node_ptr p)
 {
-    return !expand_node(p->op[0]);
+    return !expand_node(p->operands[0]);
 }
 
 //
@@ -941,7 +944,7 @@ int expand_operator_not_node(const parse_node_ptr p)
 //
 int expand_operator_shift_left_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) << expand_node(p->op[1]);
+    return expand_node(p->operands[0]) << expand_node(p->operands[1]);
 }
 
 //
@@ -949,7 +952,7 @@ int expand_operator_shift_left_node(const parse_node_ptr p)
 //
 int expand_operator_shift_right_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) >> expand_node(p->op[1]);
+    return expand_node(p->operands[0]) >> expand_node(p->operands[1]);
 }
 
 //
@@ -957,7 +960,7 @@ int expand_operator_shift_right_node(const parse_node_ptr p)
 //
 int expand_operator_lo_byte_node(const parse_node_ptr p)
 {
-    const int value = expand_node(p->op[0]) & 0xFFFF;
+    const int value = expand_node(p->operands[0]) & 0xFFFF;
     const int lo = value & 0xFF;
     return lo;
 }
@@ -967,7 +970,7 @@ int expand_operator_lo_byte_node(const parse_node_ptr p)
 //
 int expand_operator_hi_byte_node(const parse_node_ptr p)
 {
-    const int value = expand_node(p->op[0]) & 0xFFFF;
+    const int value = expand_node(p->operands[0]) & 0xFFFF;
     const int hi = (value & 0xFF00) >> 8;
     return hi;
 }
@@ -980,7 +983,7 @@ int expand_operator_hi_byte_node(const parse_node_ptr p)
 int expand_operator_program_counter_assign_node(const parse_node_ptr p)
 {
     program_counter_assigned++;
-    const int op = expand_node(p->op[0]);
+    const int op = expand_node(p->operands[0]);
     origin_specified = true;
 
     program_counter = op;
@@ -1001,7 +1004,7 @@ int expand_operator_org_node(const parse_node_ptr p)
         error(error_org_specified_more_than_once);
         return 0;
     }
-    const int op = expand_node(p->op[0]);
+    const int op = expand_node(p->operands[0]);
     program_counter = op;
     origin = op;
     origin_specified = true;
@@ -1019,15 +1022,14 @@ int expand_operator_expression_list_node(const parse_node_ptr p)
     symbol_table_ptr symbol_ptr = nullptr;
     char sym_name[max_macro_param_name_len] = { 0 };
 
-    for (int index = 0; index < p->number_of_ops; index++) {
-        const parse_node_ptr pp = p->op[index];
+    for (auto& pp: p->operands) {
         if (pp->type == type_opr && pp->opr.opr == EXPRLIST) {
             expand_node(pp);
             continue;
         }
 
-        for (int iii = 0; iii < pp->number_of_ops; ++iii)
-            expand_node(pp->op[iii]);
+        for (auto& ppp: pp->operands)
+            expand_node(ppp);
 
         switch (expansion_type)  // NOLINT(hicpp-multiway-paths-covered)
         {
@@ -1205,7 +1207,7 @@ static macro_dict_entry* create_macro_entry(std::string name)
 void reset_macro_dict(void)
 {
     for (const auto& [key, value] : macro_dict) {
-        macro_entry_allocator.destroy(value);
+        macro_entry_allocator.deallocate(value, 1);
     }
     code_generated = 0;
     macro_dict.clear();
@@ -1276,7 +1278,7 @@ int expand_macro_expansion_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_macro_definition_node(const parse_node_ptr p)
 {
-    const parse_node_ptr macro_id = p->op[0];
+    const parse_node_ptr macro_id = p->operands[0];
     // expand_node(macroId);
     create_macro_entry(macro_id->id.name);
 
@@ -1289,7 +1291,7 @@ int expand_operator_macro_definition_node(const parse_node_ptr p)
     p->id.symbol_ptr = sym;
     sym->is_macro_name = true;
     sym->is_initialized = true;
-    sym->macro_node = p->op[1];
+    sym->macro_node = p->operands[1];
     sym->value = program_counter;
     return 0;
 }
@@ -1301,8 +1303,8 @@ int expand_operator_macro_definition_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_while_node(const parse_node_ptr p)
 {
-    while (expand_node(p->op[0])) {
-        expand_node(p->op[1]);
+    while (expand_node(p->operands[0])) {
+        expand_node(p->operands[1]);
 
         if (program_counter > max_address) {
             error(error_infinite_loop_detected);
@@ -1320,13 +1322,13 @@ int expand_operator_while_node(const parse_node_ptr p)
 int expand_operator_repeat_node(const parse_node_ptr p)
 {
     do {
-        expand_node(p->op[0]);
+        expand_node(p->operands[0]);
 
         if (program_counter > max_address) {
             error(error_infinite_loop_detected);
             return 0;
         }
-    } while (expand_node(p->op[1]) == 0);
+    } while (expand_node(p->operands[1]) == 0);
     return 0;
 }
 
@@ -1338,12 +1340,12 @@ int expand_operator_repeat_node(const parse_node_ptr p)
 int expand_operator_do_node(const parse_node_ptr p)
 {
     do {
-        expand_node(p->op[0]);
+        expand_node(p->operands[0]);
         if (program_counter > max_address) {
             error(error_infinite_loop_detected);
             return 0;
         }
-    } while (expand_node(p->op[1]));
+    } while (expand_node(p->operands[1]));
     return 0;
 }
 
@@ -1357,30 +1359,30 @@ int expand_operator_for_node(const parse_node_ptr p)
     symbol_table_ptr start_sym = nullptr;
     int step_val = 1;
 
-    if (p->number_of_ops == 5)
-        step_val = expand_node(p->op[4]);
+    if (p->operands.size() == 5)
+        step_val = expand_node(p->operands[4]);
 
-    const parse_node_ptr pp = p->op[0];
-    if (pp->op[0]->type == type_id) {
-        if (pp->op[0]->id.symbol_ptr == nullptr)
-            pp->op[0]->id.symbol_ptr = add_symbol(pp->op[0]->id.name);
-        start_sym = pp->op[0]->id.symbol_ptr;
+    const parse_node_ptr pp = p->operands[0];
+    if (pp->operands[0]->type == type_id) {
+        if (pp->operands[0]->id.symbol_ptr == nullptr)
+            pp->operands[0]->id.symbol_ptr = add_symbol(pp->operands[0]->id.name);
+        start_sym = pp->operands[0]->id.symbol_ptr;
         if (start_sym == nullptr) {
             error(error_out_of_memory);
             exit(-1);
         }
     }
 
-    expand_node(p->op[0]);
-    if (p->op[3]->id.symbol_ptr == nullptr)
-        p->op[3]->id.symbol_ptr = add_symbol(p->op[3]->id.name);
+    expand_node(p->operands[0]);
+    if (p->operands[3]->id.symbol_ptr == nullptr)
+        p->operands[3]->id.symbol_ptr = add_symbol(p->operands[3]->id.name);
 
-    const symbol_table_ptr sym = p->op[3]->id.symbol_ptr;
+    const symbol_table_ptr sym = p->operands[3]->id.symbol_ptr;
     if (sym == nullptr) {
         error(error_out_of_memory);
         exit(-1);
     }
-    const int end_value = expand_node(p->op[1]);
+    const int end_value = expand_node(p->operands[1]);
 
     if (start_sym && start_sym != sym) {
         error(error_expected_next);
@@ -1394,7 +1396,7 @@ int expand_operator_for_node(const parse_node_ptr p)
             if (step_val < 0 && sym->value < end_value)
                 break;
 
-            expand_node(p->op[2]);
+            expand_node(p->operands[2]);
 
             if (program_counter > max_address) {
                 error(error_infinite_loop_detected);
@@ -1416,11 +1418,11 @@ int expand_operator_for_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_if_node(const parse_node_ptr p)
 {
-    if (expand_node(p->op[0])) {
-        expand_node(p->op[1]);
+    if (expand_node(p->operands[0])) {
+        expand_node(p->operands[1]);
     }
-    else if (p->number_of_ops > 2) {
-        expand_node(p->op[2]);
+    else if (p->operands.size() > 2) {
+        expand_node(p->operands[2]);
     }
     return 0;
 }
@@ -1433,8 +1435,9 @@ int expand_operator_if_node(const parse_node_ptr p)
 int expand_operator_print_all_node(const parse_node_ptr p)
 {
     expansion_type = print_all;
-    for (int index = 0; index < p->number_of_ops; index++) {
-        expand_node(p->op[index]);
+
+    for (auto& op: p->operands) {
+        expand_node(op);
     }
     fprintf(console, "\n");
     return 0;
@@ -1448,8 +1451,8 @@ int expand_operator_print_all_node(const parse_node_ptr p)
 int expand_operator_print_node(const parse_node_ptr p)
 {
     expansion_type = print;
-    for (int index = 0; index < p->number_of_ops; index++) {
-        expand_node(p->op[index]);
+    for (auto& op : p->operands) {
+        expand_node(op);
     }
     if (final_pass)
         fprintf(console, "\n");
@@ -1463,7 +1466,7 @@ int expand_operator_print_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_ds_node(const parse_node_ptr p)
 {
-    const int op = expand_node(p->op[0]);
+    const int op = expand_node(p->operands[0]);
     int count = op;
     if (count < 0) {
         error(error_value_out_of_range);
@@ -1482,11 +1485,8 @@ int expand_operator_ds_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_statement_node(const parse_node_ptr p)
 {
-    if (p->number_of_ops < 1)
-        return 0;
-
-    for (int index = 0; index < p->number_of_ops; index++) {
-        expand_node(p->op[index]);
+    for (auto& op: p->operands) {
+        expand_node(op);
     }
     return 0;
 }
@@ -1509,13 +1509,13 @@ int expand_operator_end_node(parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_equ_node(const parse_node_ptr p)
 {
-    const int op = expand_node(p->op[1]);
+    const int op = expand_node(p->operands[1]);
 
-    if (stricmp(p->op[0]->id.name, "-") == 0) {
+    if (stricmp(p->operands[0]->id.name, "-") == 0) {
         int index = find_minus_symbol_definition(current_file_name, yylineno);
         if (index < 0) add_minus_symbol(current_file_name, yylineno, op);
 
-        index = find_minus_symbol(strlen(p->op[0]->id.name), current_file_name, yylineno);
+        index = find_minus_symbol(strlen(p->operands[0]->id.name), current_file_name, yylineno);
 
         if (index >= 0) {
             if (minus_symbol_table[index].value != op) {
@@ -1526,11 +1526,11 @@ int expand_operator_equ_node(const parse_node_ptr p)
         return op;
     }
 
-    if (stricmp(p->op[0]->id.name, "+") == 0) {
+    if (stricmp(p->operands[0]->id.name, "+") == 0) {
         int index = find_plus_symbol_definition(current_file_name, yylineno);
         if (index < 0) add_plus_symbol(current_file_name, yylineno, op);
 
-        index = find_plus_symbol(strlen(p->op[0]->id.name), current_file_name, yylineno - 1);
+        index = find_plus_symbol(strlen(p->operands[0]->id.name), current_file_name, yylineno - 1);
 
         if (index >= 0) {
             if (plus_symbol_table[index].value != op) {
@@ -1541,9 +1541,9 @@ int expand_operator_equ_node(const parse_node_ptr p)
         return op;
     }
 
-    if (p->op[0]->id.symbol_ptr == nullptr || p->op[0]->id.name[0] == '@')
-        p->op[0]->id.symbol_ptr = add_symbol(p->op[0]->id.name);
-    symbol_table_ptr sym = p->op[0]->id.symbol_ptr;
+    if (p->operands[0]->id.symbol_ptr == nullptr || p->operands[0]->id.name[0] == '@')
+        p->operands[0]->id.symbol_ptr = add_symbol(p->operands[0]->id.name);
+    symbol_table_ptr sym = p->operands[0]->id.symbol_ptr;
     if (sym == nullptr) {
         error(error_out_of_memory);
         exit(-1);
@@ -1564,7 +1564,7 @@ int expand_operator_equ_node(const parse_node_ptr p)
         }
         set_symbol_value(sym, op);
         sym->is_initialized = true;
-        if (p->op[0]->type == type_label)
+        if (p->operands[0]->type == type_label)
             sym->is_label = true;
     }
     return op;
@@ -1577,7 +1577,7 @@ int expand_operator_equ_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_uminus_node(const parse_node_ptr p)
 {
-    return -expand_node(p->op[0]);
+    return -expand_node(p->operands[0]);
 }
 
 /// <summary>
@@ -1588,7 +1588,7 @@ int expand_operator_uminus_node(const parse_node_ptr p)
 int expand_operator_ones_complement_node(const parse_node_ptr p)
 {
     int mask = 0xFF;
-    const int v = expand_node(p->op[0]);
+    const int v = expand_node(p->operands[0]);
     if (v & ~0xFF)
         mask = 0xFFFF;
     return ~v & mask;
@@ -1601,7 +1601,7 @@ int expand_operator_ones_complement_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_plus_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) + expand_node(p->op[1]);
+    return expand_node(p->operands[0]) + expand_node(p->operands[1]);
 }
 
 /// <summary>
@@ -1611,7 +1611,7 @@ int expand_operator_plus_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_minus_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) - expand_node(p->op[1]);
+    return expand_node(p->operands[0]) - expand_node(p->operands[1]);
 }
 
 /// <summary>
@@ -1621,7 +1621,7 @@ int expand_operator_minus_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_multiply_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) * expand_node(p->op[1]);
+    return expand_node(p->operands[0]) * expand_node(p->operands[1]);
 }
 
 /// <summary>
@@ -1631,11 +1631,11 @@ int expand_operator_multiply_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_divide_node(const parse_node_ptr p)
 {
-    if (expand_node(p->op[1]) == 0) {
+    if (expand_node(p->operands[1]) == 0) {
         error(error_divide_by_zero);
         return 0;
     }
-    return expand_node(p->op[0]) / expand_node(p->op[1]);
+    return expand_node(p->operands[0]) / expand_node(p->operands[1]);
 }
 
 /// <summary>
@@ -1645,7 +1645,7 @@ int expand_operator_divide_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_bit_or_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) | expand_node(p->op[1]);
+    return expand_node(p->operands[0]) | expand_node(p->operands[1]);
 }
 
 /// <summary>
@@ -1655,7 +1655,7 @@ int expand_operator_bit_or_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_bit_and_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) & expand_node(p->op[1]);
+    return expand_node(p->operands[0]) & expand_node(p->operands[1]);
 }
 
 /// <summary>
@@ -1665,7 +1665,7 @@ int expand_operator_bit_and_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_xor_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) ^ expand_node(p->op[1]);
+    return expand_node(p->operands[0]) ^ expand_node(p->operands[1]);
 }
 
 /// <summary>
@@ -1675,7 +1675,7 @@ int expand_operator_xor_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_less_than_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) < expand_node(p->op[1]);
+    return expand_node(p->operands[0]) < expand_node(p->operands[1]);
 }
 
 /// <summary>
@@ -1685,7 +1685,7 @@ int expand_operator_less_than_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_greater_than_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) > expand_node(p->op[1]);
+    return expand_node(p->operands[0]) > expand_node(p->operands[1]);
 }
 
 /// <summary>
@@ -1695,7 +1695,7 @@ int expand_operator_greater_than_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_or_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) || expand_node(p->op[1]); // intentional logical or NOT BIT OR!
+    return expand_node(p->operands[0]) || expand_node(p->operands[1]); // intentional logical or NOT BIT OR!
 }
 
 /// <summary>
@@ -1705,7 +1705,7 @@ int expand_operator_or_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_and_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) && expand_node(p->op[1]); // intentional logical and NOT BIT AND!
+    return expand_node(p->operands[0]) && expand_node(p->operands[1]); // intentional logical and NOT BIT AND!
 }
 
 /// <summary>
@@ -1715,7 +1715,7 @@ int expand_operator_and_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_equal_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) == expand_node(p->op[1]);
+    return expand_node(p->operands[0]) == expand_node(p->operands[1]);
 }
 
 /// <summary>
@@ -1725,7 +1725,7 @@ int expand_operator_equal_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_not_equal_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) != expand_node(p->op[1]);
+    return expand_node(p->operands[0]) != expand_node(p->operands[1]);
 }
 
 /// <summary>
@@ -1735,7 +1735,7 @@ int expand_operator_not_equal_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_greater_than_or_equal_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) >= expand_node(p->op[1]);
+    return expand_node(p->operands[0]) >= expand_node(p->operands[1]);
 }
 
 /// <summary>
@@ -1745,7 +1745,7 @@ int expand_operator_greater_than_or_equal_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_operator_less_than_or_equal_node(const parse_node_ptr p)
 {
-    return expand_node(p->op[0]) <= expand_node(p->op[1]);
+    return expand_node(p->operands[0]) <= expand_node(p->operands[1]);
 }
 
 /// <summary>
@@ -1770,9 +1770,9 @@ int expand_operator_node(const parse_node_ptr p)
 /// <returns>int.</returns>
 int expand_node(const parse_node_ptr p)
 {
-    if (p == nullptr)
+    if (p == nullptr) {
         return 0;
-
+    }
     expand_level++;
 
     if (end_expansion) {
@@ -1816,8 +1816,8 @@ int is_uninitialized_symbol(const parse_node_ptr p)
 /// <param name="p">The p.</param>
 bool has_uninitialized_symbol(const parse_node_ptr p)
 {
-    for (int index = 0; index < p->number_of_ops; index++) {
-        if (has_uninitialized_symbol(p->op[index]) || is_uninitialized_symbol(p->op[index]))
+    for (auto& op: p->operands) {
+        if (has_uninitialized_symbol(op) || is_uninitialized_symbol(op))
             return true;
     }
     return false;

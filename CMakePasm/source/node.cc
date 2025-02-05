@@ -11,16 +11,16 @@
 // ReSharper disable CppClangTidyClangDiagnosticIncompatiblePointerTypesDiscardsQualifiers
 #pragma warning(disable : 4996 4090)
 #include <map>
-#include "node.h"
-
 #include <ctype.h>
 #include <fstream>
 #include <iomanip>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h> 
+#include <string.h>
+#include <sstream>
 
+#include "node.h"
 #include "error.h"
 #include "expand.h"
 #include "flex.h"
@@ -32,55 +32,79 @@
 #include "str.h"
 #include "sym.h"
 
+#define MIN(a,b)    ((a)<(b)?(a):(b))
+#define HIBYTE(a)   (((a) & 0xFF00) >> 8)
+#define LOBYTE(a)   ((a) & 0xFF)
+
+static std::allocator<parse_node> parsenode_allocator;
+
 static int is_name_valid(char* name);
 
-/// <summary>
-/// The head node
-/// </summary>
-parse_node_ptr head_node = nullptr;
-
-/// <summary>
-/// The current node
-/// </summary>
-parse_node_ptr current_node = nullptr;
+std::vector<parse_node_ptr> parse_nodes;
 
 /// <summary>
 /// The print nest level
 /// </summary>
 int print_nest_level = 0;
 
+std::map<int, std::string> op_lookup =
+{
+    { INC,          "INC"           },
+    { LOAD,         "LOAD"          },
+    { LOBYTE,       "LOBYTE"        },
+    { HIBYTE,       "HIBYTE"        },
+    { PCASSIGN,     "PCASSIGN"      },
+    { ORG,          "ORG"           },
+    { EXPRLIST,     "EXPRLIST"      },
+    { MACRO,        "MACRO"         },
+    { WHILE,        "WHILE"         },
+    { REPEAT,       "REPEAT"        },
+    { SECTION,      "SECTION"       },
+    { ENDSECTION,   "ENDSECTION"    },
+    { DO,           "DO"            },
+    { FOR,          "FOR"           },
+    { REGX,         "REGX"          },
+    { REGY,         "REGY"          },
+    { IF,           "IF"            },
+    { PRINT,        "PRINT"         },
+    { STATEMENT,    "STATEMENT"     },
+    { END,          "END"           },
+    { UMINUS,       "UMINUS"        },
+    { BIT_OR,       "BIT_OR"        },
+    { BIT_AND,      "BIT_AND"       },
+    { EQ,           "EQ"            },
+    { NE,           "NE"            },
+    { GE,           "GE"            },
+    { LE,           "LE"            },
+    { OR,           "OR"            },
+    { AND,          "AND"           },
+    { NOT,          "NOT"           },
+    { SHIFT_LEFT,   "SHIFT_LEFT"    },
+    { SHIFT_RIGHT,  "SHIFT_RIGHT"   },
+    { '=',          "'='"           },
+    { '~',          "'~'"           },
+    { '+',          "'+'"           },
+    { '-',          "'-'"           },
+    { '/',          "'/'"           },
+    { '^',          "'^'"           },
+    { '<',          "'<'"           },
+    { '>',          "'>'"           },
+};
+
 /// <summary>
 /// Allocates the node.
 /// </summary>
 /// <returns>parseNode *.</returns>
-parse_node_ptr allocate_node(const int number_of_ops)
+parse_node_ptr allocate_node()
 {
-    parse_node_ptr p;
-    size_t size = sizeof(parse_node);
-    if ((p = static_cast<parse_node_ptr>(MALLOC(size))) == nullptr) {
+    auto p = parsenode_allocator.allocate(1);
+    if (p == nullptr) {
         error(error_out_of_memory);
         exit(1);  // NOLINT(concurrency-mt-unsafe)
     }
-    memset(p, 0, size);
+    memset(p, 0, sizeof(parse_node));
 
-    if (current_node != nullptr) {
-        p->prev = current_node;
-        current_node->next = p;
-    }
-    current_node = p;
-    p->number_of_ops = number_of_ops;
-    p->allocated = true;
-    if (number_of_ops > 0) {
-        size = number_of_ops * sizeof(parse_node_ptr);
-        if ((p->op = static_cast<parse_node**>(MALLOC(size))) == nullptr) {
-            error(error_out_of_memory);
-            exit(-1);  // NOLINT(concurrency-mt-unsafe)
-        }
-        memset(p->op, 0, size);
-    }
-    if (head_node == nullptr) {
-        head_node = p;
-    }
+    parse_nodes.push_back(p);
     return p;
 }
 
@@ -92,11 +116,7 @@ parse_node_ptr allocate_node(const int number_of_ops)
 /// <returns>parseNode *.</returns>
 parse_node_ptr constant_node(const int value, const int is_program_counter)
 {
-    const parse_node_ptr p = allocate_node(0);
-    if (p == nullptr) {
-        error(error_out_of_memory);
-        exit(-1);  // NOLINT(concurrency-mt-unsafe)
-    }
+    const parse_node_ptr p = allocate_node();
     p->type = type_con;
 
     /* copy information */
@@ -113,11 +133,10 @@ parse_node_ptr constant_node(const int value, const int is_program_counter)
 //
 parse_node_ptr string_node(const char* value)
 {
-    const parse_node_ptr p = allocate_node(0);
+    const parse_node_ptr p = allocate_node();
 
     char* str = const_cast<char*>(STRDUP(value));
-
-    if (str == nullptr || p == nullptr) {
+    if (str == nullptr) {
         error(error_out_of_memory);
         exit(-1);  // NOLINT(concurrency-mt-unsafe)
     }
@@ -148,12 +167,7 @@ parse_node_ptr id_node_common(const char* name, const node_type_enum  node_type)
 {
     /* MALLOC node */
     // ReSharper disable once CppLocalVariableMayBeConst
-    parse_node_ptr p = allocate_node(0);
-
-    if (p == nullptr) {
-        error(error_out_of_memory);
-        exit(-1);  // NOLINT(concurrency-mt-unsafe)
-    }
+    parse_node_ptr p = allocate_node();
 
     /* copy information */
     p->type = node_type;
@@ -202,7 +216,7 @@ parse_node_ptr macro_id_node(const char* name)
 
 parse_node_ptr print_state_node(const int op)
 {
-    const parse_node_ptr p = allocate_node(0);
+    const parse_node_ptr p = allocate_node();
     p->type = type_print;
     p->pr.print_state = op;
 
@@ -221,12 +235,7 @@ parse_node_ptr macro_expand_node(const char* name, const parse_node_ptr macro_pa
     const parse_node_ptr macro_node_ptr = macro_id_node(name);
 
     /* MALLOC node */
-    const parse_node_ptr p = allocate_node(0);
-
-    if (p == nullptr || macro_node_ptr == nullptr) {
-        error(error_out_of_memory);
-        exit(-1);  // NOLINT(concurrency-mt-unsafe)
-    }
+    const parse_node_ptr p = allocate_node();
 
     /* copy information */
     p->type = type_macro_ex;
@@ -246,12 +255,7 @@ parse_node_ptr macro_expand_node(const char* name, const parse_node_ptr macro_pa
 parse_node_ptr data_node(const int data_node_size, const parse_node_ptr data)
 {
     /* MALLOC node */
-    const parse_node_ptr p = allocate_node(0);
-
-    if (p == nullptr) {
-        error(error_out_of_memory);
-        exit(-1);  // NOLINT(concurrency-mt-unsafe)
-    }
+    const parse_node_ptr p = allocate_node();
 
     /* copy information */
     p->type = type_data;
@@ -273,12 +277,7 @@ parse_node_ptr operator_node(const int opr, const int number_of_ops, ...)
     // ReSharper disable once CppTooWideScope 
     va_list ap;
 
-    /* MALLOC node */
-    const parse_node_ptr p = allocate_node(number_of_ops);
-    if (p == nullptr) {
-        error(error_out_of_memory);
-        exit(-1);  // NOLINT(concurrency-mt-unsafe)
-    }
+    parse_node_ptr p = allocate_node();
 
     /* copy information */
     p->type = type_opr;
@@ -287,7 +286,7 @@ parse_node_ptr operator_node(const int opr, const int number_of_ops, ...)
     if (number_of_ops > 0) {
         va_start(ap, number_of_ops);
         for (int i = 0; i < number_of_ops; i++)
-            p->op[i] = va_arg(ap, parse_node_ptr);
+            (p->operands).push_back(va_arg(ap, parse_node_ptr));
         va_end(ap);
     }
 
@@ -307,12 +306,7 @@ parse_node_ptr opcode_node(const int op, int mode, const int number_of_ops, ...)
     va_list ap;
     int index;
 
-    const parse_node_ptr p = allocate_node(number_of_ops);
-
-    if (p == nullptr) {
-        error(error_out_of_memory);
-        exit(-1);  // NOLINT(concurrency-mt-unsafe)
-    }
+    const parse_node_ptr p = allocate_node();
 
     p->type = type_op_code;
 
@@ -330,21 +324,20 @@ parse_node_ptr opcode_node(const int op, int mode, const int number_of_ops, ...)
     if (number_of_ops > 0) {
         va_start(ap, number_of_ops);
         for (index = 0; index < number_of_ops; index++) {
-            p->op[index] = va_arg(ap, parse_node_ptr);
-            val = expand_node(p->op[index]);
+            p->operands.push_back(va_arg(ap, parse_node_ptr));
+            val = expand_node(p->operands[index]);
         }
         va_end(ap);
     }
     const bool has_uninitialized = has_uninitialized_symbol(p);
 
-
     /* Take care of ASL A   etc */
     if (p->opcode.mode == a && number_of_ops > 0) {
-        const parse_node_ptr pp = p->op[0];
+        const parse_node_ptr pp = p->operands[0];
         // ReSharper disable once CppDeprecatedEntity
         if (pp && pp->type == type_id && stricmp(pp->id.name, "A") == 0) {
             mode = A;
-            p->number_of_ops--;
+            // p->operands.pop_back();
             p->opcode.mode = mode;
         }
     }
@@ -397,9 +390,8 @@ parse_node_ptr opcode_node(const int op, int mode, const int number_of_ops, ...)
         }
     }
 
-    for (index = 0; index < number_of_ops; index++) {
-        if (p->op[index])
-            expand_node(p->op[index]);
+    for (auto& op : p->operands) {
+        expand_node(op);
     }
 
     p->opcode.opcode = code;
@@ -410,9 +402,8 @@ parse_node_ptr opcode_node(const int op, int mode, const int number_of_ops, ...)
     return p;
 }
 
-
 // This will not nodes from remove from p->ops.
-// The problem is an entry in p->ops is also in the first level op tree
+// The problem is an entry in p->ops is also in the first level of vector
 // That means if it freed it must be done
 // in all places in the tree at once or it will cause a crash.
 // There may be multiple entries for the same node
@@ -421,15 +412,15 @@ void remove_parse_node(const parse_node_ptr p)
     if (p == nullptr)
         return;
 
-    const parse_node_ptr prev = p->prev;
-    const parse_node_ptr next = p->next;
-
-    if (prev)
-        prev->next = next;
-    if (next)
-        next->prev = prev;
-    if (p == head_node)
-        head_node = next;
+    for (auto it = parse_nodes.begin(); it != parse_nodes.end(); ) {
+        if (*it == p) {
+            it = parse_nodes.erase(it);  // Remove element and update iterator
+            break;
+        }
+        else {
+            ++it;  // Increment iterator only if not erasing
+        }
+    }
 
     free_parse_node(p);
 }
@@ -439,32 +430,24 @@ void remove_parse_node(const parse_node_ptr p)
 /// </summary>
 void free_parse_tree(void)
 {
-    for (parse_node_ptr p = head_node; p != nullptr;) {
-        const parse_node_ptr next = p->next;
-        remove_parse_node(p);
-        p = next;
+    while (parse_nodes.size() > 0) {
+        remove_parse_node(parse_nodes.front());
     }
-    head_node = current_node = nullptr;
 }
 
 //
 // Print indent
 //
-void print_indent(std::ostream& file)
-{
-    for (int index = 0; index < print_nest_level; index++)
-        file << "    ";
-}
-void print_indent(std::ofstream& file)
+void print_indent(std::stringstream& file)
 {
     for (int index = 0; index < print_nest_level; index++)
         file << "    ";
 }
 
-int is_valid_parse_tree(void)
+int is_valid_parse_tree()
 {
-    for (parse_node_ptr p = head_node; p; p = p->next) {
-        if (!is_valid_parse_node(p))
+    for (auto& node : parse_nodes) {
+        if (!is_valid_parse_node(node))
             return 0;
     }
     return ~0;
@@ -477,8 +460,8 @@ int is_valid_parse_node(const parse_node_ptr p)
     if (p->type <= type_unknown || p->type >= type_last)
         return 0;
 
-    for (int i = 0; i < p->number_of_ops; i++) {
-        if (!is_valid_parse_node(p->op[i]))
+    for (auto& op : p->operands) {
+        if (!is_valid_parse_node(op))
             return 0;
     }
 
@@ -518,13 +501,8 @@ void free_parse_node(const parse_node_ptr p)
             break;
 
     }
-    if (p->number_of_ops > 0 && p->op) {
-        FREE(p->op);
-        p->op = nullptr;
-        p->number_of_ops = 0;
-    }
-    p->allocated = false;
-    FREE(p);
+    p->operands.clear();
+    parsenode_allocator.deallocate(p, 1);
 }
 
 int is_name_valid(char* name)
@@ -545,1237 +523,447 @@ int is_name_valid(char* name)
     return 1;
 }
 
+void print_node(parse_node_ptr p, std::stringstream& str_stream)
+{
+    print_indent(str_stream);
+    if (print_nest_level > 0)
+        str_stream << "CHILD ";
+    str_stream << "NODE [line " << yylineno << "]" << std::endl;
+    print_nest_level++;
+
+    print_indent(str_stream);
+
+    // ReSharper disable once CppDefaultCaseNotHandledInSwitchStatement
+    // ReSharper disable once CppIncompleteSwitchStatement
+    switch (p->type)  // NOLINT(clang-diagnostic-switch)
+    {
+        case type_unknown:
+            print_indent(str_stream);
+            str_stream << "type type_unknown" << std::endl;
+            print_indent(str_stream);
+            break;
+
+        case type_id:
+        case type_macro_id:
+        case type_label:
+            print_indent(str_stream);
+            switch (p->type)  // NOLINT(clang-diagnostic-switch-enum)
+            {
+                case type_id:
+                    str_stream << "type type_id" << std::endl;
+                    break;
+
+                case type_label:
+                    str_stream << "type type_label" << std::endl;
+                    break;
+
+                case type_macro_id:
+                    str_stream << "type type_macro_id" << std::endl;
+                    break;
+
+                default:
+                    break;
+            }
+            print_indent(str_stream);
+            str_stream << "name " << p->id.name << std::endl;
+            print_indent(str_stream);
+            if (p->id.symbol_ptr == nullptr) {
+                str_stream << "symbol_ptr    (nil)" << std::endl;
+            }
+            else {
+                str_stream << "symbol_ptr    0x" << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << p->id.symbol_ptr << std::endl;
+            }
+            if (p->id.symbol_ptr) {
+                print_indent(str_stream);
+                str_stream << "     fullname     " << p->id.symbol_ptr->fullname << std::endl;
+                print_indent(str_stream);
+                str_stream << "     is_initialized  " << p->id.symbol_ptr->is_initialized << std::endl;
+                print_indent(str_stream);
+                str_stream << "     value        " << p->id.symbol_ptr->value << std::endl;
+                print_indent(str_stream);
+                str_stream << "     ismacroname  " << p->id.symbol_ptr->is_macro_name << std::endl;
+                print_indent(str_stream);
+                str_stream << "     ismacroparam " << p->id.symbol_ptr->is_macro_param << std::endl;
+                print_indent(str_stream);
+                str_stream << "     isplusminus  " << p->id.symbol_ptr->is_plus_minus << std::endl;
+                print_indent(str_stream);
+                str_stream << "     isvar        " << p->id.symbol_ptr->is_var << std::endl;
+                print_indent(str_stream);
+                str_stream << "     macroNode    " << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << p->id.symbol_ptr->macro_node << std::endl;
+                print_indent(str_stream);
+                str_stream << "     scope      " << (p->id.symbol_ptr->scope ? p->id.symbol_ptr->scope : "NULL") << std::endl;
+                print_indent(str_stream);
+                str_stream << "     name         " << p->id.symbol_ptr->name << std::endl;
+            }
+            break;
+
+        case type_macro_ex:
+            break;
+
+        case type_opr:
+            print_indent(str_stream);
+            str_stream << "type typeOpr" << std::endl;
+            print_indent(str_stream);
+            str_stream << "opr " << op_lookup[p->opr.opr] << std::endl;
+            break;
+
+        case type_op_code:
+            print_indent(str_stream);
+            str_stream << "type typeOpCode" << std::endl;
+
+            print_indent(str_stream);
+            str_stream << "instruction   " << instruction_to_string(p->opcode.instruction) << std::endl;
+
+            print_indent(str_stream);
+            str_stream << "mode          " << mode_to_string(p->opcode.mode) << std::endl;
+
+            print_indent(str_stream);
+            str_stream << "opCode        " << std::uppercase << std::hex << std::setw(2) << std::setfill('0') << p->opcode.opcode << std::endl;
+
+            print_indent(str_stream);
+            str_stream << "PC            0x" << std::uppercase << std::hex << std::setw(8) << std::setfill('0') << p->opcode.program_counter << std::endl;
+            break;
+
+        case type_con:
+            print_indent(str_stream);
+            str_stream << "type typeCon" << std::endl;
+
+            print_indent(str_stream);
+            str_stream << "IsPC  " << p->con.is_program_counter << std::endl;
+
+            if (p->con.is_program_counter)
+                str_stream << "     PC = " << std::setw(8) << std::uppercase << std::hex << std::setfill('0') << program_counter << std::endl;
+
+            print_indent(str_stream);
+            str_stream << "value 0x" << std::setw(8) << std::uppercase << std::hex << std::setfill('0') << p->con.value << std::endl;
+            break;
+
+        case type_data:
+            print_indent(str_stream);
+            str_stream << "type typeData" << std::endl;
+
+            print_indent(str_stream);
+            str_stream << "size " << p->data.size << std::endl;
+
+            print_node(static_cast<parse_node_ptr>(p->data.data), str_stream);
+            break;
+
+        case type_str:
+            print_indent(str_stream);
+            str_stream << "type typeStr" << std::endl;
+
+            print_indent(str_stream);
+            str_stream << "allocated  " << p->str.allocated << std::endl;
+
+            print_indent(str_stream);
+            str_stream << "len        0x" << std::setw(8) << std::uppercase << std::hex << std::setfill('0') << p->str.len << std::endl;
+
+            print_indent(str_stream);
+            str_stream << "value " << p->str.value << std::endl;
+            break;
+    }
+    for (auto& op : p->operands)
+        print_node(op, str_stream);
+    print_nest_level--;
+}
+
 //
 // Print a node
 //
 void print_node(parse_node_ptr p, std::ostream& file)
 {
-    // ReSharper disable once CppTooWideScope
-    int index;
-
-    print_indent(file);
-    if (print_nest_level > 0)
-        file << "CHILD ";
-    file << "NODE [line " << yylineno << "]" << std::endl;
-    print_nest_level++;
-
-    print_indent(file);
-    file << "allocated " << p->allocated << std::endl;
-
-    // ReSharper disable once CppDefaultCaseNotHandledInSwitchStatement
-    // ReSharper disable once CppIncompleteSwitchStatement
-    switch (p->type)  // NOLINT(clang-diagnostic-switch)
-    {
-        case type_unknown:
-            print_indent(file);
-            file << "type type_unknown" << std::endl;
-            print_indent(file);
-            break;
-
-        case type_id:
-        case type_macro_id:
-        case type_label:
-            print_indent(file);
-            switch (p->type)  // NOLINT(clang-diagnostic-switch-enum)
-            {
-                case type_id:
-                    file << "type type_id" << std::endl;
-                    break;
-
-                case type_label:
-                    file << "type type_label" << std::endl;
-                    break;
-
-                case type_macro_id:
-                    file << "type type_macro_id" << std::endl;
-                    break;
-
-                default:
-                    break;
-            }
-            print_indent(file);
-            file << "name " << p->id.name << std::endl;
-            print_indent(file);
-            if (p->id.symbol_ptr == nullptr) {
-                file << "i    (nil)" << std::endl;
-            }
-            else {
-                file << "i    0x" << std::setfill('0') << std::setw(8) << std::hex << p->id.symbol_ptr << std::endl;
-            }
-            if (p->id.symbol_ptr) {
-                print_indent(file);
-                file << "     fullname     " << p->id.symbol_ptr->fullname << std::endl;
-                print_indent(file);
-                file << "     is_initialized  " << p->id.symbol_ptr->is_initialized << std::endl;
-                print_indent(file);
-                file << "     value        " << p->id.symbol_ptr->value << std::endl;
-                print_indent(file);
-                file << "     ismacroname  " << p->id.symbol_ptr->is_macro_name << std::endl;
-                print_indent(file);
-                file << "     ismacroparam " << p->id.symbol_ptr->is_macro_param << std::endl;
-                print_indent(file);
-                file << "     isplusminus  " << p->id.symbol_ptr->is_plus_minus << std::endl;
-                print_indent(file);
-                file << "     isvar        " << p->id.symbol_ptr->is_var << std::endl;
-                print_indent(file);
-                file << "     macroNode    " << std::setfill('0') << std::setw(8) << std::hex << p->id.symbol_ptr->macro_node << std::endl;
-                print_indent(file);
-                file << "     scope      " << (p->id.symbol_ptr->scope ? p->id.symbol_ptr->scope : "NULL") << std::endl;
-                print_indent(file);
-                file << "     name         " << p->id.symbol_ptr->name << std::endl;
-            }
-            break;
-
-        case type_macro_ex:
-            break;
-
-        case type_opr:
-            print_indent(file);
-            file << "type typeOpr" << std::endl;
-            switch (p->opr.opr) {
-                case INC:
-                    print_indent(file);
-                    file << "opr INC" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case LOAD:
-                    print_indent(file);
-                    file << "opr LOAD" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case LOBYTE:
-                    print_indent(file);
-                    file << "opr LOBYTE" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case HIBYTE:
-                    print_indent(file);
-                    file << "opr HIBYTE" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case PCASSIGN:
-                    print_indent(file);
-                    file << "opr PCASSIGN" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case ORG:
-                    print_indent(file);
-                    file << "opr ORG" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case EXPRLIST:
-                    print_indent(file);
-                    file << "opr EXPRLIST" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case MACRO:
-                    print_indent(file);
-                    file << "opr MACRO" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case WHILE:
-                    print_indent(file);
-                    file << "opr WHILE" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case REPEAT:
-                    print_indent(file);
-                    file << "opr REPEAT" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case SECTION:
-                    print_indent(file);
-                    file << "opr SECTION" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case ENDSECTION:
-                    print_indent(file);
-                    file << "opr ENDSECTION" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case DO:
-                    print_indent(file);
-                    file << "opr DO" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case FOR:
-                    print_indent(file);
-                    file << "opr FOR" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case REGX:
-                    print_indent(file);
-                    file << "opr REGX" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case REGY:
-                    print_indent(file);
-                    file << "opr REGY" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case IF:
-                    print_indent(file);
-                    file << "opr IF" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case PRINT:
-                    print_indent(file);
-                    file << "opr PRINT" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case DS:
-                    print_indent(file);
-                    file << "opr DS" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case STATEMENT:
-                    print_indent(file);
-                    file << "opr STATEMENT" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case END:
-                    print_indent(file);
-                    file << "opr END" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case EQU:
-                    print_indent(file);
-                    file << "opr EQU" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '=':
-                    print_indent(file);
-                    file << "opr '='" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case UMINUS:
-                    print_indent(file);
-                    file << "opr UMINUS" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '~':
-                    print_indent(file);
-                    file << "opr '~'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '+':
-                    print_indent(file);
-                    file << "opr '+'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '-':
-                    print_indent(file);
-                    file << "opr '-'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '*':
-                    print_indent(file);
-                    file << "opr '*'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '/':
-                    print_indent(file);
-                    file << "opr '/'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case BIT_OR:
-                    print_indent(file);
-                    file << "opr BIT_OR" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case BIT_AND:
-                    print_indent(file);
-                    file << "opr BIT_AND" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '^':
-                    print_indent(file);
-                    file << "opr '^'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '<':
-                    print_indent(file);
-                    file << "opr '<'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '>':
-                    print_indent(file);
-                    file << "opr '>'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case EQ:
-                    print_indent(file);
-                    file << "opr EQ" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case NE:
-                    print_indent(file);
-                    file << "opr NE" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case GE:
-                    print_indent(file);
-                    file << "opr GE" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case LE:
-                    print_indent(file);
-                    file << "opr LE" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case OR:
-                    print_indent(file);
-                    file << "opr OR" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case AND:
-                    print_indent(file);
-                    file << "opr AND" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case NOT:
-                    print_indent(file);
-                    file << "opr NOT" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case SHIFT_LEFT:
-                    print_indent(file);
-                    file << "opr SHIFT_LEFT" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case SHIFT_RIGHT:
-                    print_indent(file);
-                    file << "opr SHIFT_RIGHT" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                default:
-                    break;
-            }
-            break;
-
-        case type_op_code:
-            print_indent(file);
-            file << "type typeOpCode" << std::endl;
-
-            print_indent(file);
-            file << "instruction   " << instruction_to_string(p->opcode.instruction) << std::endl;
-
-            print_indent(file);
-            file << "mode          " << mode_to_string(p->opcode.mode) << std::endl;
-
-            print_indent(file);
-            file << "opCode        " << std::hex << std::setw(2) << std::uppercase << std::setfill('0') << p->opcode.opcode << std::endl;
-
-            print_indent(file);
-            file << "PC            0x" << std::hex << std::setw(8) << std::setfill('0') << p->opcode.program_counter << std::endl;
-            for (index = 0; index < p->number_of_ops; index++)
-                print_node(p->op[index], file);
-            break;
-
-        case type_con:
-            print_indent(file);
-            file << "type typeCon" << std::endl;
-
-            print_indent(file);
-            file << "IsPC  " << p->con.is_program_counter << std::endl;
-
-            if (p->con.is_program_counter)
-                file << "     PC = " << std::setw(8) << std::hex << std::setfill('0') << program_counter << std::endl;
-
-            print_indent(file);
-            file << "value 0x" << std::setw(8) << std::hex << std::setfill('0') << p->con.value << std::endl;
-
-            for (index = 0; index < p->number_of_ops; index++)
-                print_node(p->op[index], file);
-            break;
-
-        case type_data:
-            print_indent(file);
-            file << "type typeData" << std::endl;
-
-            print_indent(file);
-            file << "size " << p->data.size << std::endl;
-
-            print_node(static_cast<parse_node_ptr>(p->data.data), file);
-            for (index = 0; index < p->number_of_ops; index++)
-                print_node(p->op[index], file);
-            break;
-
-        case type_str:
-            print_indent(file);
-            file << "type typeStr" << std::endl;
-
-            print_indent(file);
-            file << "allocated  " << p->str.allocated << std::endl;
-
-            print_indent(file);
-            file << "len        0x" << std::setw(8) << std::hex << std::setfill('0') << p->str.len << std::endl;
-
-            print_indent(file);
-            file << "value " << p->str.value << std::endl;
-            for (index = 0; index < p->number_of_ops; index++)
-                print_node(p->op[index], file);
-            break;
-    }
-
-    print_nest_level--;
+    std::stringstream str_stream;
+    print_node(p, str_stream);
+    file << str_stream.str();
 }
 
 void print_node(parse_node_ptr p, std::ofstream& file)
 {
-    // ReSharper disable once CppTooWideScope
-    int index;
-
-    print_indent(file);
-    if (print_nest_level > 0)
-        file << "CHILD ";
-    file << "NODE [line " << yylineno << "]" << std::endl;
-    print_nest_level++;
-
-    print_indent(file);
-    file << "allocated " << p->allocated << std::endl;
-
-    // ReSharper disable once CppDefaultCaseNotHandledInSwitchStatement
-    // ReSharper disable once CppIncompleteSwitchStatement
-    switch (p->type)  // NOLINT(clang-diagnostic-switch)
-    {
-        case type_unknown:
-            print_indent(file);
-            file << "type type_unknown" << std::endl;
-            print_indent(file);
-            break;
-
-        case type_id:
-        case type_macro_id:
-        case type_label:
-            print_indent(file);
-            switch (p->type)  // NOLINT(clang-diagnostic-switch-enum)
-            {
-                case type_id:
-                    file << "type type_id" << std::endl;
-                    break;
-
-                case type_label:
-                    file << "type type_label" << std::endl;
-                    break;
-
-                case type_macro_id:
-                    file << "type type_macro_id" << std::endl;
-                    break;
-
-                default:
-                    break;
-            }
-            print_indent(file);
-            file << "name " << p->id.name << std::endl;
-            print_indent(file);
-            if (p->id.symbol_ptr == nullptr) {
-                file << "i    (nil)" << std::endl;
-            }
-            else {
-                file << "i    0x" << std::setfill('0') << std::setw(8) << std::hex << p->id.symbol_ptr << std::endl;
-            }
-            if (p->id.symbol_ptr) {
-                print_indent(file);
-                file << "     fullname     " << p->id.symbol_ptr->fullname << std::endl;
-                print_indent(file);
-                file << "     is_initialized  " << p->id.symbol_ptr->is_initialized << std::endl;
-                print_indent(file);
-                file << "     value        " << p->id.symbol_ptr->value << std::endl;
-                print_indent(file);
-                file << "     ismacroname  " << p->id.symbol_ptr->is_macro_name << std::endl;
-                print_indent(file);
-                file << "     ismacroparam " << p->id.symbol_ptr->is_macro_param << std::endl;
-                print_indent(file);
-                file << "     isplusminus  " << p->id.symbol_ptr->is_plus_minus << std::endl;
-                print_indent(file);
-                file << "     isvar        " << p->id.symbol_ptr->is_var << std::endl;
-                print_indent(file);
-                file << "     macroNode    " << std::setfill('0') << std::setw(8) << std::hex << p->id.symbol_ptr->macro_node << std::endl;
-                print_indent(file);
-                file << "     scope      " << (p->id.symbol_ptr->scope ? p->id.symbol_ptr->scope : "NULL") << std::endl;
-                print_indent(file);
-                file << "     name         " << p->id.symbol_ptr->name << std::endl;
-            }
-            break;
-
-        case type_macro_ex:
-            break;
-
-        case type_opr:
-            print_indent(file);
-            file << "type typeOpr" << std::endl;
-            switch (p->opr.opr) {
-                case INC:
-                    print_indent(file);
-                    file << "opr INC" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case LOAD:
-                    print_indent(file);
-                    file << "opr LOAD" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case LOBYTE:
-                    print_indent(file);
-                    file << "opr LOBYTE" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case HIBYTE:
-                    print_indent(file);
-                    file << "opr HIBYTE" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case PCASSIGN:
-                    print_indent(file);
-                    file << "opr PCASSIGN" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case ORG:
-                    print_indent(file);
-                    file << "opr ORG" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case EXPRLIST:
-                    print_indent(file);
-                    file << "opr EXPRLIST" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case MACRO:
-                    print_indent(file);
-                    file << "opr MACRO" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case WHILE:
-                    print_indent(file);
-                    file << "opr WHILE" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case REPEAT:
-                    print_indent(file);
-                    file << "opr REPEAT" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case SECTION:
-                    print_indent(file);
-                    file << "opr SECTION" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case ENDSECTION:
-                    print_indent(file);
-                    file << "opr ENDSECTION" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case DO:
-                    print_indent(file);
-                    file << "opr DO" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case FOR:
-                    print_indent(file);
-                    file << "opr FOR" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case REGX:
-                    print_indent(file);
-                    file << "opr REGX" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case REGY:
-                    print_indent(file);
-                    file << "opr REGY" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case IF:
-                    print_indent(file);
-                    file << "opr IF" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case PRINT:
-                    print_indent(file);
-                    file << "opr PRINT" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case DS:
-                    print_indent(file);
-                    file << "opr DS" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case STATEMENT:
-                    print_indent(file);
-                    file << "opr STATEMENT" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case END:
-                    print_indent(file);
-                    file << "opr END" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case EQU:
-                    print_indent(file);
-                    file << "opr EQU" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '=':
-                    print_indent(file);
-                    file << "opr '='" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case UMINUS:
-                    print_indent(file);
-                    file << "opr UMINUS" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '~':
-                    print_indent(file);
-                    file << "opr '~'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '+':
-                    print_indent(file);
-                    file << "opr '+'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '-':
-                    print_indent(file);
-                    file << "opr '-'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '*':
-                    print_indent(file);
-                    file << "opr '*'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '/':
-                    print_indent(file);
-                    file << "opr '/'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case BIT_OR:
-                    print_indent(file);
-                    file << "opr BIT_OR" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case BIT_AND:
-                    print_indent(file);
-                    file << "opr BIT_AND" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '^':
-                    print_indent(file);
-                    file << "opr '^'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '<':
-                    print_indent(file);
-                    file << "opr '<'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case '>':
-                    print_indent(file);
-                    file << "opr '>'" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case EQ:
-                    print_indent(file);
-                    file << "opr EQ" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case NE:
-                    print_indent(file);
-                    file << "opr NE" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case GE:
-                    print_indent(file);
-                    file << "opr GE" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case LE:
-                    print_indent(file);
-                    file << "opr LE" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case OR:
-                    print_indent(file);
-                    file << "opr OR" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case AND:
-                    print_indent(file);
-                    file << "opr AND" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case NOT:
-                    print_indent(file);
-                    file << "opr NOT" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case SHIFT_LEFT:
-                    print_indent(file);
-                    file << "opr SHIFT_LEFT" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                case SHIFT_RIGHT:
-                    print_indent(file);
-                    file << "opr SHIFT_RIGHT" << std::endl;
-                    for (index = 0; index < p->number_of_ops; index++)
-                        print_node(p->op[index], file);
-                    break;
-
-                default:
-                    break;
-            }
-            break;
-
-        case type_op_code:
-            print_indent(file);
-            file << "type typeOpCode" << std::endl;
-
-            print_indent(file);
-            file << "instruction   " << instruction_to_string(p->opcode.instruction) << std::endl;
-
-            print_indent(file);
-            file << "mode          " << mode_to_string(p->opcode.mode) << std::endl;
-
-            print_indent(file);
-            file << "opCode        " << std::hex << std::setw(2) << std::uppercase << std::setfill('0') << p->opcode.opcode << std::endl;
-
-            print_indent(file);
-            file << "PC            0x" << std::hex << std::setw(8) << std::setfill('0') << p->opcode.program_counter << std::endl;
-            for (index = 0; index < p->number_of_ops; index++)
-                print_node(p->op[index], file);
-            break;
-
-        case type_con:
-            print_indent(file);
-            file << "type typeCon" << std::endl;
-
-            print_indent(file);
-            file << "IsPC  " << p->con.is_program_counter << std::endl;
-
-            if (p->con.is_program_counter)
-                file << "     PC = " << std::setw(8) << std::hex << std::setfill('0') << program_counter << std::endl;
-
-            print_indent(file);
-            file << "value 0x" << std::setw(8) << std::hex << std::setfill('0') << p->con.value << std::endl;
-
-            for (index = 0; index < p->number_of_ops; index++)
-                print_node(p->op[index], file);
-            break;
-
-        case type_data:
-            print_indent(file);
-            file << "type typeData" << std::endl;
-
-            print_indent(file);
-            file << "size " << p->data.size << std::endl;
-
-            print_node(static_cast<parse_node_ptr>(p->data.data), file);
-            for (index = 0; index < p->number_of_ops; index++)
-                print_node(p->op[index], file);
-            break;
-
-        case type_str:
-            print_indent(file);
-            file << "type typeStr" << std::endl;
-
-            print_indent(file);
-            file << "allocated  " << p->str.allocated << std::endl;
-
-            print_indent(file);
-            file << "len        0x" << std::setw(8) << std::hex << std::setfill('0') << p->str.len << std::endl;
-
-            print_indent(file);
-            file << "value " << p->str.value << std::endl;
-            for (index = 0; index < p->number_of_ops; index++)
-                print_node(p->op[index], file);
-            break;
-    }
-
-    print_nest_level--;
+    std::stringstream str_stream;
+    print_node(p, str_stream);
+    file << str_stream.str();
 }
+
+inline void print_byte(std::stringstream& str_stream, int op)
+{
+    str_stream << "$" <<
+        std::uppercase << std::hex << std::setw(2) << std::setfill('0') << LOBYTE(op);
+}
+
+inline void print_2byte(std::stringstream& str_stream, int op)
+{
+    str_stream << "$" <<
+        std::uppercase << std::hex << std::setw(4) << std::setfill('0') << (op & 0xFFFF);
+}
+
+inline void print_word(std::stringstream& str_stream, int op)
+{
+    str_stream << "$" <<
+        std::uppercase << std::hex << std::setw(2) << std::setfill('0') << HIBYTE(op) <<
+        std::uppercase << std::hex << std::setw(2) << std::setfill('0') << LOBYTE(op);
+}
+
+inline void print_char(std::stringstream& str_stream, char op)
+{
+    if (isprint(op)) {
+        str_stream << "'" << op << "'";
+    }
+    else {
+        print_byte(str_stream, op);
+    }
+}
+
 // 
 // Generate a list node entry
 // based on node
 //
 // This should only be called on the FinalPass
 // when all symbols/macros are resolved
+//
+// return negative value on an error
+// return 0 on success
 int generate_list_node(const parse_node_ptr p)
 {
-    int col = 0;
     int bytes = 0;
-    int len;
-    char* current_buffer = static_cast<char*>(MALLOC(10LLU * 1024));
-    char* current_ptr = current_buffer;
-    *current_buffer = 0;
-    memset(current_buffer, 0, 10LLU * 1024);
+    int op = 0;
+    int output_length = 0;
+    int len = 0;
+    char* string_start = nullptr;
+    char* str = nullptr;
+    unsigned char hi = 0;
+    unsigned char lo = 0;
+    int pc = program_counter;
+    std::stringstream str_stream;
 
     // passing NULL will cause an empty node which forces a the
     // current file to listed even if no code is generated
     if (p == nullptr) {
         if (add_list(current_file_name, yylineno, "") == nullptr) {
             error(error_creating_list_node);
+            return -1;
         }
-        FREE(current_buffer);
         return 0;
     }
 
-    if (p->type == type_print) {
-        if (p->pr.print_state != print_list_state) {
-            print_list_state = false;
-            auto node = add_list(current_file_name, yylineno, "");
-            node->list_directive = true;
-            print_list_state = p->pr.print_state;
-        }
-        FREE(current_buffer);
-        return 1;
-    }
+    switch (p->type) {
+        // raw bytes
+        default:
+            print_word(str_stream, pc & 0xFFFF);
+            str_stream << ": ";
+            // expand the node
+            op = expand_node(p);
+            hi = HIBYTE(op);
+            lo = LOBYTE(op);
 
-    // get the program counter
-    // if the node is an opcode get the PC from the opcode itself
-    // otherwise use PC
-    int op = p->type == type_op_code ? p->opcode.program_counter & 0xFFFF : program_counter & 0xFFFF;
-    sprintf(current_ptr, "$%02X%02X:", ((op) >> 8), op & 0xFF);
-    current_ptr += strlen(current_ptr);
-
-    // generate a list node for a string
-    if (p->type == type_str) {
-        const char* string_start = nullptr;
-        char* str = p->str.value;
-        int output_length = p->str.len;
-        int pad = 0;
-        while (output_length--) {
-            // output the PC on column zero
-            if (col == 0) {
-                string_start = str;
-                current_ptr = current_buffer;
-                op = (program_counter + bytes) & 0xFFFF;
-                sprintf(current_ptr, "$%02X%02X:", ((op) >> 8), op & 0xFF);
-                current_ptr += strlen(current_ptr);
+            if (op < 0 && data_size == 1) {
+                hi = 0;
             }
-
-            col++;
-            sprintf(current_ptr, " $%02X", *str & 0xFF);
-            current_ptr += strlen(current_ptr);
-            str++;
-            bytes++;
-
-            // at column 3 create a node and reset to column 0
-            if (col == 3) {
-                len = static_cast<int>(strlen(current_buffer));
-                while (len++ < SRC_LST_INDENT) {
-                    *current_ptr++ = ' ';
-                }
-                *current_ptr = 0;
-                sprintf(current_ptr, ".db ");
-                current_ptr += strlen(current_ptr);
-                for (len = 0; len < col; len++) {
-                    if (len > 0) {
-                        sprintf(current_ptr, ", ");
-                        current_ptr += strlen(current_ptr);
-                    }
-                    if (isprint(string_start[len])) {
-                        sprintf(current_ptr, "'%c'", string_start[len]);
-                    }
-                    else {
-                        sprintf(current_ptr, "$%02X", string_start[len] & 0xFF);
-                    }
-                    current_ptr += strlen(current_ptr);
-                }
-
-                if (add_list(current_file_name, yylineno, current_buffer) == nullptr) {
-                    error(error_creating_list_node);
-                    return 0;
-                }
-                col = 0;
-            }
-        }
-
-        // if using a string with WORD then pad to a word boundary
-        if (data_size == 2 && p->str.len % 2) {
-            col++;
-            sprintf(current_ptr, " $%02X", *str & 0xFF);
-            current_ptr += strlen(current_ptr);
-            pad = 1;
-        }
-
-        // output final node
-        if (col != 0) {
-            len = static_cast<int>(strlen(current_buffer));
-            while (len++ < SRC_LST_INDENT) {
-                *current_ptr++ = ' ';
-            }
-            sprintf(current_ptr, ".db ");
-            current_ptr += strlen(current_ptr);
-            for (len = 0; len < col; len++) {
-                if (len > 0) {
-                    sprintf(current_ptr, ", ");
-                    current_ptr += strlen(current_ptr);
-                }
-                if (len == col - 1 && pad) {
-                    sprintf(current_ptr, "$%02X", string_start[len]);
-                }
-                else {
-                    sprintf(current_ptr, "'%c'", string_start[len]);
-                }
-                current_ptr += strlen(current_ptr);
-            }
-
-            if (add_list(current_file_name, yylineno, current_buffer) == nullptr) {
-                error(error_creating_list_node);
-                exit(-1);  // NOLINT(concurrency-mt-unsafe)
-            }
-        }
-        FREE(current_buffer);
-        return bytes;
-    }
-
-    // output numeric value
-    // DataSize contain number of bytes to output
-    if (p->type != type_op_code) {
-        // expand the node
-        op = expand_node(p);
-
-        unsigned char hi = static_cast<unsigned char>((op & 0xFF00) >> 8);
-        const unsigned char lo = static_cast<unsigned char>(op & 0xFF);
-
-        if (op < 0 && data_size == 1) {
-            hi = 0;
-        }
-        // check for overflow
-        if (hi != 0 && data_size < 2) {
-            FREE(current_buffer);
-            // This error is reported in generate_output
-            fprintf(console, "%s\n", current_buffer);
-            return 0;
-        }
-
-        // see if we can append to last node
-        list_table_ptr current_list_ptr = list_head;
-        if (current_list_ptr) {
-            while (current_list_ptr->next) {
-                current_list_ptr = current_list_ptr->next;
-            }
-        }
-
-        // output lo byte
-        sprintf(current_ptr, " $%02X", lo);
-        current_ptr += strlen(current_ptr);
-
-        // output hi byte
-        if (data_size > 1) {
-            sprintf(current_ptr, " $%02X", hi);
-            current_ptr += strlen(current_ptr);
-        }
-        len = static_cast<int>(strlen(current_buffer));
-        while (len++ < SRC_LST_INDENT) {
-            *current_ptr++ = ' ';
-        }
-        sprintf(current_ptr, ".db ");
-        current_ptr += strlen(current_ptr);
-        sprintf(current_ptr, "$%02X", lo);
-        current_ptr += strlen(current_ptr);
-        if (data_size > 1 || (data_size == 0 && hi != 0)) {
-            sprintf(current_ptr, ", $%02X", hi);
-            // ReSharper disable once CppAssignedValueIsNeverUsed
-            current_ptr += strlen(current_ptr);
-        }
-        // add the node
-        if (add_list(current_file_name, yylineno, current_buffer) == nullptr) {
-            error(error_creating_list_node);
-            exit(-1);  // NOLINT(concurrency-mt-unsafe)
-        }
-        FREE(current_buffer);
-        return 0;
-    }
-
-    // output an opcode list node
-
-    // get the opcode
-    sprintf(current_ptr, " $%02X", p->opcode.opcode);
-    current_ptr += strlen(current_ptr);
-
-    // get number of bytes used by opcode
-    bytes = get_op_byte_count(p);
-    if (bytes > 0) {
-        // expand the data
-        op = expand_node(p->op[0]);
-
-        // if relative mode check range
-        if (p->opcode.mode == r) {
-            op -= (p->opcode.program_counter + 2);
-            if (op > 128 || op < -127) {
+            // check for overflow
+            if (hi != 0 && data_size < 2) {
                 // This error is reported in generate_output
-                fprintf(console, "%s\n", current_buffer);
-                return 0;
+                // error(error_value_out_of_range);
+                return -1;
             }
-            op &= 0xFF;
-        }
 
-        // get the hi and lo byte
-        const unsigned char hi = static_cast<unsigned char>((op & 0xFF00) >> 8);
-        const unsigned char lo = static_cast<unsigned char>(op & 0xFF);
+            // output bytes
+            print_byte(str_stream, lo);
+            if (data_size > 1) {
+                str_stream << ' ';
+                print_byte(str_stream, hi);
+            }
+            // padd to next field
+            len = SRC_LST_INDENT - static_cast<int>(str_stream.str().size()) + 4;
+            str_stream << std::setw(len) << std::setfill(' ') << ".db ";
 
-        // output the lo byte
-        sprintf(current_ptr, " $%02X", lo);
-        current_ptr += strlen(current_ptr);
+            // add .db bytes
+            print_byte(str_stream, lo);
+            if (data_size > 1) {
+                str_stream << ", ";
+                print_byte(str_stream, hi);
+            }
+            // create the list node
+            if (add_list(current_file_name, yylineno, str_stream.str().c_str()) == nullptr) {
+                error(error_creating_list_node);
+                return -1;
+            }
+            break;
 
-        // output hi byte if needed
-        if (bytes > 1) {
-            sprintf(current_ptr, " $%02X", hi);
-            current_ptr += strlen(current_ptr);
-        }
+        case type_print:
+            if (p->pr.print_state != print_list_state) {
+                print_list_state = false;
+                auto node = add_list(current_file_name, yylineno, "");
+                if (node == nullptr) {
+                    error(error_creating_list_node);
+                    return -1;
+                }
+                node->list_directive = true;
+                print_list_state = p->pr.print_state;
+            }
+            return 1;
+
+        case type_str:
+            str = p->str.value;
+            output_length = p->str.len;
+            if (data_size == 2 && output_length % 2 != 0) {
+                output_length++;
+            }
+            while (output_length) {
+                str_stream.str("");
+                string_start = str;
+                print_word(str_stream, pc & 0xFFFF);
+                str_stream << ":";
+                bytes = MIN(3, output_length);
+                output_length -= bytes;
+                pc += bytes;
+
+                for (auto i = 0; i < bytes; ++i) {
+                    str_stream << ' ';
+                    print_byte(str_stream, static_cast<int>(*str++) & 0xFF);
+                }
+
+                len = SRC_LST_INDENT - static_cast<int>(str_stream.str().size()) + 4;
+                str_stream << std::setw(len) << std::setfill(' ') << ".db ";
+
+                print_char(str_stream, string_start[0]);
+                for (len = 1; len < bytes; len++) {
+                    str_stream << ", ";
+                    print_char(str_stream, string_start[len]);
+                }
+                if (add_list(current_file_name, yylineno, str_stream.str().c_str()) == nullptr) {
+                    error(error_creating_list_node);
+                    return -1;
+                }
+            }
+            break;
+
+        case type_op_code:
+            print_word(str_stream, p->opcode.program_counter);
+            str_stream << ": ";
+
+            print_byte(str_stream, p->opcode.opcode);
+
+            // get number of bytes used by opcode
+            // must be 0, 1 or 2
+            bytes = get_op_byte_count(p);
+            if (bytes > 0) {
+                op = expand_node(p->operands[0]);
+
+                // if relative mode check range
+                if (p->opcode.mode == r) {
+                    op -= (p->opcode.program_counter + 2);
+                    if (op > 128 || op < -127) {
+                        // This error is reported in generate_output
+                        error(error_branch_out_of_range);
+                        return -1;
+                    }
+                    op &= 0xFF;
+                }
+                // get the hi and lo byte
+                hi = HIBYTE(op);
+                lo = LOBYTE(op);
+
+                // output the extra bytes
+                str_stream << ' ';
+                print_byte(str_stream, lo);
+                if (bytes > 1) {
+                    str_stream << ' ';
+                    print_byte(str_stream, hi);
+                }
+            }
+
+            // padd to next field
+            len = SRC_LST_INDENT - static_cast<int>(str_stream.str().size()) + 3;
+            str_stream << std::setw(len) << std::setfill(' ');
+
+            str_stream << instruction_to_string(p->opcode.instruction);
+            if (bytes > 0 && (p->operands.size() > 0)) {
+                str_stream << ' ';
+                for (auto& operand : p->operands) {
+                    expand_node(operand);
+                }
+                op = expand_node(p->operands[0]);
+
+                switch (p->opcode.mode) {
+                    case A:
+                    case i:
+                    default:
+                        break;
+
+                    case I:      // immediate
+                        str_stream << '#';
+                        print_byte(str_stream, op);
+                        break;
+
+                    case zp:     // zero page
+                        print_byte(str_stream, op);
+                        break;
+
+                    case zpi:    // zero page indirect
+                        str_stream << '(';
+                        print_byte(str_stream, op);
+                        str_stream << ')';
+                        break;
+
+                    case zpx:    // zero page x
+                        print_byte(str_stream, op);
+                        str_stream << ",x";
+                        break;
+
+                    case zpy:    // zero page y
+                        print_byte(str_stream, op);
+                        str_stream << ",y";
+                        break;
+
+                    case izx:   // zero page indirect x
+                        str_stream << '(';
+                        print_byte(str_stream, op);
+                        str_stream << ",x)";
+                        break;
+
+                    case izy:   // zero page indirect y
+                        str_stream << '(';
+                        print_byte(str_stream, op);
+                        str_stream << "),y";
+                        break;
+
+                    case a:      // absolute
+                        print_2byte(str_stream, op);
+                        break;
+
+                    case aix:    // absolute indirect x
+                        str_stream << '(';
+                        print_2byte(str_stream, op);
+                        str_stream << ",x)";
+                        break;
+
+                    case ax:     // absolute x
+                        print_2byte(str_stream, op);
+                        str_stream << ",x";
+                        break;
+
+                    case ay:     // absolute y
+                        print_2byte(str_stream, op);
+                        str_stream << ",y";
+                        break;
+
+                    case ind:    // absolute indirect
+                        str_stream << '(';
+                        print_2byte(str_stream, op);
+                        str_stream << ')';
+                        break;
+
+                    case r:      // relative
+                        print_2byte(str_stream, op);
+                        break;
+
+                }
+            }
+            if (add_list(current_file_name, yylineno, str_stream.str().c_str()) == nullptr) {
+                error(error_creating_list_node);
+                return -1;
+            }
+
+            break;
     }
-
-    col = static_cast<int>(strlen(current_buffer));
-    while (col++ < SRC_LST_INDENT) {
-        *current_ptr++ = ' ';
-    }
-    sprintf(current_ptr, "%s ", instruction_to_string(p->opcode.instruction));
-    current_ptr += strlen(current_ptr);
-    if (bytes > 0 && (p->number_of_ops > 0)) {
-        op = expand_node(p->op[0]);
-        if (p->number_of_ops > 1) {
-            expand_node(p->op[1]);
-        }
-        // ReSharper disable once CppDefaultCaseNotHandledInSwitchStatement
-        switch (p->opcode.mode) {
-            case i:      /* implied *           */
-            case A:      /* Accumulator         */
-                break;
-
-            case I:      /* immediate           */
-                sprintf(current_ptr, "#$%02X ", op);
-                break;
-
-            case zp:     /* zero page            */
-                sprintf(current_ptr, "$%02X ", op);
-                break;
-
-            case zpi:    /* zero page indirect   */
-                sprintf(current_ptr, "($%02X) ", op);
-                break;
-
-            case zpx:    /* zero page x          */
-                sprintf(current_ptr, "$%02X,x ", op);
-                break;
-
-            case zpy:    /* zero page y          */
-                sprintf(current_ptr, "$%02X,y ", op);
-                break;
-
-            case izx:   /* zero page indirect x */
-                sprintf(current_ptr, "($%02X,x) ", op);
-                break;
-
-            case izy:   /* zero page indirect y */
-                sprintf(current_ptr, "($%02X),y ", op);
-                break;
-
-            case a:      /* absolute             */
-                sprintf(current_ptr, "$%04X ", op);
-                break;
-
-            case aix:    /* absolute indirect x  */  // NOLINT(bugprone-branch-clone)
-                sprintf(current_ptr, "$%04X,x ", op);
-                break;
-
-            case ax:     /* absolute x           */
-                sprintf(current_ptr, "$%04X,x ", op);
-                break;
-
-            case ay:     /* absolute y           */
-                sprintf(current_ptr, "$%04X,y ", op);
-                break;
-
-            case ind:    /* absolute indirect    */
-                sprintf(current_ptr, "($%04X) ", op);
-                break;
-
-            case r:      /* relative             */
-                sprintf(current_ptr, "$%04X ", op);
-                break;
-
-        }
-    }
-
-    // add the node
-    if (add_list(current_file_name, yylineno, current_buffer) == nullptr) {
-        FREE(current_buffer);
-        error(error_creating_list_node);
-        return 0;
-    }
-    FREE(current_buffer);
-    return bytes + 1;
+    return 0;
 }
