@@ -4,6 +4,7 @@
 
 #include <ctype.h>
 #include <stdlib.h>
+#include <string>
 #include <string.h>
 
 #include "error.h"
@@ -17,18 +18,8 @@
  */
 char* sanitize_string(char* str)
 {
-    const int len = static_cast<int>(strlen(str)) + 1;
-
-    char* out_str = static_cast<char*>(MALLOC(len));
-    char* tmp_str = out_str;
-    unsigned char esc_char = 0;
-
-    if (out_str == NULL)
-    {
-        error2(error_out_of_memory, "Can't sanitize string");
-        exit(-1);  // NOLINT(concurrency-mt-unsafe)
-    }
-    memset(out_str, 0, len);
+    char esc_char = 0;
+    std::string out;
 
     if (str == NULL)
     {
@@ -82,7 +73,7 @@ char* sanitize_string(char* str)
                     char temp[3] = { 0 };
                     temp[0] = *str;
                     temp[1] = *(str + 1);
-                    *tmp_str++ = static_cast<char>((int)strtol(temp, NULL, 16));
+                    out += static_cast<char>((int)strtol(temp, NULL, 16));
                     str += 2;
                 }
                 continue;
@@ -98,14 +89,13 @@ char* sanitize_string(char* str)
                 error(error_unrecognized_escape_sequence);
                 break;
             }
-            *tmp_str++ = static_cast<char>(esc_char);
+            out += esc_char;
             str++;
         }
         else if (*str)
         {
-            *tmp_str++ = *str++;
+            out += *str++;
         }
     }
-
-    return out_str;
+    return (char*) STRDUP(out.c_str());
 }

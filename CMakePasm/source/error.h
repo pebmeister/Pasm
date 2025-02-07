@@ -2,12 +2,12 @@
 
 extern void warn(int err_num);
 extern void error(int err_num);
-extern void error2(int err_num, const char* parameter);
+extern void error(int err_num, const char* parameter);
 
 extern int error_count;
 extern int warning_count;
 
-enum
+enum error_num
 {
     error_start,
 

@@ -44,10 +44,6 @@ int pass = 0;
 int program_counter = 0;
 int data_size = 0;
 int input_file_count = 0;
-extern int plus_symbol_table_index;
-extern int minus_symbol_table_index;
-extern int plus_symbol_table_size;
-extern int minus_symbol_table_size;
 
 void init_globals()
 {

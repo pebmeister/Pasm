@@ -36,6 +36,7 @@
 #define HIBYTE(a)   (((a) & 0xFF00) >> 8)
 #define LOBYTE(a)   ((a) & 0xFF)
 
+void print_tab(std::stringstream& file, int tab);
 static std::allocator<parse_node> parsenode_allocator;
 
 static int is_name_valid(char* name);
@@ -90,6 +91,25 @@ std::map<int, std::string> op_lookup =
     { '<',          "'<'"           },
     { '>',          "'>'"           },
 };
+
+inline void print_byte(std::stringstream& str_stream, int op)
+{
+    str_stream << "$" <<
+        std::uppercase << std::right << std::hex << std::setw(2) << std::setfill('0') << LOBYTE(op);
+}
+
+inline void print_2byte(std::stringstream& str_stream, int op)
+{
+    str_stream << "$" <<
+        std::uppercase << std::right << std::hex << std::setw(4) << std::setfill('0') << (op & 0xFFFF);
+}
+
+inline void print_word(std::stringstream& str_stream, int op)
+{
+    str_stream << "$" <<
+        std::uppercase << std::right << std::hex << std::setw(2) << std::setfill('0') << HIBYTE(op) <<
+        std::uppercase << std::right << std::hex << std::setw(2) << std::setfill('0') << LOBYTE(op);
+}
 
 /// <summary>
 /// Allocates the node.
@@ -276,7 +296,6 @@ parse_node_ptr operator_node(const int opr, const int number_of_ops, ...)
 {
     // ReSharper disable once CppTooWideScope 
     va_list ap;
-
     parse_node_ptr p = allocate_node();
 
     /* copy information */
@@ -440,8 +459,12 @@ void free_parse_tree(void)
 //
 void print_indent(std::stringstream& file)
 {
-    for (int index = 0; index < print_nest_level; index++)
-        file << "    ";
+    print_tab(file, print_nest_level);
+}
+
+void print_tab(std::stringstream& file, int tab)
+{
+    file << std::setw(tab * 4) << std::setfill(' ') << "";
 }
 
 int is_valid_parse_tree()
@@ -523,6 +546,43 @@ int is_name_valid(char* name)
     return 1;
 }
 
+inline void print_label(std::stringstream& str_stream, const char* label)
+{
+    const int col1_label_width = 15;
+    str_stream << std::left << std::setfill(' ') << std::setw(col1_label_width) << label;
+}
+
+inline void print_value(std::stringstream& str_stream, const char* value)
+{
+    str_stream << std::left << std::setfill(' ') << std::setw(0) << value;
+}
+
+inline void print_value(std::stringstream& str_stream, bool value)
+{
+    str_stream << std::left << std::setfill(' ') << std::setw(0) << value;
+}
+
+inline void print_hex_value(std::stringstream& str_stream, void* value)
+{
+    str_stream << std::left << std::setw(0) << std::setfill(' ') << "" <<
+        "0x" << std::right << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << value;
+}
+
+inline void print_hex_value(std::stringstream& str_stream, int value)
+{
+    print_2byte(str_stream, value);
+}
+
+inline void print_char(std::stringstream& str_stream, char op)
+{
+    if (isprint(op)) {
+        str_stream << "'" << op << "'";
+    }
+    else {
+        print_byte(str_stream, op);
+    }
+}
+
 void print_node(parse_node_ptr p, std::stringstream& str_stream)
 {
     print_indent(str_stream);
@@ -531,135 +591,197 @@ void print_node(parse_node_ptr p, std::stringstream& str_stream)
     str_stream << "NODE [line " << yylineno << "]" << std::endl;
     print_nest_level++;
 
-    print_indent(str_stream);
+    print_tab(str_stream, print_nest_level + 1);
+    print_label(str_stream, "type");
 
     // ReSharper disable once CppDefaultCaseNotHandledInSwitchStatement
     // ReSharper disable once CppIncompleteSwitchStatement
     switch (p->type)  // NOLINT(clang-diagnostic-switch)
     {
         case type_unknown:
-            print_indent(str_stream);
-            str_stream << "type type_unknown" << std::endl;
-            print_indent(str_stream);
+            print_value(str_stream, "unknown");
+            str_stream << std::endl;
             break;
 
         case type_id:
         case type_macro_id:
         case type_label:
-            print_indent(str_stream);
             switch (p->type)  // NOLINT(clang-diagnostic-switch-enum)
             {
                 case type_id:
-                    str_stream << "type type_id" << std::endl;
+                    print_value(str_stream, "type_id");
                     break;
 
                 case type_label:
-                    str_stream << "type type_label" << std::endl;
+                    print_value(str_stream, "type_label");
                     break;
 
                 case type_macro_id:
-                    str_stream << "type type_macro_id" << std::endl;
+                    print_value(str_stream, "type_macro_id");
                     break;
 
-                default:
-                    break;
             }
-            print_indent(str_stream);
-            str_stream << "name " << p->id.name << std::endl;
-            print_indent(str_stream);
+            str_stream << std::endl;
+
+            print_tab(str_stream, print_nest_level + 1);
+            print_label(str_stream, "name");
+            print_value(str_stream, p->id.name);
+            str_stream << std::endl;
+
+            print_tab(str_stream, print_nest_level + 1);
+            print_label(str_stream, "symbol_ptr");
+
             if (p->id.symbol_ptr == nullptr) {
-                str_stream << "symbol_ptr    (nil)" << std::endl;
+                print_value(str_stream, "(nil)");
             }
             else {
-                str_stream << "symbol_ptr    0x" << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << p->id.symbol_ptr << std::endl;
+                print_hex_value(str_stream, p->id.symbol_ptr);
             }
+            str_stream << std::endl;
+
             if (p->id.symbol_ptr) {
-                print_indent(str_stream);
-                str_stream << "     fullname     " << p->id.symbol_ptr->fullname << std::endl;
-                print_indent(str_stream);
-                str_stream << "     is_initialized  " << p->id.symbol_ptr->is_initialized << std::endl;
-                print_indent(str_stream);
-                str_stream << "     value        " << p->id.symbol_ptr->value << std::endl;
-                print_indent(str_stream);
-                str_stream << "     ismacroname  " << p->id.symbol_ptr->is_macro_name << std::endl;
-                print_indent(str_stream);
-                str_stream << "     ismacroparam " << p->id.symbol_ptr->is_macro_param << std::endl;
-                print_indent(str_stream);
-                str_stream << "     isplusminus  " << p->id.symbol_ptr->is_plus_minus << std::endl;
-                print_indent(str_stream);
-                str_stream << "     isvar        " << p->id.symbol_ptr->is_var << std::endl;
-                print_indent(str_stream);
-                str_stream << "     macroNode    " << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << p->id.symbol_ptr->macro_node << std::endl;
-                print_indent(str_stream);
-                str_stream << "     scope      " << (p->id.symbol_ptr->scope ? p->id.symbol_ptr->scope : "NULL") << std::endl;
-                print_indent(str_stream);
-                str_stream << "     name         " << p->id.symbol_ptr->name << std::endl;
+                print_tab(str_stream, print_nest_level + 1);
+                print_label(str_stream, "fullname");
+                print_value(str_stream, p->id.symbol_ptr->fullname);
+                str_stream << std::endl;
+
+                print_tab(str_stream, print_nest_level + 1);
+                print_label(str_stream, "is_initialized");
+                print_value(str_stream, (p->id.symbol_ptr)->is_initialized);
+                str_stream << std::endl;
+
+                print_tab(str_stream, print_nest_level + 1);
+                print_label(str_stream, "value");
+                print_value(str_stream, p->id.symbol_ptr->value);
+                str_stream << std::endl;
+
+                print_tab(str_stream, print_nest_level + 1);
+                print_label(str_stream, "ismacroname");
+                print_value(str_stream, p->id.symbol_ptr->is_macro_name);
+                str_stream << std::endl;
+
+                print_tab(str_stream, print_nest_level + 1);
+                print_label(str_stream, "ismacroparam");
+                print_value(str_stream, p->id.symbol_ptr->is_macro_param);
+                str_stream << std::endl;
+
+                print_tab(str_stream, print_nest_level + 1);
+                print_label(str_stream, "isplusminus");
+                print_value(str_stream, p->id.symbol_ptr->is_plus_minus);
+                str_stream << std::endl;
+
+                print_tab(str_stream, print_nest_level + 1);
+                print_label(str_stream, "isvar");
+                print_value(str_stream, p->id.symbol_ptr->is_var);
+                str_stream << std::endl;
+
+                print_tab(str_stream, print_nest_level + 1);
+                print_label(str_stream, "macroNode");
+                print_hex_value(str_stream, p->id.symbol_ptr->macro_node);
+                str_stream << std::endl;
+
+                print_tab(str_stream, print_nest_level + 1);
+                print_label(str_stream, "scope");
+                print_value(str_stream, p->id.symbol_ptr->scope ? p->id.symbol_ptr->scope : "NULL");
+                str_stream << std::endl;
+
+                print_tab(str_stream, print_nest_level + 1);
+                print_label(str_stream, "name");
+                print_value(str_stream, p->id.symbol_ptr->name);
+                str_stream << std::endl;
             }
             break;
 
         case type_macro_ex:
+            str_stream << std::endl;
             break;
 
         case type_opr:
-            print_indent(str_stream);
-            str_stream << "type typeOpr" << std::endl;
-            print_indent(str_stream);
-            str_stream << "opr " << op_lookup[p->opr.opr] << std::endl;
+            print_value(str_stream, "typeOpr");
+            str_stream << std::endl;
+
+            print_tab(str_stream, print_nest_level + 1);
+            print_label(str_stream, "opr");
+            print_value(str_stream, op_lookup[p->opr.opr].c_str());
+            str_stream << std::endl;
             break;
 
         case type_op_code:
-            print_indent(str_stream);
-            str_stream << "type typeOpCode" << std::endl;
+            print_value(str_stream, "typeOpCode");
+            str_stream << std::endl;
 
-            print_indent(str_stream);
-            str_stream << "instruction   " << instruction_to_string(p->opcode.instruction) << std::endl;
+            print_tab(str_stream, print_nest_level + 1);
+            print_label(str_stream, "instruction");
+            print_value(str_stream, instruction_to_string(p->opcode.instruction));
+            str_stream << std::endl;
 
-            print_indent(str_stream);
-            str_stream << "mode          " << mode_to_string(p->opcode.mode) << std::endl;
+            print_tab(str_stream, print_nest_level + 1);
+            print_label(str_stream, "mode");
+            print_value(str_stream, mode_to_string(p->opcode.mode));
+            str_stream << std::endl;
 
-            print_indent(str_stream);
-            str_stream << "opCode        " << std::uppercase << std::hex << std::setw(2) << std::setfill('0') << p->opcode.opcode << std::endl;
+            print_tab(str_stream, print_nest_level + 1);
+            print_label(str_stream, "opCode");
+            print_byte(str_stream, p->opcode.opcode);
+            str_stream << std::endl;
 
-            print_indent(str_stream);
-            str_stream << "PC            0x" << std::uppercase << std::hex << std::setw(8) << std::setfill('0') << p->opcode.program_counter << std::endl;
+            print_tab(str_stream, print_nest_level + 1);
+            print_label(str_stream, "PC");
+            print_value(str_stream, p->opcode.program_counter);
+            str_stream << std::endl;
             break;
 
         case type_con:
-            print_indent(str_stream);
-            str_stream << "type typeCon" << std::endl;
+            print_value(str_stream, "typeCon");
+            str_stream << std::endl;
 
-            print_indent(str_stream);
-            str_stream << "IsPC  " << p->con.is_program_counter << std::endl;
+            print_tab(str_stream, print_nest_level + 1);
+            print_label(str_stream, "IsPC");
+            print_value(str_stream, p->con.is_program_counter);
+            str_stream << std::endl;
 
-            if (p->con.is_program_counter)
-                str_stream << "     PC = " << std::setw(8) << std::uppercase << std::hex << std::setfill('0') << program_counter << std::endl;
+            if (p->con.is_program_counter) {
+                print_tab(str_stream, print_nest_level + 1);
+                print_label(str_stream, "PC");
+                print_hex_value(str_stream, program_counter);
+                str_stream << std::endl;
+            }
 
-            print_indent(str_stream);
-            str_stream << "value 0x" << std::setw(8) << std::uppercase << std::hex << std::setfill('0') << p->con.value << std::endl;
+            print_tab(str_stream, print_nest_level + 1);
+            print_label(str_stream, "value");
+            print_hex_value(str_stream, p->con.value);
+            str_stream << std::endl;
             break;
 
         case type_data:
-            print_indent(str_stream);
-            str_stream << "type typeData" << std::endl;
+            print_value(str_stream, "typeData");
+            str_stream << std::endl;
 
-            print_indent(str_stream);
-            str_stream << "size " << p->data.size << std::endl;
-
+            print_tab(str_stream, print_nest_level + 1);
+            print_label(str_stream, "size");
+            print_hex_value(str_stream, p->data.size);
+            str_stream << std::endl;
             print_node(static_cast<parse_node_ptr>(p->data.data), str_stream);
             break;
 
         case type_str:
-            print_indent(str_stream);
-            str_stream << "type typeStr" << std::endl;
+            print_value(str_stream, "typeStr");
+            str_stream << std::endl;
 
-            print_indent(str_stream);
-            str_stream << "allocated  " << p->str.allocated << std::endl;
+            print_tab(str_stream, print_nest_level + 1);
+            print_label(str_stream, "allocated");
+            print_value(str_stream, p->str.allocated);
+            str_stream << std::endl;
 
-            print_indent(str_stream);
-            str_stream << "len        0x" << std::setw(8) << std::uppercase << std::hex << std::setfill('0') << p->str.len << std::endl;
+            print_tab(str_stream, print_nest_level + 1);
+            print_label(str_stream, "len");
+            print_hex_value(str_stream, p->str.len);
+            str_stream << std::endl;
 
-            print_indent(str_stream);
-            str_stream << "value " << p->str.value << std::endl;
+            print_tab(str_stream, print_nest_level + 1);
+            print_label(str_stream, "value");
+            print_value(str_stream, p->str.value);
+            str_stream << std::endl;
             break;
     }
     for (auto& op : p->operands)
@@ -682,35 +804,6 @@ void print_node(parse_node_ptr p, std::ofstream& file)
     std::stringstream str_stream;
     print_node(p, str_stream);
     file << str_stream.str();
-}
-
-inline void print_byte(std::stringstream& str_stream, int op)
-{
-    str_stream << "$" <<
-        std::uppercase << std::hex << std::setw(2) << std::setfill('0') << LOBYTE(op);
-}
-
-inline void print_2byte(std::stringstream& str_stream, int op)
-{
-    str_stream << "$" <<
-        std::uppercase << std::hex << std::setw(4) << std::setfill('0') << (op & 0xFFFF);
-}
-
-inline void print_word(std::stringstream& str_stream, int op)
-{
-    str_stream << "$" <<
-        std::uppercase << std::hex << std::setw(2) << std::setfill('0') << HIBYTE(op) <<
-        std::uppercase << std::hex << std::setw(2) << std::setfill('0') << LOBYTE(op);
-}
-
-inline void print_char(std::stringstream& str_stream, char op)
-{
-    if (isprint(op)) {
-        str_stream << "'" << op << "'";
-    }
-    else {
-        print_byte(str_stream, op);
-    }
 }
 
 // 

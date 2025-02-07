@@ -5,6 +5,7 @@
 // ReSharper disable CppClangTidyCertErr33C
 #include <assert.h>  // NOLINT(modernize-deprecated-headers)
 #include <string.h>
+#include <map>
 
 #include "error.h"
 #include "flex.h"
@@ -15,58 +16,56 @@ int error_count = 0;
 int warning_count = 0;
 
 // error strings
-// order must be same as defined in error.h
-const char* errors[] =
+std::map<int, std::string> error_lookup =
 {
-    "",
-    "Out of Memory.",
-    "Source string NULL.",
-    "Unrecognized escape sequence.",
-    "Can't open include file",
-    "No input file specified.",
-    "Can't open input file.",
-    "Error opening list list file.",
-    "Invalid opcode or mode.",
-    "Error writing to output file.",
-    "Value out of range.",
-    "Missing parameter.",
-    "Error adding symbol.",
-    "FOR_REG can't be nested.",
-    "END_SECTION without section.",
-    "Branch out of range, creating jmp.",
-    "ORG specified more than once.",
-    "Error setting symbol value.",
-    "Internal error: Unknown node type.",
-    "Internal error: Unknown operator type.",
-    "Divide by zero.",
-    "Infinite loop detected.",
-    "Error expected NEXT.",
-    "Error free called without alloc.",
-    "Error free unknown pointer.",
-    "Macro Parameter not found.",
-    "Macro parameter underflow.",
-    "Plus and Minus symbols not allowed in macro.",
-    "Plus symbol overflow.",
-    "Error missing output file.",
-    "Output file specified more than once.",
-    "Error missing symbol file name.",
-    "Symbol file specified more than once.",
-    "Invalid parameters specified.",
-    "Ignore warnings specified more than once.",
-    "Instruction set specified more than once.",
-    "Allow illegal opcodes specified more than once.",
-    "Error missing log file name.",
-    "Logfile specified more than once.",
-    "Output file format specified more than once.",
-    "Verbose specified more than once.",
-    "Error missing list file.",
-    "List file specified more than once.",
-    "Error creating log file.",
-    "Maximum number of passes exceeded.",
-    "Error opening symbol file.",
-    "Error opening output file.",
-    "Error creating list node.",
-    "Error path name too long.",
+    { error_out_of_memory, "Out of Memory."},
+    { error_source_string_null, "Source string NULL."},
+    { error_unrecognized_escape_sequence, "Unrecognized escape sequence."},
+    { error_cant_open_include_file, "Can't open include file"},
+    { error_no_input_file_specified, "No input file specified."},
+    { error_cant_open_input_file, "Can't open input file."},
+    { error_opening_list_file, "Error opening list list file."},
+    { error_invalid_opcode_or_mode, "Invalid opcode or mode."},
+    { error_writing_output_file, "Error writing to output file."},
+    { error_value_out_of_range, "Value out of range."},
+    { error_missing_parameter, "Missing parameter."},
+    { error_adding_symbol, "Error adding symbol."},
+    { error_for_reg_cant_be_nested, "FOR_REG can't be nested."},
+    { error_end_section_without_section, "END_SECTION without section."},
+    { error_branch_out_of_range, "Branch out of range, creating jmp."},
+    { error_org_specified_more_than_once, "ORG specified more than once."},
+    { error_initializing_variable, "Error setting symbol value."},
+    { error_unknown_node_type, "Internal error: Unknown node type."},
+    { error_unknown_operator_type, "Internal error: Unknown operator type."},
+    { error_divide_by_zero, "Divide by zero."},
+    { error_infinite_loop_detected, "Infinite loop detected."},
+    { error_expected_next, "Error expected NEXT."},
+    { error_free_without_malloc, "Error free called without alloc."},
+    { error_free_unknown_pointer, "Error free unknown pointer."},
+    { error_macro_parameter_not_found, "Macro Parameter not found."},
+    { error_macro_parameter_under_flow, "Macro parameter underflow."},
+    { error_plus_sym_not_allowed_in_macro, "Plus and Minus symbols not allowed in macro."},
+    { error_plus_sym_overflow, "Plus symbol overflow."},
+    { error_missing_output_file, "Error missing output file."},
+    { error_output_file_specified_more_than_once, "Output file specified more than once."},
+    { error_missing_symbol_file, "Error missing symbol file name."},
+    { error_symbol_file_specified_more_than_once, "Symbol file specified more than once."},
+    { error_invalid_parameters, "Invalid parameters specified."},
+    { error_ignore_warnings_specified_more_than_once, "Ignore warnings specified more than once."},
+    { error_instruction_set_specified_more_than_once, "Instruction set specified more than once."},
+    { error_illegal_opcodes_specified_more_than_once, "Allow illegal opcodes specified more than once."},
+    { error_missing_log_file, "Error missing log file name."},
+    { error_log_file_specified_more_than_once, "Logfile specified more than once."},
+    { error_c64_output_format_specified_more_than_once, "Output file format specified more than once."},
+    { error_verbose_specified_more_than_once, "Verbose specified more than once."},
+    { error_missing_list_file, "Error missing list file."},
+    { error_list_file_specified_more_than_once, "List file specified more than once."},
+    { error_opening_log_file, "Error creating log file."},
+    { error_maximum_number_of_passes_exceeded, "Maximum number of passes exceeded."},
+    { error_opening_symbol_file, "Error opening symbol file."},
+    { error_opening_output_file, "Error opening output file."},
+    { error_creating_list_node, "Error creating list node."},
+    { error_path_name_too_long, "Error path name too long."},
 };
 
 /**
@@ -76,7 +75,7 @@ const char* errors[] =
 void error(const int err_num)
 {
     assert(err_num > error_start && err_num < error_max);
-    yyerror(errors[err_num]);
+    yyerror((error_lookup[err_num]).c_str());
 }
 
 /**
@@ -86,7 +85,7 @@ void error(const int err_num)
 void warn(const int err_num)
 {
     assert(err_num > error_start && err_num < error_max);
-    yymessage(errors[err_num]);
+    yymessage((error_lookup[err_num]).c_str());
     warning_count++;
 }
 
@@ -95,17 +94,10 @@ void warn(const int err_num)
  * \param err_num number of the error
  * \param parameter string to print with error
  */
-void error2(const int err_num, const char* parameter)
+void error(const int err_num, const char* parameter)
 {
     assert(err_num > error_start && err_num < error_max);
-    assert(internal_buffer != NULL);
-    if (strlen(errors[err_num]) + strlen(parameter) + 2 < max_line_len) {
-        sprintf(internal_buffer, "%s %s", errors[err_num], parameter);  // NOLINT(cert-err33-c)
-    }
-    else {
-        error(err_num);
-    }
-    yyerror(internal_buffer);
+    yyerror((error_lookup[(int)err_num] + " " + parameter).c_str());
 }
 
 /// <summary>

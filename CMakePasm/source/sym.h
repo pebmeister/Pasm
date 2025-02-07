@@ -58,4 +58,7 @@ extern plus_minus_symbol* plus_symbol_table;
 extern std::map<std::string, symbol_table_ptr> symbol_dictionary;
 extern std::stack<macro_stack_entry*> macro_params_stack;
 extern int max_macro_param;
-
+extern int plus_symbol_table_index;
+extern int minus_symbol_table_index;
+extern int plus_symbol_table_size;
+extern int minus_symbol_table_size;

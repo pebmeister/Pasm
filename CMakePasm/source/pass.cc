@@ -80,7 +80,7 @@ void parse_pass(void)
         current_file_name = input_files[in_file_index];
         yyin = open_file(current_file_name, "r");
         if (yyin == nullptr) {
-            error2(error_cant_open_input_file, current_file_name);
+            error(error_cant_open_input_file, current_file_name);
             exit(-1);
         }
 

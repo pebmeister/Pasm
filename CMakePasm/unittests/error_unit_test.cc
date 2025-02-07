@@ -29,7 +29,7 @@ namespace error_test
         error_unit_test_method_initialize();
 
         for (int error_num = error_start + 1; error_num < error_max; ++error_num) {
-            error2(error_num, __FILE__);
+            error(error_num, __FILE__);
         }
 
         error_unit_test_method_cleanup();

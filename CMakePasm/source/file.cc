@@ -45,7 +45,7 @@ void open_file_stream(std::ofstream& file, const char* filename, const std::ios:
         }
         *p = 0;
         if (len + strlen(filename) + 2 >= path_max) {
-            error2(error_path_name_too_long, path);
+            error(error_path_name_too_long, path);
             exit(-1);  // NOLINT(concurrency-mt-unsafe)
         }
         strcat(path, filename);
@@ -87,7 +87,7 @@ FILE* open_file(const char* file, const char* mode)
         }
         *p = 0;
         if (len + strlen(file) + 2 >= path_max) {
-            error2(error_path_name_too_long, path);
+            error(error_path_name_too_long, path);
             exit(-1);  // NOLINT(concurrency-mt-unsafe)
         }
         strcat(path, file);
@@ -184,7 +184,7 @@ int open_include_file(char* file)
 
     if (!yyin) {
         if (file != NULL) {
-            error2(error_cant_open_include_file, file);
+            error(error_cant_open_include_file, file);
         }
         else {
             error(error_cant_open_include_file);
