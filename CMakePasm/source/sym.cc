@@ -136,7 +136,10 @@ symbol_table_ptr add_symbol(char* name)
         name++;
     }
     sym->is_macro_param = name[0] == '\\';
+    size_t l = strlen(name);
+    sym->is_local = false;
     sym->is_local = name[0] == '@';
+
     if (sym->is_local && last_label != nullptr) {
         name = format_local_sym(name, last_label);
     }
@@ -577,18 +580,29 @@ int symbol_compare(const void*a, const void* b)
 }
 
 typedef bool (*filter)(symbol_table* sym);
-static void dump_symbols_common(filter f, FILE* file)
+static void dump_symbols_common(FILE* file, filter f)
 {
     const int sz = symbol_dictionary.size();
     if (sz == 0) return;
 
     int count = 0;
-    auto* entry_array = sym_entry_allocator.allocate(sz);
+    for (const auto& [key, value] : symbol_dictionary) {
+        if (f(value)) {
+            count++;
+        }
+    }
+    if (count == 0) {
+        fprintf(file, "\n");
+        return;
+    }
+
+    auto* entry_array = sym_entry_allocator.allocate(count);
     if (entry_array == nullptr) {
         error(error_out_of_memory);
         exit(-1);
     }
 
+    count = 0;
     for (const auto& [key, value] : symbol_dictionary) {
         if (f(value)) {
             entry_array[count].name = value->fullname;
@@ -617,12 +631,17 @@ static void dump_symbols_common(filter f, FILE* file)
     }
     fprintf(file, "\n");
 
-    sym_entry_allocator.deallocate(entry_array, 1);
+    sym_entry_allocator.deallocate(entry_array, count);
 }
 
 static bool all_sym_filter(symbol_table* sym) 
 {
-    return !sym->is_plus_minus && sym->times_accessed > pass + 1 && !sym->is_var && !sym->is_macro_param && !sym->is_macro_name;
+    // special case
+    auto l = strlen(sym->name);
+    for (auto i = 0; i < l; ++i)
+        if (sym->name[i] == '@')
+            return false;
+    return !sym->is_plus_minus && sym->times_accessed > pass * 2 && !sym->is_var && !sym->is_macro_param && !sym->is_macro_name;
 }
 
 static bool unresolved_filter(symbol_table* sym)
@@ -632,12 +651,12 @@ static bool unresolved_filter(symbol_table* sym)
 
 void dump_symbols(FILE* file)
 {
-    dump_symbols_common(all_sym_filter, file);
+    dump_symbols_common(file, all_sym_filter);
 }
 
 void dump_unresolved_symbols(FILE* file)
 {
-    dump_symbols_common(unresolved_filter, file);
+    dump_symbols_common(file, unresolved_filter);
 }
 
 int unresolved_symbol_count(void)

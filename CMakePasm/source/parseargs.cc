@@ -193,7 +193,7 @@ int parse_arguments(const int argc, char* argv[])
                 exit(-1);
             }
 
-            verbose = 1;
+            verbose = true;
             arg_index++;
             continue;
         }
