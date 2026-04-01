@@ -135,6 +135,7 @@ zpXDivHi    = $19
     jsr ClearScreenRAM
     jsr TestPlotPixel
     jsr TestDrawLine
+    jsr TestHLine
     rts
 
 ;=========================================================
@@ -200,6 +201,48 @@ TestDrawLine:
     sta zpY2
     jsr DrawLine
 
+    rts
+
+
+; ; X1: zpX1Lo/Hi, X2: zpX2Lo/Hi, Y: zpY
+;=========================================================
+; TestDrawLine
+;=========================================================
+
+TestHLine:
+    ; ---------------------------------------------------------------
+    ; (10,10)-(190,10)
+    ; ---------------------------------------------------------------
+    lda #<10
+    sta zpX1Lo
+    lda #>10
+    sta zpX1Hi
+
+    lda #<190
+    sta zpX2Lo
+    lda #>190
+    sta zpX2Hi
+
+    lda #100
+    sta zpY
+    jsr HLine
+
+    ; ---------------------------------------------------------------
+    ; (10,100)-(300,10)
+    ; ---------------------------------------------------------------
+    lda #<10
+    sta zpX1Lo
+    lda #>10
+    sta zpX1Hi
+
+    lda #<300
+    sta zpX2Lo
+    lda #>300
+    sta zpX2Hi
+
+    lda #100
+    sta zpY
+    jsr HLine
     rts
 
 ;=========================================================
@@ -280,12 +323,6 @@ ScreenLoop:
 ; zpTmp      = original X low
 ; zpTemp2    = temp low byte for X>>3
 ; zpErrHi    = temp high byte for X>>3
-
-;=========================================================
-; PLOT PIXEL
-; X = zpXLo/zpXHi (0-319)
-; Y = zpY (0-199)
-;=========================================================
 
 PlotPixel:
     ;---------------------------------
@@ -510,6 +547,153 @@ SkipYMove:
 
 LineDone:
     rts
+
+;=========================================================
+; FAST HORIZONTAL LINE (FIXED)
+; X1: zpX1Lo/Hi, X2: zpX2Lo/Hi, Y: zpY
+; Assumes X2 >= X1
+;=========================================================
+HLine:
+    ;--- 1. Calculate Base Address ---
+    lda zpY
+    lsr
+    lsr
+    lsr
+    tax
+    lda Row320Lo,x
+    sta zpAddrLo
+    lda Row320Hi,x
+    sta zpAddrHi
+
+    lda zpY
+    and #7
+    clc
+    adc zpAddrLo
+    sta zpAddrLo
+    lda zpAddrHi
+    adc #0
+    sta zpAddrHi
+
+    ; Full 16-bit Bitmap Base Addition
+    lda zpAddrLo
+    clc
+    adc #<BITMAP_ADDR
+    sta zpAddrLo
+    lda zpAddrHi
+    adc #>BITMAP_ADDR
+    sta zpAddrHi
+
+    ;--- 2. Save X-Bits for Masking and Calculate Byte Columns ---
+    ; Get X1 bit index (0-7)
+    lda zpX1Lo
+    and #7
+    sta zpTmp       ; Save X1 bit index for start mask
+
+    ; Get X1 Byte Column (0-39)
+    lda zpX1Lo
+    lsr zpX1Hi
+    ror 
+    lsr zpX1Hi
+    ror
+    lsr zpX1Hi
+    ror
+    sta zpXDivLo    ; X1 Byte Column
+
+    ; Get X2 bit index (0-7)
+    lda zpX2Lo
+    and #7
+    sta zpTemp2     ; Save X2 bit index for end mask
+
+    ; Get X2 Byte Column (0-39)
+    lda zpX2Lo
+    lsr zpX2Hi
+    ror
+    lsr zpX2Hi
+    ror
+    lsr zpX2Hi
+    ror
+    sta zpXDivHi    ; X2 Byte Column
+
+    ;--- 3. Calculate Start Mask ---
+    ldx zpTmp       ; X1 bit index
+    lda LeftMaskTable,x
+    sta zpMask
+
+    ; Check if Start and End are in the same 8-pixel byte
+    lda zpXDivLo
+    cmp zpXDivHi
+    bne MultiByteFill
+
+    ; SINGLE BYTE CASE
+    ldx zpTemp2     ; X2 bit index
+    lda zpMask
+    and RightMaskTable,x
+    ldy zpXDivLo    ; Column index (0-39)
+    ; In C64 bitmap, each column is 8 bytes apart
+    ; But we must multiply Y by 8 because of the character-cell layout
+    tya
+    asl
+    asl
+    asl
+    tay             ; Y = Column * 8
+    
+    ora (zpAddrLo),y
+    sta (zpAddrLo),y
+    rts
+
+MultiByteFill:
+    ; Write Start Mask
+    ldy zpXDivLo
+    tya
+    asl
+    asl
+    asl
+    tay             ; Y index = Column1 * 8
+    lda (zpAddrLo),y
+    ora zpMask
+    sta (zpAddrLo),y
+    
+    ;--- 4. Fill Middle Bytes ---
+FillLoop:
+    ; Move to next byte (next character cell)
+    tya
+    clc
+    adc #8
+    tay
+    
+    ; Check if we reached the end byte column
+    ; (Current Y / 8) vs XDivHi
+    tya
+    lsr
+    lsr
+    lsr
+    cmp zpXDivHi
+    beq WriteEndMask
+    
+    lda #$FF       ; Full 8-pixel fill
+    sta (zpAddrLo),y
+    jmp FillLoop
+
+WriteEndMask:
+    ;--- 5. Handle End Mask ---
+    ldx zpTemp2     ; X2 bit index
+    lda RightMaskTable,x
+    ora (zpAddrLo),y
+    sta (zpAddrLo),y
+    rts
+;=========================================================
+; TABLES FOR HORIZONTAL FILL
+;=========================================================
+
+; LeftMaskTable[x] = Bits from x to 7 are set
+LeftMaskTable:
+    .byte %11111111, %01111111, %00111111, %00011111
+    .byte %00001111, %00000111, %00000011, %00000001
+
+; RightMaskTable[x] = Bits from 0 to x are set
+RightMaskTable:
+    .byte %10000000, %11000000, %11100000, %11110000
+    .byte %11111000, %11111100, %11111110, %11111111
 
 ;=========================================================
 ; TABLES
