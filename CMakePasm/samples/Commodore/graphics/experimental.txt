@@ -49,7 +49,7 @@
 
 5000 rem restore normal vic text mode
 5010 poke 53265,peek(53265) and 223
-5020 poke 53272,(peek(53272) and 240) or 2
+5020 poke 53272,(peek(53272) and 240) or 20
 5030 poke 56576,(peek(56576) and 252) or 3
 5040 poke 646,14
 5050 print chr$(147)
