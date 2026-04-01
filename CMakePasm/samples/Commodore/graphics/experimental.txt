@@ -83,7 +83,6 @@
 
 12000 data 128,64,32,16,8,4,2,1
 
-
 ;=========================================================
 ; C64 HIRES GRAPHICS LIBRARY
 ; Full 320x200 bitmap support
@@ -102,7 +101,7 @@ SCREEN_RAM      = $0400
 COLOR_RAM       = $D800
 
 BITMAP_ADDR     = $2000
-BITMAP_END      = BITMAP_ADDR + 8000
+BITMAP_END      = $3F40  ; BITMAP_ADDR + 8000
 
 ;---------------------------------------------------------
 ; ZERO PAGE
@@ -132,6 +131,63 @@ zpErrLo     = $13
 zpErrHi     = $14
 zpE2Lo      = $15
 zpE2Hi      = $16
+
+zpTemp2     = $17
+zpXDivLo    = $18
+zpXDivHi    = $19
+
+;=========================================================
+; MAIN
+;=========================================================
+    .org $C000
+
+    jsr InitHires
+    jsr ClearBitmap
+    lda #16
+    jsr ClearScreenRAM
+    jsr TestPlotPixel
+    jsr TestDrawLine
+    rts
+
+;=========================================================
+; TestPlotPixel
+;=========================================================
+TestPlotPixel:
+    ldy #199
+TestLoop:
+    sty zpY
+
+    lda #0
+    sta zpXHi
+    lda #50
+    sta zpXLo
+
+    jsr PlotPixel
+    ldy zpY
+    dey
+    bne TestLoop
+    rts
+
+;=========================================================
+; TestDrawLine
+;=========================================================
+
+TestDrawLine:
+    lda #100
+    sta zpX1Lo
+    lda #0
+    sta zpX1Hi
+    lda #100
+    sta zpX2Lo
+    lda #0
+    sta zpX2Hi
+
+    lda #10
+    sta zpY1
+    lda #190
+    sta zpY2
+    jsr DrawLine
+    rts
 
 ;=========================================================
 ; INIT HIRES MODE
@@ -178,10 +234,39 @@ ClearLoopByte:
     rts
 
 ;=========================================================
-; PLOT PIXEL
+; ClearScreenRAM
+;=========================================================
+ClearScreenRAM:
+    sta zpTmp
+    lda #<$0400
+    sta zpAddrLo
+    lda #>$0400
+    sta zpAddrHi
+
+    lda zpTmp        ; color index
+    ldx #$04
+
+ScreenPage:
+    ldy #$00
+ScreenLoop:
+    sta (zpAddrLo),y
+    iny
+    bne ScreenLoop
+    inc zpAddrHi
+    dex
+    bne ScreenPage
+    rts
+
+;=========================================================
+; PLOT PIXEL (FIXED - DOES NOT MODIFY X)
 ; X = zpXLo/zpXHi (0-319)
 ; Y = zpY (0-199)
 ;=========================================================
+
+; Uses:
+; zpTmp      = original X low
+; zpTemp2    = X >> 3 temp low
+; zpErrHi    = X >> 3 temp high (reuse temp)
 
 PlotPixel:
 
@@ -216,17 +301,23 @@ PlotPixel:
 +
 
     ;---------------------------------
-    ; Compute (x >> 3) * 8
+    ; Compute (x >> 3) WITHOUT
+    ; modifying original X
     ;---------------------------------
-    lda zpXHi
-    lsr
-    ror zpXLo
-    lsr
-    ror zpXLo
-    lsr
-    ror zpXLo
-
     lda zpXLo
+    sta zpTemp2
+    lda zpXHi
+    sta zpErrHi
+
+    lsr zpErrHi
+    ror zpTemp2
+    lsr zpErrHi
+    ror zpTemp2
+    lsr zpErrHi
+    ror zpTemp2
+
+    ; multiply by 8
+    lda zpTemp2
     asl
     asl
     asl
@@ -269,21 +360,85 @@ PlotPixel:
     rts
 
 ;=========================================================
-; DRAW LINE (BRESENHAM)
+; DRAW LINE - BRESENHAM (CORRECT)
 ;=========================================================
 
 DrawLine:
 
+    ; vertical?
+    lda zpX1Lo
+    cmp zpX2Lo
+    bne NotVertical
+    lda zpX1Hi
+    cmp zpX2Hi
+    bne NotVertical
+    jmp DrawVerticalLine
+
+NotVertical:
+
+    ; horizontal?
+    lda zpY1
+    cmp zpY2
+    bne UseBresenham
+    jmp DrawHorizontalLine
+
+UseBresenham:
+    ; jmp DrawLineBresenham
+
+
+    ; dx = abs(x2 - x1)
     lda zpX2Lo
     sec
     sbc zpX1Lo
+    bpl dx_ok
+    eor #$FF
+    clc
+    adc #1
+dx_ok:
     sta zpDX
 
+    ; dy = abs(y2 - y1)
     lda zpY2
     sec
     sbc zpY1
+    bpl dy_ok
+    eor #$FF
+    clc
+    adc #1
+dy_ok:
     sta zpDY
 
+    ; sx
+    lda zpX1Lo
+    cmp zpX2Lo
+    bcc sx_pos
+    lda #$FF
+    sta zpSX
+    jmp sx_done
+sx_pos:
+    lda #1
+    sta zpSX
+sx_done:
+
+    ; sy
+    lda zpY1
+    cmp zpY2
+    bcc sy_pos
+    lda #$FF
+    sta zpSY
+    jmp sy_done
+sy_pos:
+    lda #1
+    sta zpSY
+sy_done:
+
+    ; err = dx - dy
+    lda zpDX
+    sec
+    sbc zpDY
+    sta zpErrLo
+
+    ; start point
     lda zpX1Lo
     sta zpXLo
     lda zpX1Hi
@@ -294,6 +449,7 @@ DrawLine:
 LineLoop:
     jsr PlotPixel
 
+    ; stop condition
     lda zpXLo
     cmp zpX2Lo
     bne ContinueLine
@@ -302,11 +458,112 @@ LineLoop:
     beq LineDone
 
 ContinueLine:
+
+    ; e2 = err * 2
+    lda zpErrLo
+    asl
+    sta zpE2Lo
+
+    ; if e2 >= -dy
+    lda zpE2Lo
+    clc
+    adc zpDY
+    bmi SkipX
+
+    lda zpErrLo
+    sec
+    sbc zpDY
+    sta zpErrLo
+
+    lda zpSX
+    bmi DecX
     inc zpXLo
+    bne SkipX
+    inc zpXHi
+    jmp SkipX
+DecX:
+    dec zpXLo
+    bpl SkipX
+    dec zpXHi
+
+SkipX:
+
+    ; if e2 <= dx
+    lda zpDX
+    sec
+    sbc zpE2Lo
+    bmi SkipY
+
+    lda zpErrLo
+    clc
+    adc zpDX
+    sta zpErrLo
+
+    lda zpSY
+    bmi DecY
     inc zpY
+    jmp SkipY
+DecY:
+    dec zpY
+
+SkipY:
     jmp LineLoop
 
 LineDone:
+    rts
+
+;=========================================================
+; DrawVerticalLine
+;=========================================================
+
+DrawVerticalLine:
+    lda zpX1Lo
+    sta zpXLo
+    lda zpX1Hi
+    sta zpXHi
+
+    lda zpY1
+    sta zpY
+
+VertLoop:
+    jsr PlotPixel
+
+    lda zpY
+    cmp zpY2
+    beq VertDone
+
+    inc zpY
+    jmp VertLoop
+
+VertDone:
+    rts
+
+;=========================================================
+; DrawHorizontalLine
+;=========================================================
+
+DrawHorizontalLine:
+    lda zpY1
+    sta zpY
+
+    lda zpX1Lo
+    sta zpXLo
+    lda zpX1Hi
+    sta zpXHi
+
+HorzLoop:
+    jsr PlotPixel
+
+    lda zpXLo
+    cmp zpX2Lo
+    beq HorzDone
+
+    inc zpXLo
+    bne HorzLoop
+    inc zpXHi
+    jmp HorzLoop
+
+HorzDone:
     rts
 
 ;=========================================================
