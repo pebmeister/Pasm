@@ -94,35 +94,44 @@ BITMAP_END      = $3F40  ; BITMAP_ADDR + 8000
 ;---------------------------------------------------------
 ; ZERO PAGE
 ;---------------------------------------------------------
+;---------------------------------------------------------
+; REVISED ZERO PAGE (BASIC-SAFE)
+;---------------------------------------------------------
 
+; Primary Working Pointers (Very Safe)
+zpAddrLo    = $FB
+zpAddrHi    = $FC
+zpMask      = $FD
+zpTmp       = $FE
+
+; X/Y Current Coordinates
 zpXLo       = $02
 zpXHi       = $03
 zpY         = $04
 
-zpAddrLo    = $05
-zpAddrHi    = $06
-zpMask      = $07
-zpTmp       = $08
+; Line/HLine Parameters (X1, Y1, X2, Y2)
+; Using the FAC2 area ($61 and up)
+zpX1Lo      = $61
+zpX1Hi      = $62
+zpY1        = $63
+zpX2Lo      = $64
+zpX2Hi      = $65
+zpY2        = $66
 
-zpX1Lo      = $09
-zpX1Hi      = $0A
-zpY1        = $0B
-zpX2Lo      = $0C
-zpX2Hi      = $0D
-zpY2        = $0E
+; Bresenham / HLine Internal Variables
+zpDX        = $67   ; Note: Also needs $68 for 16-bit DX in HLine
+zpDY        = $69
+zpErrLo     = $6A
+zpErrHi     = $6B
+zpE2Lo      = $6C
+zpE2Hi      = $6D
+zpTemp2     = $6E
+zpXDivLo    = $6F
+zpXDivHi    = $70
 
-zpDX        = $0F
-zpDY        = $10
-zpSX        = $11
-zpSY        = $12
-zpErrLo     = $13
-zpErrHi     = $14
-zpE2Lo      = $15
-zpE2Hi      = $16
-
-zpTemp2     = $17
-zpXDivLo    = $18
-zpXDivHi    = $19
+; Note: If you need zpSX/zpSY for the old DrawLine:
+zpSX      = $05
+zpSY      = $06
 
 ;=========================================================
 ; MAIN
