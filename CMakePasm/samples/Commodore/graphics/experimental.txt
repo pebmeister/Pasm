@@ -1,0 +1,334 @@
+10 ba=8192
+
+20 dim row(24),mt(7)
+
+30 print "loading tables"
+40 for i=0 to 24: read row(i): next
+50 for i=0 to 7: read mt(i): next
+
+60 print "clearing bitmap"
+70 for i=ba to ba+7999: poke i,0: next
+
+80 print "clearing screen"
+90 for i=1024 to 2023: poke i,16: next
+
+100 rem set vic bank to 0110
+110 poke 56576,(peek(56576) and 252) or 3
+
+120 rem enable hires
+130 poke 53272,(peek(53272) and 240) or 8
+140 poke 53265,peek(53265) or 32
+
+150 x1=10:y1=10:x2=300:y2=180:gosub 200
+151 x1=0:y1=0:x2=319:y2=199:gosub 200
+152 x1=0:y1=199:x2=319:y2=0:gosub 200
+
+155 rem press key
+156 get a$: if a$="" then 156
+157 gosub 5000
+160 end
+
+200 rem draw line x1,y1 to x2,y2
+210 dx=abs(x2-x1): dy=abs(y2-y1)
+220 sx=1: if x1>x2 then sx=-1
+230 sy=1: if y1>y2 then sy=-1
+240 err=dx-dy
+250 x=x1: y=y1
+260 gosub 1000
+270 if x=x2 and y=y2 then return
+280 e2=err*2
+290 if e2>-dy then err=err-dy: x=x+sx
+300 if e2<dx then err=err+dx: y=y+sy
+310 goto 260
+
+1000 ry=int(y/8)
+1010 ad=ba+row(ry)+(y and 7)+(int(x/8)*8)
+1020 poke ad,peek(ad) or mt(x and 7)
+1030 return
+
+
+5000 rem restore normal vic text mode
+5010 poke 53265,peek(53265) and 223
+5020 poke 53272,(peek(53272) and 240) or 2
+5030 poke 56576,(peek(56576) and 252) or 3
+5040 poke 646,14
+5050 print chr$(147)
+5060 return
+
+11000 data 0
+11010 data 320
+11020 data 640
+11030 data 960
+11040 data 1280
+11050 data 1600
+11060 data 1920
+11070 data 2240
+11080 data 2560
+11090 data 2880
+11100 data 3200
+11110 data 3520
+11120 data 3840
+11130 data 4160
+11140 data 4480
+11150 data 4800
+11160 data 5120
+11170 data 5440
+11180 data 5760
+11190 data 6080
+11200 data 6400
+11210 data 6720
+11220 data 7040
+11230 data 7360
+11240 data 7680
+
+12000 data 128,64,32,16,8,4,2,1
+
+
+;=========================================================
+; C64 HIRES GRAPHICS LIBRARY
+; Full 320x200 bitmap support
+; Uses Row320 tables and 16-bit X
+;=========================================================
+
+;---------------------------------------------------------
+; VIC / SYSTEM SYMBOLS
+;---------------------------------------------------------
+
+VIC_BANK        = $DD00
+VIC_CTRL1       = $D011
+VIC_MEM         = $D018
+
+SCREEN_RAM      = $0400
+COLOR_RAM       = $D800
+
+BITMAP_ADDR     = $2000
+BITMAP_END      = BITMAP_ADDR + 8000
+
+;---------------------------------------------------------
+; ZERO PAGE
+;---------------------------------------------------------
+
+zpXLo       = $02
+zpXHi       = $03
+zpY         = $04
+
+zpAddrLo    = $05
+zpAddrHi    = $06
+zpMask      = $07
+zpTmp       = $08
+
+zpX1Lo      = $09
+zpX1Hi      = $0A
+zpY1        = $0B
+zpX2Lo      = $0C
+zpX2Hi      = $0D
+zpY2        = $0E
+
+zpDX        = $0F
+zpDY        = $10
+zpSX        = $11
+zpSY        = $12
+zpErrLo     = $13
+zpErrHi     = $14
+zpE2Lo      = $15
+zpE2Hi      = $16
+
+;=========================================================
+; INIT HIRES MODE
+;=========================================================
+
+InitHires:
+    lda VIC_BANK
+    and #%11111100
+    ora #%00000011
+    sta VIC_BANK
+
+    lda VIC_MEM
+    and #%11110000
+    ora #%00001000
+    sta VIC_MEM
+
+    lda VIC_CTRL1
+    ora #%00100000
+    sta VIC_CTRL1
+    rts
+
+;=========================================================
+; CLEAR BITMAP
+;=========================================================
+
+ClearBitmap:
+    lda #<BITMAP_ADDR
+    sta zpAddrLo
+    lda #>BITMAP_ADDR
+    sta zpAddrHi
+
+    lda #$00
+    ldx #$20
+
+ClearLoopPage:
+    ldy #$00
+ClearLoopByte:
+    sta (zpAddrLo),y
+    iny
+    bne ClearLoopByte
+    inc zpAddrHi
+    dex
+    bne ClearLoopPage
+    rts
+
+;=========================================================
+; PLOT PIXEL
+; X = zpXLo/zpXHi (0-319)
+; Y = zpY (0-199)
+;=========================================================
+
+PlotPixel:
+
+    ; Save original X low for mask
+    lda zpXLo
+    sta zpTmp
+
+    ;---------------------------------
+    ; Row320 lookup (y >> 3)
+    ;---------------------------------
+    lda zpY
+    lsr
+    lsr
+    lsr
+    tax
+
+    lda Row320Lo,x
+    sta zpAddrLo
+    lda Row320Hi,x
+    sta zpAddrHi
+
+    ;---------------------------------
+    ; Add (y & 7)
+    ;---------------------------------
+    lda zpY
+    and #7
+    clc
+    adc zpAddrLo
+    sta zpAddrLo
+    bcc +
+    inc zpAddrHi
++
+
+    ;---------------------------------
+    ; Compute (x >> 3) * 8
+    ;---------------------------------
+    lda zpXHi
+    lsr
+    ror zpXLo
+    lsr
+    ror zpXLo
+    lsr
+    ror zpXLo
+
+    lda zpXLo
+    asl
+    asl
+    asl
+
+    clc
+    adc zpAddrLo
+    sta zpAddrLo
+    bcc +
+    inc zpAddrHi
++
+
+    ;---------------------------------
+    ; Add bitmap base
+    ;---------------------------------
+    lda #<BITMAP_ADDR
+    clc
+    adc zpAddrLo
+    sta zpAddrLo
+    lda #>BITMAP_ADDR
+    adc zpAddrHi
+    sta zpAddrHi
+
+    ;---------------------------------
+    ; Mask from x & 7
+    ;---------------------------------
+    lda zpTmp
+    and #7
+    tax
+    lda MaskTable,x
+    sta zpMask
+
+    ;---------------------------------
+    ; Set pixel bit
+    ;---------------------------------
+    ldy #0
+    lda (zpAddrLo),y
+    ora zpMask
+    sta (zpAddrLo),y
+
+    rts
+
+;=========================================================
+; DRAW LINE (BRESENHAM)
+;=========================================================
+
+DrawLine:
+
+    lda zpX2Lo
+    sec
+    sbc zpX1Lo
+    sta zpDX
+
+    lda zpY2
+    sec
+    sbc zpY1
+    sta zpDY
+
+    lda zpX1Lo
+    sta zpXLo
+    lda zpX1Hi
+    sta zpXHi
+    lda zpY1
+    sta zpY
+
+LineLoop:
+    jsr PlotPixel
+
+    lda zpXLo
+    cmp zpX2Lo
+    bne ContinueLine
+    lda zpY
+    cmp zpY2
+    beq LineDone
+
+ContinueLine:
+    inc zpXLo
+    inc zpY
+    jmp LineLoop
+
+LineDone:
+    rts
+
+;=========================================================
+; TABLES
+;=========================================================
+
+Row320Lo:
+    .byte <0,<320,<640,<960,<1280,<1600,<1920,<2240,<2560,<2880
+    .byte <3200,<3520,<3840,<4160,<4480,<4800,<5120,<5440,<5760,<6080
+    .byte <6400,<6720,<7040,<7360,<7680
+
+Row320Hi:
+    .byte >0,>320,>640,>960,>1280,>1600,>1920,>2240,>2560,>2880
+    .byte >3200,>3520,>3840,>4160,>4480,>4800,>5120,>5440,>5760,>6080
+    .byte >6400,>6720,>7040,>7360,>7680
+
+MaskTable:
+    .byte %10000000
+    .byte %01000000
+    .byte %00100000
+    .byte %00010000
+    .byte %00001000
+    .byte %00000100
+    .byte %00000010
+    .byte %00000001
