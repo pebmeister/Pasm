@@ -1,33 +1,24 @@
 10 ba=8192
-
 20 dim row(24),mt(7)
-
 30 print "loading tables"
 40 for i=0 to 24: read row(i): next
 50 for i=0 to 7: read mt(i): next
-
 60 print "clearing bitmap"
 70 for i=ba to ba+7999: poke i,0: next
-
 80 print "clearing screen"
 90 for i=1024 to 2023: poke i,16: next
-
 100 rem set vic bank to 0110
 110 poke 56576,(peek(56576) and 252) or 3
-
 120 rem enable hires
 130 poke 53272,(peek(53272) and 240) or 8
 140 poke 53265,peek(53265) or 32
-
 150 x1=10:y1=10:x2=300:y2=180:gosub 200
 151 x1=0:y1=0:x2=319:y2=199:gosub 200
 152 x1=0:y1=199:x2=319:y2=0:gosub 200
-
 155 rem press key
 156 get a$: if a$="" then 156
 157 gosub 5000
 160 end
-
 200 rem draw line x1,y1 to x2,y2
 210 dx=abs(x2-x1): dy=abs(y2-y1)
 220 sx=1: if x1>x2 then sx=-1
@@ -40,13 +31,10 @@
 290 if e2>-dy then err=err-dy: x=x+sx
 300 if e2<dx then err=err+dx: y=y+sy
 310 goto 260
-
 1000 ry=int(y/8)
 1010 ad=ba+row(ry)+(y and 7)+(int(x/8)*8)
 1020 poke ad,peek(ad) or mt(x and 7)
 1030 return
-
-
 5000 rem restore normal vic text mode
 5010 poke 53265,peek(53265) and 223
 5020 poke 53272,(peek(53272) and 240) or 20
@@ -154,18 +142,27 @@ zpXDivHi    = $19
 ;=========================================================
 TestPlotPixel:
     ldy #199
-TestLoop:
     sty zpY
-
-    lda #0
-    sta zpXHi
-    lda #50
+    lda #<50
     sta zpXLo
-
+    lda #>50
+    sta zpXHi
+-
     jsr PlotPixel
-    ldy zpY
-    dey
-    bne TestLoop
+    dec zpY
+    bne -
+
+    ldy #199
+    sty zpY
+    lda #<310
+    sta zpXLo
+    lda #>310
+    sta zpXHi
+-
+    jsr PlotPixel
+    dec zpY
+    bne -
+
     rts
 
 ;=========================================================
@@ -173,20 +170,36 @@ TestLoop:
 ;=========================================================
 
 TestDrawLine:
-    lda #100
+    ; ---------------------------------------------------------------
+    ; (100,10)-(100,190)
+    ; ---------------------------------------------------------------
+    lda #<100
     sta zpX1Lo
-    lda #0
-    sta zpX1Hi
-    lda #100
     sta zpX2Lo
-    lda #0
+    lda #>100
+    sta zpX1Hi
     sta zpX2Hi
-
     lda #10
     sta zpY1
     lda #190
     sta zpY2
     jsr DrawLine
+
+    ; ---------------------------------------------------------------
+    ; (300,10)-(300,190)
+    ; ---------------------------------------------------------------
+    lda #<300
+    sta zpX1Lo
+    sta zpX2Lo
+    lda #>300
+    sta zpX1Hi
+    sta zpX2Hi
+    lda #10
+    sta zpY1
+    lda #190
+    sta zpY2
+    jsr DrawLine
+
     rts
 
 ;=========================================================
@@ -258,24 +271,25 @@ ScreenLoop:
     rts
 
 ;=========================================================
-; PLOT PIXEL (FIXED - DOES NOT MODIFY X)
+; PLOT PIXEL (CORRECTED - FULL 16-BIT X)
 ; X = zpXLo/zpXHi (0-319)
 ; Y = zpY (0-199)
 ;=========================================================
 
 ; Uses:
 ; zpTmp      = original X low
-; zpTemp2    = X >> 3 temp low
-; zpErrHi    = X >> 3 temp high (reuse temp)
+; zpTemp2    = temp low byte for X>>3
+; zpErrHi    = temp high byte for X>>3
+
+;=========================================================
+; PLOT PIXEL
+; X = zpXLo/zpXHi (0-319)
+; Y = zpY (0-199)
+;=========================================================
 
 PlotPixel:
-
-    ; Save original X low for mask
-    lda zpXLo
-    sta zpTmp
-
     ;---------------------------------
-    ; Row320 lookup (y >> 3)
+    ; 1. Row320 lookup (y >> 3)
     ;---------------------------------
     lda zpY
     lsr
@@ -289,7 +303,8 @@ PlotPixel:
     sta zpAddrHi
 
     ;---------------------------------
-    ; Add (y & 7)
+    ; 2. Add (y & 7) 
+    ; This finds the byte row within the 8x8 cell
     ;---------------------------------
     lda zpY
     and #7
@@ -301,56 +316,42 @@ PlotPixel:
 +
 
     ;---------------------------------
-    ; Compute (x >> 3) WITHOUT
-    ; modifying original X
+    ; 3. Add X contribution
+    ; Column offset = (X & $FFF8)
     ;---------------------------------
     lda zpXLo
-    sta zpTemp2
-    lda zpXHi
-    sta zpErrHi
-
-    lsr zpErrHi
-    ror zpTemp2
-    lsr zpErrHi
-    ror zpTemp2
-    lsr zpErrHi
-    ror zpTemp2
-
-    ; multiply by 8
-    lda zpTemp2
-    asl
-    asl
-    asl
-
+    and #%11111000   ; Strip pixel bits to get byte offset
     clc
     adc zpAddrLo
     sta zpAddrLo
-    bcc +
-    inc zpAddrHi
-+
-
-    ;---------------------------------
-    ; Add bitmap base
-    ;---------------------------------
-    lda #<BITMAP_ADDR
-    clc
-    adc zpAddrLo
-    sta zpAddrLo
-    lda #>BITMAP_ADDR
+    
+    lda zpXHi        ; Add high byte of X to high byte of address
     adc zpAddrHi
     sta zpAddrHi
 
     ;---------------------------------
-    ; Mask from x & 7
+    ; 4. Add BITMAP_ADDR (Full 16-bit)
+    ; Now works regardless of where BITMAP_ADDR is
     ;---------------------------------
-    lda zpTmp
+    lda zpAddrLo
+    clc
+    adc #<BITMAP_ADDR
+    sta zpAddrLo
+    lda zpAddrHi
+    adc #>BITMAP_ADDR
+    sta zpAddrHi
+
+    ;---------------------------------
+    ; 5. Mask from X & 7
+    ;---------------------------------
+    lda zpXLo        ; Use original X low byte
     and #7
     tax
     lda MaskTable,x
     sta zpMask
 
     ;---------------------------------
-    ; Set pixel bit
+    ; 6. Set pixel bit
     ;---------------------------------
     ldy #0
     lda (zpAddrLo),y
@@ -360,210 +361,154 @@ PlotPixel:
     rts
 
 ;=========================================================
-; DRAW LINE - BRESENHAM (CORRECT)
+; DRAW LINE - BRESENHAM (STANDARD LABELS)
+; X1: zpX1Lo/Hi, Y1: zpY1 | X2: zpX2Lo/Hi, Y2: zpY2
 ;=========================================================
-
 DrawLine:
-
-    ; vertical?
-    lda zpX1Lo
-    cmp zpX2Lo
-    bne NotVertical
-    lda zpX1Hi
-    cmp zpX2Hi
-    bne NotVertical
-    jmp DrawVerticalLine
-
-NotVertical:
-
-    ; horizontal?
-    lda zpY1
-    cmp zpY2
-    bne UseBresenham
-    jmp DrawHorizontalLine
-
-UseBresenham:
-    ; jmp DrawLineBresenham
-
-
-    ; dx = abs(x2 - x1)
+    ;--- Compute 16-bit DX = abs(x2 - x1) ---
     lda zpX2Lo
     sec
     sbc zpX1Lo
-    bpl dx_ok
-    eor #$FF
-    clc
-    adc #1
-dx_ok:
     sta zpDX
+    lda zpX2Hi
+    sbc zpX1Hi
+    sta zpXDivHi   ; Using zpXDivHi as temporary storage for DX High
+    bpl DX_Pos
+    
+    ; Negate 16-bit DX
+    lda #0
+    sec
+    sbc zpDX
+    sta zpDX
+    lda #0
+    sbc zpXDivHi
+    sta zpXDivHi
+DX_Pos:
 
-    ; dy = abs(y2 - y1)
+    ;--- Compute 8-bit DY = abs(y2 - y1) ---
     lda zpY2
     sec
     sbc zpY1
-    bpl dy_ok
+    bpl DY_Pos
     eor #$FF
     clc
     adc #1
-dy_ok:
+DY_Pos:
     sta zpDY
 
-    ; sx
-    lda zpX1Lo
-    cmp zpX2Lo
-    bcc sx_pos
-    lda #$FF
-    sta zpSX
-    jmp sx_done
-sx_pos:
-    lda #1
-    sta zpSX
-sx_done:
-
-    ; sy
-    lda zpY1
-    cmp zpY2
-    bcc sy_pos
-    lda #$FF
-    sta zpSY
-    jmp sy_done
-sy_pos:
-    lda #1
-    sta zpSY
-sy_done:
-
-    ; err = dx - dy
-    lda zpDX
-    sec
-    sbc zpDY
-    sta zpErrLo
-
-    ; start point
+    ;--- Set Starting Points ---
     lda zpX1Lo
     sta zpXLo
     lda zpX1Hi
     sta zpXHi
     lda zpY1
     sta zpY
+
+    ;--- Initialize Error Term (err = dx - dy) ---
+    lda zpDX
+    sec
+    sbc zpDY
+    sta zpErrLo
+    lda zpXDivHi   ; DX High
+    sbc #0
+    sta zpErrHi
 
 LineLoop:
     jsr PlotPixel
 
-    ; stop condition
+    ;--- Check if we reached (x2, y2) ---
     lda zpXLo
     cmp zpX2Lo
-    bne ContinueLine
+    bne NotAtEnd
+    lda zpXHi
+    cmp zpX2Hi
+    bne NotAtEnd
     lda zpY
     cmp zpY2
     beq LineDone
+NotAtEnd:
 
-ContinueLine:
-
-    ; e2 = err * 2
+    ;--- e2 = err * 2 ---
     lda zpErrLo
     asl
     sta zpE2Lo
+    lda zpErrHi
+    rol
+    sta zpE2Hi
 
-    ; if e2 >= -dy
-    lda zpE2Lo
+    ;--- if e2 > -dy (Check: e2 + dy >= 0) ---
     clc
+    lda zpE2Lo
     adc zpDY
-    bmi SkipX
+    lda zpE2Hi
+    adc #0
+    bmi SkipXMove
 
+    ; err = err - dy
     lda zpErrLo
     sec
     sbc zpDY
     sta zpErrLo
+    lda zpErrHi
+    sbc #0
+    sta zpErrHi
 
-    lda zpSX
-    bmi DecX
-    inc zpXLo
-    bne SkipX
-    inc zpXHi
-    jmp SkipX
+    ; Determine X direction (Compare X1 and X2)
+    lda zpX1Hi
+    cmp zpX2Hi
+    bcc IncX
+    bne DecX
+    lda zpX1Lo
+    cmp zpX2Lo
+    bcc IncX
+
 DecX:
-    dec zpXLo
-    bpl SkipX
+    ; 16-bit Decrement
+    lda zpXLo
+    bne DecXLow
     dec zpXHi
+DecXLow:
+    dec zpXLo
+    jmp SkipXMove
 
-SkipX:
+IncX:
+    ; 16-bit Increment
+    inc zpXLo
+    bne SkipXMove
+    inc zpXHi
 
-    ; if e2 <= dx
+SkipXMove:
+
+    ;--- if e2 < dx (Check: dx - e2 >= 0) ---
     lda zpDX
     sec
     sbc zpE2Lo
-    bmi SkipY
+    lda zpXDivHi   ; DX High
+    sbc zpE2Hi
+    bmi SkipYMove
 
+    ; err = err + dx
     lda zpErrLo
     clc
     adc zpDX
     sta zpErrLo
+    lda zpErrHi
+    adc zpXDivHi
+    sta zpErrHi
 
-    lda zpSY
-    bmi DecY
+    ; Determine Y direction
+    lda zpY1
+    cmp zpY2
+    bcs DecY
     inc zpY
-    jmp SkipY
+    jmp SkipYMove
 DecY:
     dec zpY
 
-SkipY:
+SkipYMove:
     jmp LineLoop
 
 LineDone:
-    rts
-
-;=========================================================
-; DrawVerticalLine
-;=========================================================
-
-DrawVerticalLine:
-    lda zpX1Lo
-    sta zpXLo
-    lda zpX1Hi
-    sta zpXHi
-
-    lda zpY1
-    sta zpY
-
-VertLoop:
-    jsr PlotPixel
-
-    lda zpY
-    cmp zpY2
-    beq VertDone
-
-    inc zpY
-    jmp VertLoop
-
-VertDone:
-    rts
-
-;=========================================================
-; DrawHorizontalLine
-;=========================================================
-
-DrawHorizontalLine:
-    lda zpY1
-    sta zpY
-
-    lda zpX1Lo
-    sta zpXLo
-    lda zpX1Hi
-    sta zpXHi
-
-HorzLoop:
-    jsr PlotPixel
-
-    lda zpXLo
-    cmp zpX2Lo
-    beq HorzDone
-
-    inc zpXLo
-    bne HorzLoop
-    inc zpXHi
-    jmp HorzLoop
-
-HorzDone:
     rts
 
 ;=========================================================
