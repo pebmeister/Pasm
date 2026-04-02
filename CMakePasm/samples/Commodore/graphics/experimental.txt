@@ -1,75 +1,3 @@
-10 ba=8192
-20 dim row(24),mt(7)
-30 print "loading tables"
-40 for i=0 to 24: read row(i): next
-50 for i=0 to 7: read mt(i): next
-60 print "clearing bitmap"
-70 for i=ba to ba+7999: poke i,0: next
-80 print "clearing screen"
-90 for i=1024 to 2023: poke i,16: next
-100 rem set vic bank to 0110
-110 poke 56576,(peek(56576) and 252) or 3
-120 rem enable hires
-130 poke 53272,(peek(53272) and 240) or 8
-140 poke 53265,peek(53265) or 32
-150 x1=10:y1=10:x2=300:y2=180:gosub 200
-151 x1=0:y1=0:x2=319:y2=199:gosub 200
-152 x1=0:y1=199:x2=319:y2=0:gosub 200
-155 rem press key
-156 get a$: if a$="" then 156
-157 gosub 5000
-160 end
-200 rem draw line x1,y1 to x2,y2
-210 dx=abs(x2-x1): dy=abs(y2-y1)
-220 sx=1: if x1>x2 then sx=-1
-230 sy=1: if y1>y2 then sy=-1
-240 err=dx-dy
-250 x=x1: y=y1
-260 gosub 1000
-270 if x=x2 and y=y2 then return
-280 e2=err*2
-290 if e2>-dy then err=err-dy: x=x+sx
-300 if e2<dx then err=err+dx: y=y+sy
-310 goto 260
-1000 ry=int(y/8)
-1010 ad=ba+row(ry)+(y and 7)+(int(x/8)*8)
-1020 poke ad,peek(ad) or mt(x and 7)
-1030 return
-5000 rem restore normal vic text mode
-5010 poke 53265,peek(53265) and 223
-5020 poke 53272,(peek(53272) and 240) or 20
-5030 poke 56576,(peek(56576) and 252) or 3
-5040 poke 646,14
-5050 print chr$(147)
-5060 return
-
-11000 data 0
-11010 data 320
-11020 data 640
-11030 data 960
-11040 data 1280
-11050 data 1600
-11060 data 1920
-11070 data 2240
-11080 data 2560
-11090 data 2880
-11100 data 3200
-11110 data 3520
-11120 data 3840
-11130 data 4160
-11140 data 4480
-11150 data 4800
-11160 data 5120
-11170 data 5440
-11180 data 5760
-11190 data 6080
-11200 data 6400
-11210 data 6720
-11220 data 7040
-11230 data 7360
-11240 data 7680
-
-12000 data 128,64,32,16,8,4,2,1
 
 ;=========================================================
 ; C64 HIRES GRAPHICS LIBRARY
@@ -845,7 +773,6 @@ MaskTable:
     .byte %00000100
     .byte %00000010
     .byte %00000001
-
 
 
 -----------------------------------------------------------------------------------------------
