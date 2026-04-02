@@ -669,6 +669,127 @@ SameByteCase:
     rts
 
 ;=========================================================
+; OPTIMIZED VERTICAL LINE
+; X:  zpX1Lo/Hi
+; Y1: zpY1
+; Y2: zpY2
+;=========================================================
+VLine:
+    ;--- 1. Ensure Y1 < Y2 ---
+    lda zpY1
+    cmp zpY2
+    bcc +
+    ; Swap Y1 and Y2 if Y1 is greater
+    tax
+    lda zpY2
+    sta zpY1
+    stx zpY2
++
+    ;--- 2. Calculate Initial Address (same as PlotPixel) ---
+    lda zpY1
+    lsr
+    lsr
+    lsr
+    tax
+    lda Row320Lo,x
+    sta zpAddrLo
+    lda Row320Hi,x
+    sta zpAddrHi
+
+    ; Add Y offset within the first cell
+    lda zpY1
+    and #7
+    clc
+    adc zpAddrLo
+    sta zpAddrLo
+    bcc +
+    inc zpAddrHi
++
+    ; Add X contribution (X >> 3) * 8
+    lda zpX1Lo
+    and #%11111000
+    clc
+    adc zpAddrLo
+    sta zpAddrLo
+    lda zpX1Hi
+    adc zpAddrHi
+    sta zpAddrHi
+
+    ; Add Bitmap Base
+    lda zpAddrLo
+    clc
+    adc #<BITMAP_ADDR
+    sta zpAddrLo
+    lda zpAddrHi
+    adc #>BITMAP_ADDR
+    sta zpAddrHi
+
+    ;--- 3. Pre-calculate Constant Bitmask ---
+    lda zpX1Lo
+    and #7
+    tax
+    lda MaskTable,x
+    sta zpMask
+
+    ;--- 4. Setup Loop Counters ---
+    lda zpY2
+    sec
+    sbc zpY1
+    sta zpTmp      ; zpTmp = Number of pixels to draw (Length)
+    
+    lda zpY1
+    and #7
+    sta zpTemp2    ; zpTemp2 = Current Y offset within cell (0-7)
+
+    ldy #0
+
+VLineLoop:
+    ; Plot the pixel
+    lda (zpAddrLo),y
+    ora zpMask
+    sta (zpAddrLo),y
+
+    ; Check if we are done
+    lda zpTmp
+    beq VLineDone
+    dec zpTmp
+
+    ;--- 5. Move Down One Pixel ---
+    lda zpTemp2
+    cmp #7
+    beq NextCellRow
+
+    ; Still inside the same 8x8 cell: just add 1
+    inc zpAddrLo
+    bne +
+    inc zpAddrHi
++
+    inc zpTemp2
+    jmp VLineLoop
+
+NextCellRow:
+    ; Transitioning to the cell below
+    ; We are at row 7 of the current cell. 
+    ; Next pixel is at row 0 of the cell 320 bytes ahead.
+    ; Offset = 320 - 7 = 313 bytes.
+    ; 313 = $0139 in hex.
+    
+    lda zpAddrLo
+    clc
+    adc #$39
+    sta zpAddrLo
+    lda zpAddrHi
+    adc #$01
+    sta zpAddrHi
+    
+    lda #0
+    sta zpTemp2    ; Reset cell row counter to 0
+    jmp VLineLoop
+
+VLineDone:
+    rts
+
+;=========================================================
 ; TABLES FOR HORIZONTAL FILL
 ;=========================================================
 
