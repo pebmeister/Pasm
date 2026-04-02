@@ -129,10 +129,6 @@ zpTemp2     = $6E
 zpXDivLo    = $6F
 zpXDivHi    = $70
 
-; Note: If you need zpSX/zpSY for the old DrawLine:
-zpSX      = $05
-zpSY      = $06
-
 ;=========================================================
 ; MAIN
 ;=========================================================
@@ -142,6 +138,14 @@ zpSY      = $06
     jsr ClearBitmap
     lda #16
     jsr ClearScreenRAM
+
+    jsr Test
+    rts
+
+;=========================================================
+; Test
+;=========================================================
+Test:
     jsr TestPlotPixel
     jsr TestDrawLine
     jsr TestHLine
