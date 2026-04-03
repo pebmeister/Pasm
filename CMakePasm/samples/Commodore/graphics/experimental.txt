@@ -390,13 +390,59 @@ PlotPixel:
     sta (zpAddrLo),y
 
     rts
-
 ;=========================================================
 ; DRAW LINE - BRESENHAM (16-bit X, 8-bit Y)
-; Safely handles steep lines using unsigned coordinate math
-; No dot-prefixed local labels.
+; Optimized to auto-call HLine/VLine for axis-aligned lines.
 ;=========================================================
 DrawLine:
+    ;--- 1. Check if Vertical (X1 == X2) ---
+    lda zpX1Lo
+    cmp zpX2Lo
+    bne CheckHorizontal
+    lda zpX1Hi
+    cmp zpX2Hi
+    bne CheckHorizontal
+    ; It is vertical. VLine handles Y1/Y2 swapping internally.
+    jmp VLine           
+
+CheckHorizontal:
+    ;--- 2. Check if Horizontal (Y1 == Y2) ---
+    lda zpY1
+    cmp zpY2
+    bne BresenhamStart  ; Not horizontal, go to general line routine
+
+    ;--- 3. Prepare for HLine ---
+    ; HLine expects Y in zpY and assumes X1 < X2 for masking logic.
+    lda zpY1
+    sta zpY             
+
+    ; Ensure X1 < X2 for the HLine mask tables
+    lda zpX1Hi
+    cmp zpX2Hi
+    bcc DoHLine         ; X1Hi < X2Hi, already correct
+    bne SwapH           ; X1Hi > X2Hi, must swap
+    lda zpX1Lo
+    cmp zpX2Lo
+    bcc DoHLine         ; X1Hi == X2Hi and X1Lo < X2Lo, correct
+    beq DoHLine         ; They are the same point, HLine handles it
+
+SwapH:
+    lda zpX1Lo
+    ldx zpX2Lo
+    sta zpX2Lo
+    stx zpX1Lo
+    lda zpX1Hi
+    ldx zpX2Hi
+    sta zpX2Hi
+    stx zpX1Hi
+
+DoHLine:
+    jmp HLine           ; Jump to optimized horizontal fill
+
+;---------------------------------------------------------
+; General Bresenham starts here for diagonal/steep lines
+;---------------------------------------------------------
+BresenhamStart:
     ;--- 1. Compute X Step and 16-bit DX = abs(X2 - X1) ---
     lda zpX1Hi
     cmp zpX2Hi
@@ -486,7 +532,6 @@ LineLoop:
 NotAtEnd:
 
     ;--- e2 = err * 2 ---
-    ; (Signed shift using ASL/ROL works perfectly here)
     lda zpErrLo
     asl
     sta zpE2Lo
@@ -500,7 +545,7 @@ NotAtEnd:
     adc zpDY
     lda zpE2Hi
     adc #0
-    bmi SkipXMove   ; If result is negative, e2 < -dy, skip X move
+    bmi SkipXMove   ; Result is negative, skip X move
 
     ; err = err - dy
     lda zpErrLo
@@ -533,7 +578,7 @@ SkipXMove:
     sbc zpE2Lo
     lda zpDXHi
     sbc zpE2Hi
-    bmi SkipYMove   ; If result is negative, e2 >= dx, skip Y move
+    bmi SkipYMove   ; Result is negative, skip Y move
 
     ; err = err + dx
     lda zpErrLo
@@ -557,6 +602,7 @@ SkipYMove:
 
 LineDone:
     rts
+	
 
 
 ;=========================================================
@@ -844,219 +890,3 @@ MaskTable:
     .byte %00000010
     .byte %00000001
 
-
-
-
-
-;=========================================================
-; DRAW LINE - BRESENHAM (16-bit X, 8-bit Y)
-; Optimized to auto-call HLine/VLine for axis-aligned lines.
-;=========================================================
-DrawLine:
-    ;--- 1. Check if Vertical (X1 == X2) ---
-    lda zpX1Lo
-    cmp zpX2Lo
-    bne CheckHorizontal
-    lda zpX1Hi
-    cmp zpX2Hi
-    bne CheckHorizontal
-    ; It is vertical. VLine handles Y1/Y2 swapping internally.
-    jmp VLine           
-
-CheckHorizontal:
-    ;--- 2. Check if Horizontal (Y1 == Y2) ---
-    lda zpY1
-    cmp zpY2
-    bne BresenhamStart  ; Not horizontal, go to general line routine
-
-    ;--- 3. Prepare for HLine ---
-    ; HLine expects Y in zpY and assumes X1 < X2 for masking logic.
-    lda zpY1
-    sta zpY             
-
-    ; Ensure X1 < X2 for the HLine mask tables
-    lda zpX1Hi
-    cmp zpX2Hi
-    bcc DoHLine         ; X1Hi < X2Hi, already correct
-    bne SwapH           ; X1Hi > X2Hi, must swap
-    lda zpX1Lo
-    cmp zpX2Lo
-    bcc DoHLine         ; X1Hi == X2Hi and X1Lo < X2Lo, correct
-    beq DoHLine         ; They are the same point, HLine handles it
-
-SwapH:
-    lda zpX1Lo
-    ldx zpX2Lo
-    sta zpX2Lo
-    stx zpX1Lo
-    lda zpX1Hi
-    ldx zpX2Hi
-    sta zpX2Hi
-    stx zpX1Hi
-
-DoHLine:
-    jmp HLine           ; Jump to optimized horizontal fill
-
-;---------------------------------------------------------
-; General Bresenham starts here for diagonal/steep lines
-;---------------------------------------------------------
-BresenhamStart:
-    ;--- 1. Compute X Step and 16-bit DX = abs(X2 - X1) ---
-    lda zpX1Hi
-    cmp zpX2Hi
-    bne +
-    lda zpX1Lo
-    cmp zpX2Lo
-+
-    bcc X2_Bigger
-    ; X1 >= X2 (Direction = Decrement)
-    lda zpX1Lo
-    sec
-    sbc zpX2Lo
-    sta zpDX
-    lda zpX1Hi
-    sbc zpX2Hi
-    sta zpDXHi
-    lda #$FF        ; Flag for Dec X
-    sta zpXStep
-    jmp CalcY
-
-X2_Bigger:
-    ; X2 > X1 (Direction = Increment)
-    lda zpX2Lo
-    sec
-    sbc zpX1Lo
-    sta zpDX
-    lda zpX2Hi
-    sbc zpX1Hi
-    sta zpDXHi
-    lda #$01        ; Flag for Inc X
-    sta zpXStep
-
-CalcY:
-    ;--- 2. Compute Y Step and 8-bit DY = abs(Y2 - Y1) ---
-    lda zpY1
-    cmp zpY2
-    bcc Y2_Bigger
-    ; Y1 >= Y2 (Direction = Decrement)
-    lda zpY1
-    sec
-    sbc zpY2
-    sta zpDY
-    lda #$FF        ; Flag for Dec Y
-    sta zpYStep
-    jmp InitErr
-
-Y2_Bigger:
-    ; Y2 > Y1 (Direction = Increment)
-    lda zpY2
-    sec
-    sbc zpY1
-    sta zpDY
-    lda #$01        ; Flag for Inc Y
-    sta zpYStep
-
-InitErr:
-    ;--- 3. Set Starting Points ---
-    lda zpX1Lo
-    sta zpXLo
-    lda zpX1Hi
-    sta zpXHi
-    lda zpY1
-    sta zpY
-
-    ;--- 4. Initialize Error Term (err = dx - dy) ---
-    lda zpDX
-    sec
-    sbc zpDY
-    sta zpErrLo
-    lda zpDXHi
-    sbc #0
-    sta zpErrHi
-
-LineLoop:
-    jsr PlotPixel
-
-    ;--- Check if we reached (x2, y2) ---
-    lda zpXLo
-    cmp zpX2Lo
-    bne NotAtEnd
-    lda zpXHi
-    cmp zpX2Hi
-    bne NotAtEnd
-    lda zpY
-    cmp zpY2
-    beq LineDone
-NotAtEnd:
-
-    ;--- e2 = err * 2 ---
-    lda zpErrLo
-    asl
-    sta zpE2Lo
-    lda zpErrHi
-    rol
-    sta zpE2Hi
-
-    ;--- if e2 > -dy (Check: e2 + dy >= 0) ---
-    clc
-    lda zpE2Lo
-    adc zpDY
-    lda zpE2Hi
-    adc #0
-    bmi SkipXMove   ; Result is negative, skip X move
-
-    ; err = err - dy
-    lda zpErrLo
-    sec
-    sbc zpDY
-    sta zpErrLo
-    lda zpErrHi
-    sbc #0
-    sta zpErrHi
-
-    ; Apply X Step
-    bit zpXStep
-    bmi DoDecX
-    ; 16-bit Inc
-    inc zpXLo
-    bne SkipXMove
-    inc zpXHi
-    jmp SkipXMove
-DoDecX:
-    ; 16-bit Dec
-    lda zpXLo
-    bne +
-    dec zpXHi
-+   dec zpXLo
-
-SkipXMove:
-    ;--- if e2 < dx (Check: dx - e2 > 0) ---
-    lda zpDX
-    sec
-    sbc zpE2Lo
-    lda zpDXHi
-    sbc zpE2Hi
-    bmi SkipYMove   ; Result is negative, skip Y move
-
-    ; err = err + dx
-    lda zpErrLo
-    clc
-    adc zpDX
-    sta zpErrLo
-    lda zpErrHi
-    adc zpDXHi
-    sta zpErrHi
-
-    ; Apply Y Step
-    bit zpYStep
-    bmi DoDecY
-    inc zpY
-    jmp SkipYMove
-DoDecY:
-    dec zpY
-
-SkipYMove:
-    jmp LineLoop
-
-LineDone:
-    rts
