@@ -26,16 +26,14 @@ BITMAP_END      = $3F40  ; BITMAP_ADDR + 8000
 ; REVISED ZERO PAGE (BASIC-SAFE)
 ;---------------------------------------------------------
 
-; Primary Working Pointers (Very Safe)
-zpAddrLo    = $FB
-zpAddrHi    = $FC
-zpMask      = $FD
-zpTmp       = $FE
 
 ; X/Y Current Coordinates
 zpXLo       = $02
 zpXHi       = $03
 zpY         = $04
+
+zpErrLo     = $05
+zpErrHi     = $06
 
 ; Line/HLine Parameters (X1, Y1, X2, Y2)
 ; Using the FAC2 area ($61 and up)
@@ -49,8 +47,7 @@ zpY2        = $66
 ; Bresenham / HLine Internal Variables
 zpDX        = $67   ; Note: Also needs $68 for 16-bit DX in HLine
 zpDY        = $69
-zpErrLo     = $6A
-zpErrHi     = $6B
+
 zpE2Lo      = $6C
 zpE2Hi      = $6D
 zpTemp2     = $6E
@@ -62,6 +59,12 @@ zpXStep     = $F7
 zpYStep     = $F8
 zpDXHi      = $F9
 zpDXLo      = $FA  ; (Note: You can also just use your existing zpDX at $67)
+
+; Primary Working Pointers (Very Safe)
+zpAddrLo    = $FB
+zpAddrHi    = $FC
+zpMask      = $FD
+zpTmp       = $FE
 
 
 ;=========================================================
@@ -81,9 +84,8 @@ zpDXLo      = $FA  ; (Note: You can also just use your existing zpDX at $67)
 ; Test
 ;=========================================================
 Test:
-    jsr TestPlotPixel
-    jsr TestDrawLine
-
+    ; jsr TestPlotPixel
+    ; jsr TestDrawLine
     jsr TestHLine
     jsr TestVLine
     rts
@@ -136,6 +138,17 @@ TestDrawLine:
     DL_2_Y1 = 12
     DL_2_Y2 = 180
 
+	DL_3_X1 = 10
+	DL_3_X2 = 319
+	DL_3_Y1 = 100
+	DL_3_Y2 = 100
+	
+	DL_4_X1 = TH_2_X1
+	DL_4_X2 = TH_2_X2
+	DL_4_Y1 = TH_2_Y
+	DL_4_Y2 = TH_2_Y
+	
+; ---------------------------------	
     lda #<DL_1_X1
     sta zpX1Lo
     lda #>DL_1_X1
@@ -149,7 +162,7 @@ TestDrawLine:
     lda #DL_1_Y2
     sta zpY2
     jsr DrawLine
-
+; ---------------------------------	
     lda #<DL_2_X1
     sta zpX1Lo
     lda #>DL_2_X1
@@ -163,8 +176,36 @@ TestDrawLine:
     lda #DL_2_Y2
     sta zpY2
     jsr DrawLine
-
-    rts
+; ---------------------------------	
+    lda #<DL_3_X1
+    sta zpX1Lo
+    lda #>DL_3_X1
+    sta zpX1Hi
+    lda #<DL_3_X2
+    sta zpX2Lo
+    lda #>DL_3_X2
+    sta zpX2Hi
+    lda #DL_3_Y1
+    sta zpY1
+    lda #DL_3_Y2
+    sta zpY2
+    jsr DrawLine
+;; ---------------------------------	
+;    lda #<DL_4_X1
+;    sta zpX1Lo
+;    lda #>DL_4_X1
+;    sta zpX1Hi
+;    lda #<DL_4_X2
+;    sta zpX2Lo
+;    lda #>DL_4_X2
+;    sta zpX2Hi
+;    lda #DL_4_Y1
+;    sta zpY1
+;    lda #DL_4_Y2
+;    sta zpY2
+;    jsr DrawLine
+;
+     rts
 
 ;=========================================================
 ; TestHLine
@@ -173,11 +214,11 @@ TestDrawLine:
 TestHLine:
 	TH_1_X1 = 10
 	TH_1_X2 = 319
-	TH_1_y = 100
+	TH_1_Y = 100
 	
 	TH_2_X1 = 15
 	TH_2_X2 = 310
-	TH_2_y = 175
+	TH_2_Y = 175
 	
     lda #<TH_1_X1
     sta zpX1Lo
@@ -189,7 +230,7 @@ TestHLine:
     lda #>TH_1_X2
     sta zpX2Hi
 
-    lda #TH_1_y
+    lda #TH_1_Y
     sta zpY
     jsr HLine
 
@@ -203,7 +244,7 @@ TestHLine:
     lda #>TH_2_X2
     sta zpX2Hi
 
-    lda #TH_2_y
+    lda #TH_2_Y
     sta zpY
     jsr HLine
 
@@ -394,6 +435,7 @@ PlotPixel:
 ; DRAW LINE - BRESENHAM (16-bit X, 8-bit Y)
 ; Optimized to auto-call HLine/VLine for axis-aligned lines.
 ;=========================================================
+
 DrawLine:
     ;--- 1. Check if Vertical (X1 == X2) ---
     lda zpX1Lo
@@ -402,29 +444,25 @@ DrawLine:
     lda zpX1Hi
     cmp zpX2Hi
     bne CheckHorizontal
-    ; It is vertical. VLine handles Y1/Y2 swapping internally.
     jmp VLine           
 
 CheckHorizontal:
     ;--- 2. Check if Horizontal (Y1 == Y2) ---
     lda zpY1
     cmp zpY2
-    bne BresenhamStart  ; Not horizontal, go to general line routine
-
-    ;--- 3. Prepare for HLine ---
-    ; HLine expects Y in zpY and assumes X1 < X2 for masking logic.
+    bne BresenhamStart
+	
+    ; Setup HLine (Expects Y in zpY and X1 <= X2)
     lda zpY1
     sta zpY             
-
-    ; Ensure X1 < X2 for the HLine mask tables
     lda zpX1Hi
     cmp zpX2Hi
-    bcc DoHLine         ; X1Hi < X2Hi, already correct
-    bne SwapH           ; X1Hi > X2Hi, must swap
+    bcc DoHLine         
+    bne SwapH           
     lda zpX1Lo
     cmp zpX2Lo
-    bcc DoHLine         ; X1Hi == X2Hi and X1Lo < X2Lo, correct
-    beq DoHLine         ; They are the same point, HLine handles it
+    bcc DoHLine         
+    beq DoHLine
 
 SwapH:
     lda zpX1Lo
@@ -437,69 +475,61 @@ SwapH:
     stx zpX1Hi
 
 DoHLine:
-    jmp HLine           ; Jump to optimized horizontal fill
+    jmp HLine           
 
 ;---------------------------------------------------------
-; General Bresenham starts here for diagonal/steep lines
+; Main Diagonal Algorithm
 ;---------------------------------------------------------
 BresenhamStart:
-    ;--- 1. Compute X Step and 16-bit DX = abs(X2 - X1) ---
-    lda zpX1Hi
-    cmp zpX2Hi
-    bne +
-    lda zpX1Lo
-    cmp zpX2Lo
-+
-    bcc X2_Bigger
-    ; X1 >= X2 (Direction = Decrement)
-    lda zpX1Lo
-    sec
-    sbc zpX2Lo
-    sta zpDX
-    lda zpX1Hi
-    sbc zpX2Hi
-    sta zpDXHi
-    lda #$FF        ; Flag for Dec X
-    sta zpXStep
-    jmp CalcY
-
-X2_Bigger:
-    ; X2 > X1 (Direction = Increment)
+    ; Compute DX = abs(X2 - X1)
     lda zpX2Lo
     sec
     sbc zpX1Lo
-    sta zpDX
+    sta zpDXLo
     lda zpX2Hi
     sbc zpX1Hi
     sta zpDXHi
-    lda #$01        ; Flag for Inc X
+    bcs XDirPos     ; If carry set, X2 >= X1
+
+    ; X1 > X2: Result was negative, negate it
+    lda #0
+    sec
+    sbc zpDXLo
+    sta zpDXLo
+    lda #0
+    sbc zpDXHi
+    sta zpDXHi
+    lda #$FF        ; Step left (Decrement)
+    sta zpXStep
+    jmp CalcY
+
+XDirPos:
+    lda #$01        ; Step right (Increment)
     sta zpXStep
 
 CalcY:
-    ;--- 2. Compute Y Step and 8-bit DY = abs(Y2 - Y1) ---
-    lda zpY1
-    cmp zpY2
-    bcc Y2_Bigger
-    ; Y1 >= Y2 (Direction = Decrement)
-    lda zpY1
-    sec
-    sbc zpY2
-    sta zpDY
-    lda #$FF        ; Flag for Dec Y
-    sta zpYStep
-    jmp InitErr
-
-Y2_Bigger:
-    ; Y2 > Y1 (Direction = Increment)
+    ; Compute DY = abs(Y2 - Y1)
     lda zpY2
     sec
     sbc zpY1
     sta zpDY
-    lda #$01        ; Flag for Inc Y
+    bcs YDirPos     ; If carry set, Y2 >= Y1
+
+    ; Y1 > Y2: Result was negative, negate it
+    lda #0
+    sec
+    sbc zpDY
+    sta zpDY
+    lda #$FF        ; Step up (Decrement)
+    sta zpYStep
+    jmp InitErr
+
+YDirPos:
+    lda #$01        ; Step down (Increment)
     sta zpYStep
 
 InitErr:
-    ;--- 3. Set Starting Points ---
+    ; Sync current X/Y with X1/Y1
     lda zpX1Lo
     sta zpXLo
     lda zpX1Hi
@@ -507,8 +537,8 @@ InitErr:
     lda zpY1
     sta zpY
 
-    ;--- 4. Initialize Error Term (err = dx - dy) ---
-    lda zpDX
+    ; err = dx - dy
+    lda zpDXLo
     sec
     sbc zpDY
     sta zpErrLo
@@ -519,7 +549,7 @@ InitErr:
 LineLoop:
     jsr PlotPixel
 
-    ;--- Check if we reached (x2, y2) ---
+    ; Check if reached destination
     lda zpXLo
     cmp zpX2Lo
     bne NotAtEnd
@@ -529,9 +559,9 @@ LineLoop:
     lda zpY
     cmp zpY2
     beq LineDone
-NotAtEnd:
 
-    ;--- e2 = err * 2 ---
+NotAtEnd:
+    ; e2 = err * 2
     lda zpErrLo
     asl
     sta zpE2Lo
@@ -539,13 +569,13 @@ NotAtEnd:
     rol
     sta zpE2Hi
 
-    ;--- if e2 > -dy (Check: e2 + dy >= 0) ---
+    ; if e2 >= -dy (Logic: e2 + dy >= 0)
     clc
     lda zpE2Lo
     adc zpDY
     lda zpE2Hi
     adc #0
-    bmi SkipXMove   ; Result is negative, skip X move
+    bmi SkipXMove   ; If result is negative, e2 < -dy
 
     ; err = err - dy
     lda zpErrLo
@@ -556,46 +586,45 @@ NotAtEnd:
     sbc #0
     sta zpErrHi
 
-    ; Apply X Step
-    bit zpXStep
-    bmi DoDecX
-    ; 16-bit Inc
-    inc zpXLo
+    ; Apply X step
+    lda zpXStep
+    bmi DecX
+    inc zpXLo       ; Increment X
     bne SkipXMove
     inc zpXHi
     jmp SkipXMove
-DoDecX:
-    ; 16-bit Dec
-    lda zpXLo
-    bne +
+DecX:
+    lda zpXLo       ; Decrement X
+    bne DecXLoOnly
     dec zpXHi
-+   dec zpXLo
+DecXLoOnly:
+    dec zpXLo
 
 SkipXMove:
-    ;--- if e2 < dx (Check: dx - e2 > 0) ---
-    lda zpDX
+    ; if e2 <= dx (Logic: dx - e2 >= 0)
+    lda zpDXLo
     sec
     sbc zpE2Lo
     lda zpDXHi
     sbc zpE2Hi
-    bmi SkipYMove   ; Result is negative, skip Y move
+    bmi SkipYMove   ; If result is negative, e2 > dx
 
     ; err = err + dx
     lda zpErrLo
     clc
-    adc zpDX
+    adc zpDXLo
     sta zpErrLo
     lda zpErrHi
     adc zpDXHi
     sta zpErrHi
 
-    ; Apply Y Step
-    bit zpYStep
-    bmi DoDecY
-    inc zpY
+    ; Apply Y step
+    lda zpYStep
+    bmi DecY
+    inc zpY         ; Increment Y
     jmp SkipYMove
-DoDecY:
-    dec zpY
+DecY:
+    dec zpY         ; Decrement Y
 
 SkipYMove:
     jmp LineLoop
@@ -603,8 +632,6 @@ SkipYMove:
 LineDone:
     rts
 	
-
-
 ;=========================================================
 ; FAST HORIZONTAL LINE (FIXED & ROBUST)
 ; X1: zpX1Lo/Hi, X2: zpX2Lo/Hi, Y: zpY
@@ -889,4 +916,3 @@ MaskTable:
     .byte %00000100
     .byte %00000010
     .byte %00000001
-
