@@ -63,7 +63,7 @@ zpYStep     = $F8
 zpDXHi      = $F9
 zpDXLo      = $FA  ; (Note: You can also just use your existing zpDX at $67)
 
-      
+
 ;=========================================================
 ; MAIN
 ;=========================================================
@@ -81,22 +81,22 @@ zpDXLo      = $FA  ; (Note: You can also just use your existing zpDX at $67)
 ; Test
 ;=========================================================
 Test:
-    jsr TestPlotPixel 
-	jsr TestDrawLine	
-    
-	jsr TestHLine
-    ;jsr TestVLine
-     rts
+    jsr TestPlotPixel
+    jsr TestDrawLine
+
+    jsr TestHLine
+    jsr TestVLine
+    rts
 
 ;=========================================================
 ; TestPlotPixel
 ;=========================================================
 TestPlotPixel:
-	PPX1 = 50
-	PPX2 = 310
-	PPY1 = 199
-	PPY2 = 180
-	
+    PPX1 = 50
+    PPX2 = 310
+    PPY1 = 199
+    PPY2 = 180
+
     ldy #PPY1
     sty zpY
     lda #<PPX1
@@ -126,21 +126,16 @@ TestPlotPixel:
 ;=========================================================
 
 TestDrawLine:
-    ; ---------------------------------------------------------------
-    ; (25,10)-(300,180)
-    ; ---------------------------------------------------------------
-	DL_1_X1 = 25
-	DL_1_X2 = 300	
-	DL_1_Y1 = 10
-	DL_1_Y2 = 180
-    ; ---------------------------------------------------------------
-    ; (311,190)-(35,12)
-    ; ---------------------------------------------------------------
-	DL_2_X1 = 311
-	DL_2_X2 = 35	
-	DL_2_Y1 = 190
-	DL_2_Y2 = 12
-	
+    DL_1_X1 = 25
+    DL_1_X2 = 300
+    DL_1_Y1 = 10
+    DL_1_Y2 = 180
+
+    DL_2_X1 = 311
+    DL_2_X2 = 35
+    DL_2_Y1 = 12
+    DL_2_Y2 = 180
+
     lda #<DL_1_X1
     sta zpX1Lo
     lda #>DL_1_X1
@@ -154,7 +149,7 @@ TestDrawLine:
     lda #DL_1_Y2
     sta zpY2
     jsr DrawLine
-	
+
     lda #<DL_2_X1
     sta zpX1Lo
     lda #>DL_2_X1
@@ -167,7 +162,7 @@ TestDrawLine:
     sta zpY1
     lda #DL_2_Y2
     sta zpY2
-    jsr DrawLine  
+    jsr DrawLine
 
     rts
 
@@ -176,50 +171,73 @@ TestDrawLine:
 ;=========================================================
 
 TestHLine:
-    ; ---------------------------------------------------------------
-    ; (10,100)-(319,100)
-    ; ---------------------------------------------------------------
-    lda #<10
-    sta zpX1Lo
-    lda #>10
-    sta zpX1Hi
-
-    lda #<319
-    sta zpX2Lo
-    lda #>319
-    sta zpX2Hi
-
-    lda #100
-    sta zpY
-    jsr HLine
-
-    ; ---------------------------------------------------------------
-    ; (10,175)-(319,175)
-    ; ---------------------------------------------------------------
-    lda #<10
-    sta zpX1Lo
-    lda #>10
-    sta zpX1Hi
-
-    lda #<319
-    sta zpX2Lo
-    lda #>319
-    sta zpX2Hi
-
-    lda #175
-    sta zpY
-    jsr HLine
-    rts
+	TH_1_X1 = 10
+	TH_1_X2 = 319
+	TH_1_y = 100
 	
-	;=========================================================
-	; TestVLine
-	;=========================================================
-TestVLine:
-	rts
-; X:  zpX1Lo/Hi
-; Y1: zpY1
-; Y2: zpY2
+	TH_2_X1 = 15
+	TH_2_X2 = 310
+	TH_2_y = 175
+	
+    lda #<TH_1_X1
+    sta zpX1Lo
+    lda #>TH_1_X1
+    sta zpX1Hi
 
+    lda #<TH_1_X2
+    sta zpX2Lo
+    lda #>TH_1_X2
+    sta zpX2Hi
+
+    lda #TH_1_y
+    sta zpY
+    jsr HLine
+
+    lda #<TH_2_X1
+    sta zpX1Lo
+    lda #>TH_2_X1
+    sta zpX1Hi
+
+    lda #<TH_2_X2
+    sta zpX2Lo
+    lda #>TH_2_X2
+    sta zpX2Hi
+
+    lda #TH_2_y
+    sta zpY
+    jsr HLine
+
+    rts
+
+    ;=========================================================
+    ; TestVLine
+    ;=========================================================
+TestVLine:
+	TV_1_X = 55
+	TV_1_Y1 = 20
+	TV_1_Y2 = 180
+	
+	TV_2_X = 315
+	TV_2_Y1 = 2
+	TV_2_Y2 = 193
+	
+	lda #<TV_1_X
+    sta zpX1Lo
+    lda #>TV_1_X
+    sta zpX1Hi
+    lda #TV_1_Y1
+    sta zpY1
+    jsr VLine
+	
+	lda #<TV_2_X
+    sta zpX1Lo
+    lda #>TV_2_X
+    sta zpX1Hi
+    lda #TV_2_Y1
+    sta zpY1
+    jsr VLine
+	
+	rts
 
 ;=========================================================
 ; INIT HIRES MODE
@@ -316,7 +334,7 @@ PlotPixel:
     sta zpAddrHi
 
     ;---------------------------------
-    ; 2. Add (y & 7) 
+    ; 2. Add (y & 7)
     ; This finds the byte row within the 8x8 cell
     ;---------------------------------
     lda zpY
@@ -337,7 +355,7 @@ PlotPixel:
     clc
     adc zpAddrLo
     sta zpAddrLo
-    
+
     lda zpXHi        ; Add high byte of X to high byte of address
     adc zpAddrHi
     sta zpAddrHi
@@ -385,7 +403,7 @@ DrawLine:
     bne +
     lda zpX1Lo
     cmp zpX2Lo
-+   
++
     bcc X2_Bigger
     ; X1 >= X2 (Direction = Decrement)
     lda zpX1Lo
@@ -398,7 +416,7 @@ DrawLine:
     lda #$FF        ; Flag for Dec X
     sta zpXStep
     jmp CalcY
-    
+
 X2_Bigger:
     ; X2 > X1 (Direction = Increment)
     lda zpX2Lo
@@ -424,7 +442,7 @@ CalcY:
     lda #$FF        ; Flag for Dec Y
     sta zpYStep
     jmp InitErr
-    
+
 Y2_Bigger:
     ; Y2 > Y1 (Direction = Increment)
     lda zpY2
@@ -539,8 +557,8 @@ SkipYMove:
 
 LineDone:
     rts
-	
-	
+
+
 ;=========================================================
 ; FAST HORIZONTAL LINE (FIXED & ROBUST)
 ; X1: zpX1Lo/Hi, X2: zpX2Lo/Hi, Y: zpY
@@ -623,12 +641,12 @@ HLine:
     sec
     sbc zpXDivLo
     sta zpTmp      ; zpTmp = Number of steps to reach X2
-    
+
     beq SameByteCase
 
     ;--- 6. Multi-Byte Fill ---
     ldy #0
-    
+
     ; Draw Start Byte
     lda (zpAddrLo),y
     ora zpMask
@@ -735,7 +753,7 @@ VLine:
     sec
     sbc zpY1
     sta zpTmp      ; zpTmp = Number of pixels to draw (Length)
-    
+
     lda zpY1
     and #7
     sta zpTemp2    ; zpTemp2 = Current Y offset within cell (0-7)
@@ -768,11 +786,11 @@ VLineLoop:
 
 NextCellRow:
     ; Transitioning to the cell below
-    ; We are at row 7 of the current cell. 
+    ; We are at row 7 of the current cell.
     ; Next pixel is at row 0 of the cell 320 bytes ahead.
     ; Offset = 320 - 7 = 313 bytes.
     ; 313 = $0139 in hex.
-    
+
     lda zpAddrLo
     clc
     adc #$39
@@ -780,7 +798,7 @@ NextCellRow:
     lda zpAddrHi
     adc #$01
     sta zpAddrHi
-    
+
     lda #0
     sta zpTemp2    ; Reset cell row counter to 0
     jmp VLineLoop
