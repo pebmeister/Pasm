@@ -57,6 +57,13 @@ zpTemp2     = $6E
 zpXDivLo    = $6F
 zpXDivHi    = $70
 
+; Move these away from the $70+ range
+zpXStep     = $F7
+zpYStep     = $F8
+zpDXHi      = $F9
+zpDXLo      = $FA  ; (Note: You can also just use your existing zpDX at $67)
+
+      
 ;=========================================================
 ; MAIN
 ;=========================================================
@@ -74,31 +81,38 @@ zpXDivHi    = $70
 ; Test
 ;=========================================================
 Test:
-    jsr TestPlotPixel
-    jsr TestDrawLine
-    jsr TestHLine
-    rts
+    jsr TestPlotPixel 
+	jsr TestDrawLine	
+    
+	jsr TestHLine
+    ;jsr TestVLine
+     rts
 
 ;=========================================================
 ; TestPlotPixel
 ;=========================================================
 TestPlotPixel:
-    ldy #199
+	PPX1 = 50
+	PPX2 = 310
+	PPY1 = 199
+	PPY2 = 180
+	
+    ldy #PPY1
     sty zpY
-    lda #<50
+    lda #<PPX1
     sta zpXLo
-    lda #>50
+    lda #>PPX1
     sta zpXHi
 -
     jsr PlotPixel
     dec zpY
     bne -
 
-    ldy #199
+    ldy #PPY2
     sty zpY
-    lda #<310
+    lda #<PPX2
     sta zpXLo
-    lda #>310
+    lda #>PPX2
     sta zpXHi
 -
     jsr PlotPixel
@@ -113,41 +127,52 @@ TestPlotPixel:
 
 TestDrawLine:
     ; ---------------------------------------------------------------
-    ; (100,10)-(100,190)
+    ; (25,10)-(300,180)
     ; ---------------------------------------------------------------
-    lda #<100
+	DL_1_X1 = 25
+	DL_1_X2 = 300	
+	DL_1_Y1 = 10
+	DL_1_Y2 = 180
+    ; ---------------------------------------------------------------
+    ; (311,190)-(35,12)
+    ; ---------------------------------------------------------------
+	DL_2_X1 = 311
+	DL_2_X2 = 35	
+	DL_2_Y1 = 190
+	DL_2_Y2 = 12
+	
+    lda #<DL_1_X1
     sta zpX1Lo
-    sta zpX2Lo
-    lda #>100
+    lda #>DL_1_X1
     sta zpX1Hi
+    lda #<DL_1_X2
+    sta zpX2Lo
+    lda #>DL_1_X2
     sta zpX2Hi
-    lda #10
+    lda #DL_1_Y1
     sta zpY1
-    lda #190
+    lda #DL_1_Y2
     sta zpY2
     jsr DrawLine
-
-    ; ---------------------------------------------------------------
-    ; (300,10)-(300,190)
-    ; ---------------------------------------------------------------
-    lda #<300
+	
+    lda #<DL_2_X1
     sta zpX1Lo
-    sta zpX2Lo
-    lda #>300
+    lda #>DL_2_X1
     sta zpX1Hi
+    lda #<DL_2_X2
+    sta zpX2Lo
+    lda #>DL_2_X2
     sta zpX2Hi
-    lda #10
+    lda #DL_2_Y1
     sta zpY1
-    lda #190
+    lda #DL_2_Y2
     sta zpY2
-    jsr DrawLine
+    jsr DrawLine  
 
     rts
 
-
-; ; X1: zpX1Lo/Hi, X2: zpX2Lo/Hi, Y: zpY
 ;=========================================================
-; TestDrawLine
+; TestHLine
 ;=========================================================
 
 TestHLine:
@@ -168,7 +193,7 @@ TestHLine:
     sta zpY
     jsr HLine
 
-  ; ---------------------------------------------------------------
+    ; ---------------------------------------------------------------
     ; (10,175)-(319,175)
     ; ---------------------------------------------------------------
     lda #<10
@@ -185,6 +210,16 @@ TestHLine:
     sta zpY
     jsr HLine
     rts
+	
+	;=========================================================
+	; TestVLine
+	;=========================================================
+TestVLine:
+	rts
+; X:  zpX1Lo/Hi
+; Y1: zpY1
+; Y2: zpY2
+
 
 ;=========================================================
 ; INIT HIRES MODE
@@ -339,42 +374,68 @@ PlotPixel:
     rts
 
 ;=========================================================
-; DRAW LINE - BRESENHAM (STANDARD LABELS)
-; X1: zpX1Lo/Hi, Y1: zpY1 | X2: zpX2Lo/Hi, Y2: zpY2
+; DRAW LINE - BRESENHAM (16-bit X, 8-bit Y)
+; Safely handles steep lines using unsigned coordinate math
+; No dot-prefixed local labels.
 ;=========================================================
 DrawLine:
-    ;--- Compute 16-bit DX = abs(x2 - x1) ---
+    ;--- 1. Compute X Step and 16-bit DX = abs(X2 - X1) ---
+    lda zpX1Hi
+    cmp zpX2Hi
+    bne +
+    lda zpX1Lo
+    cmp zpX2Lo
++   
+    bcc X2_Bigger
+    ; X1 >= X2 (Direction = Decrement)
+    lda zpX1Lo
+    sec
+    sbc zpX2Lo
+    sta zpDX
+    lda zpX1Hi
+    sbc zpX2Hi
+    sta zpDXHi
+    lda #$FF        ; Flag for Dec X
+    sta zpXStep
+    jmp CalcY
+    
+X2_Bigger:
+    ; X2 > X1 (Direction = Increment)
     lda zpX2Lo
     sec
     sbc zpX1Lo
     sta zpDX
     lda zpX2Hi
     sbc zpX1Hi
-    sta zpXDivHi   ; Using zpXDivHi as temporary storage for DX High
-    bpl DX_Pos
-    
-    ; Negate 16-bit DX
-    lda #0
-    sec
-    sbc zpDX
-    sta zpDX
-    lda #0
-    sbc zpXDivHi
-    sta zpXDivHi
-DX_Pos:
+    sta zpDXHi
+    lda #$01        ; Flag for Inc X
+    sta zpXStep
 
-    ;--- Compute 8-bit DY = abs(y2 - y1) ---
+CalcY:
+    ;--- 2. Compute Y Step and 8-bit DY = abs(Y2 - Y1) ---
+    lda zpY1
+    cmp zpY2
+    bcc Y2_Bigger
+    ; Y1 >= Y2 (Direction = Decrement)
+    lda zpY1
+    sec
+    sbc zpY2
+    sta zpDY
+    lda #$FF        ; Flag for Dec Y
+    sta zpYStep
+    jmp InitErr
+    
+Y2_Bigger:
+    ; Y2 > Y1 (Direction = Increment)
     lda zpY2
     sec
     sbc zpY1
-    bpl DY_Pos
-    eor #$FF
-    clc
-    adc #1
-DY_Pos:
     sta zpDY
+    lda #$01        ; Flag for Inc Y
+    sta zpYStep
 
-    ;--- Set Starting Points ---
+InitErr:
+    ;--- 3. Set Starting Points ---
     lda zpX1Lo
     sta zpXLo
     lda zpX1Hi
@@ -382,12 +443,12 @@ DY_Pos:
     lda zpY1
     sta zpY
 
-    ;--- Initialize Error Term (err = dx - dy) ---
+    ;--- 4. Initialize Error Term (err = dx - dy) ---
     lda zpDX
     sec
     sbc zpDY
     sta zpErrLo
-    lda zpXDivHi   ; DX High
+    lda zpDXHi
     sbc #0
     sta zpErrHi
 
@@ -407,6 +468,7 @@ LineLoop:
 NotAtEnd:
 
     ;--- e2 = err * 2 ---
+    ; (Signed shift using ASL/ROL works perfectly here)
     lda zpErrLo
     asl
     sta zpE2Lo
@@ -420,7 +482,7 @@ NotAtEnd:
     adc zpDY
     lda zpE2Hi
     adc #0
-    bmi SkipXMove
+    bmi SkipXMove   ; If result is negative, e2 < -dy, skip X move
 
     ; err = err - dy
     lda zpErrLo
@@ -431,39 +493,29 @@ NotAtEnd:
     sbc #0
     sta zpErrHi
 
-    ; Determine X direction (Compare X1 and X2)
-    lda zpX1Hi
-    cmp zpX2Hi
-    bcc IncX
-    bne DecX
-    lda zpX1Lo
-    cmp zpX2Lo
-    bcc IncX
-
-DecX:
-    ; 16-bit Decrement
-    lda zpXLo
-    bne DecXLow
-    dec zpXHi
-DecXLow:
-    dec zpXLo
-    jmp SkipXMove
-
-IncX:
-    ; 16-bit Increment
+    ; Apply X Step
+    bit zpXStep
+    bmi DoDecX
+    ; 16-bit Inc
     inc zpXLo
     bne SkipXMove
     inc zpXHi
+    jmp SkipXMove
+DoDecX:
+    ; 16-bit Dec
+    lda zpXLo
+    bne +
+    dec zpXHi
++   dec zpXLo
 
 SkipXMove:
-
-    ;--- if e2 < dx (Check: dx - e2 >= 0) ---
+    ;--- if e2 < dx (Check: dx - e2 > 0) ---
     lda zpDX
     sec
     sbc zpE2Lo
-    lda zpXDivHi   ; DX High
+    lda zpDXHi
     sbc zpE2Hi
-    bmi SkipYMove
+    bmi SkipYMove   ; If result is negative, e2 >= dx, skip Y move
 
     ; err = err + dx
     lda zpErrLo
@@ -471,16 +523,15 @@ SkipXMove:
     adc zpDX
     sta zpErrLo
     lda zpErrHi
-    adc zpXDivHi
+    adc zpDXHi
     sta zpErrHi
 
-    ; Determine Y direction
-    lda zpY1
-    cmp zpY2
-    bcs DecY
+    ; Apply Y Step
+    bit zpYStep
+    bmi DoDecY
     inc zpY
     jmp SkipYMove
-DecY:
+DoDecY:
     dec zpY
 
 SkipYMove:
@@ -488,7 +539,8 @@ SkipYMove:
 
 LineDone:
     rts
-
+	
+	
 ;=========================================================
 ; FAST HORIZONTAL LINE (FIXED & ROBUST)
 ; X1: zpX1Lo/Hi, X2: zpX2Lo/Hi, Y: zpY
@@ -763,875 +815,6 @@ Row320Hi:
     .byte >0,>320,>640,>960,>1280,>1600,>1920,>2240,>2560,>2880
     .byte >3200,>3520,>3840,>4160,>4480,>4800,>5120,>5440,>5760,>6080
     .byte >6400,>6720,>7040,>7360,>7680
-
-MaskTable:
-    .byte %10000000
-    .byte %01000000
-    .byte %00100000
-    .byte %00010000
-    .byte %00001000
-    .byte %00000100
-    .byte %00000010
-    .byte %00000001
-
-
------------------------------------------------------------------------------------------------
-;=========================================================
-; C64 HIRES GRAPHICS LIBRARY (WITH COLOR SUPPORT)
-; Full 320x200 bitmap support
-; Uses Row320 tables and 16-bit X
-;=========================================================
-
-;---------------------------------------------------------
-; VIC / SYSTEM SYMBOLS
-;---------------------------------------------------------
-
-VIC_BANK        = $DD00
-VIC_CTRL1       = $D011
-VIC_MEM         = $D018
-
-SCREEN_RAM      = $0400
-COLOR_RAM       = $D800
-
-BITMAP_ADDR     = $2000
-BITMAP_END      = $3F40  ; BITMAP_ADDR + 8000
-
-;---------------------------------------------------------
-; REVISED ZERO PAGE (BASIC-SAFE)
-;---------------------------------------------------------
-
-; Primary Working Pointers
-zpAddrLo    = $FB
-zpAddrHi    = $FC
-zpMask      = $FD
-zpTmp       = $FE
-
-; X/Y Current Coordinates
-zpXLo       = $02
-zpXHi       = $03
-zpY         = $04
-
-; Line/HLine Parameters (X1, Y1, X2, Y2)
-zpX1Lo      = $61
-zpX1Hi      = $62
-zpY1        = $63
-zpX2Lo      = $64
-zpX2Hi      = $65
-zpY2        = $66
-
-; Bresenham / Internal Variables
-zpDX        = $67   
-zpDY        = $69
-zpErrLo     = $6A
-zpErrHi     = $6B
-zpE2Lo      = $6C
-zpE2Hi      = $6D
-zpTemp2     = $6E
-zpXDivLo    = $6F
-zpXDivHi    = $70
-
-; --- NEW: COLOR VARIABLES ---
-zpColor     = $71   ; Holds the current Foreground (high nibble) / Background (low nibble)
-zpColAddrLo = $72   ; Pointer to current Color RAM cell
-zpColAddrHi = $73
-zpLastColLo = $74   ; Cache: Address of the last written color cell
-zpLastColHi = $75
-
-;=========================================================
-; MAIN
-;=========================================================
-    .org $C000
-
-    jsr InitHires
-    jsr ClearBitmap
-    lda #16
-    jsr ClearScreenRAM
-
-    ; Set initial color (e.g., $16 = White foreground, Blue background)
-    lda #$16
-    jsr SetColor
-
-    jsr Test
-    rts
-
-;=========================================================
-; Test
-;=========================================================
-Test:
-    jsr TestPlotPixel
-    
-    ; Change color before drawing lines
-    lda #$56 ; Green foreground, Blue background
-    jsr SetColor
-    jsr TestDrawLine
-
-    ; Change color before horizontal lines
-    lda #$76 ; Yellow foreground, Blue background
-    jsr SetColor
-    jsr TestHLine
-    rts
-
-;=========================================================
-; TestPlotPixel
-;=========================================================
-TestPlotPixel:
-    ldy #199
-    sty zpY
-    lda #<50
-    sta zpXLo
-    lda #>50
-    sta zpXHi
--
-    jsr PlotPixel
-    dec zpY
-    bne -
-
-    ldy #199
-    sty zpY
-    lda #<310
-    sta zpXLo
-    lda #>310
-    sta zpXHi
--
-    jsr PlotPixel
-    dec zpY
-    bne -
-
-    rts
-
-;=========================================================
-; TestDrawLine
-;=========================================================
-TestDrawLine:
-    lda #<100
-    sta zpX1Lo
-    sta zpX2Lo
-    lda #>100
-    sta zpX1Hi
-    sta zpX2Hi
-    lda #10
-    sta zpY1
-    lda #190
-    sta zpY2
-    jsr DrawLine
-
-    lda #<300
-    sta zpX1Lo
-    sta zpX2Lo
-    lda #>300
-    sta zpX1Hi
-    sta zpX2Hi
-    lda #10
-    sta zpY1
-    lda #190
-    sta zpY2
-    jsr DrawLine
-
-    rts
-
-;=========================================================
-; TestHLine
-;=========================================================
-TestHLine:
-    lda #<10
-    sta zpX1Lo
-    lda #>10
-    sta zpX1Hi
-    lda #<319
-    sta zpX2Lo
-    lda #>319
-    sta zpX2Hi
-    lda #100
-    sta zpY
-    jsr HLine
-
-    lda #<10
-    sta zpX1Lo
-    lda #>10
-    sta zpX1Hi
-    lda #<319
-    sta zpX2Lo
-    lda #>319
-    sta zpX2Hi
-    lda #175
-    sta zpY
-    jsr HLine
-    rts
-
-;=========================================================
-; INIT HIRES MODE
-;=========================================================
-InitHires:
-    lda VIC_BANK
-    and #%11111100
-    ora #%00000011
-    sta VIC_BANK
-
-    lda VIC_MEM
-    and #%11110000
-    ora #%00001000
-    sta VIC_MEM
-
-    lda VIC_CTRL1
-    ora #%00100000
-    sta VIC_CTRL1
-    rts
-
-;=========================================================
-; CLEAR BITMAP
-;=========================================================
-ClearBitmap:
-    lda #<BITMAP_ADDR
-    sta zpAddrLo
-    lda #>BITMAP_ADDR
-    sta zpAddrHi
-
-    lda #$00
-    ldx #$20
-
-ClearLoopPage:
-    ldy #$00
-ClearLoopByte:
-    sta (zpAddrLo),y
-    iny
-    bne ClearLoopByte
-    inc zpAddrHi
-    dex
-    bne ClearLoopPage
-    rts
-
-;=========================================================
-; ClearScreenRAM
-;=========================================================
-ClearScreenRAM:
-    sta zpTmp
-    lda #<$0400
-    sta zpAddrLo
-    lda #>$0400
-    sta zpAddrHi
-
-    lda zpTmp        
-    ldx #$04
-
-ScreenPage:
-    ldy #$00
-ScreenLoop:
-    sta (zpAddrLo),y
-    iny
-    bne ScreenLoop
-    inc zpAddrHi
-    dex
-    bne ScreenPage
-    rts
-
-;=========================================================
-; SET COLOR
-;=========================================================
-SetColor:
-    sta zpColor
-    ; Invalidate cache to force a write on the next operation
-    lda #$FF
-    sta zpLastColHi
-    rts
-
-;=========================================================
-; PLOT COLOR (CORE CACHE/WRITE ROUTINE)
-;=========================================================
-PlotColor:
-    ; 1. Calculate base row address from ColorRow tables
-    lda zpY
-    lsr
-    lsr
-    lsr
-    tax
-    lda ColorRowLo,x
-    sta zpColAddrLo
-    lda ColorRowHi,x
-    sta zpColAddrHi
-
-    ; 2. Add X offset (X >> 3)
-    lda zpXHi
-    lsr
-    lda zpXLo
-    ror
-    lsr
-    lsr
-    tay 
-
-    clc
-    tya
-    adc zpColAddrLo
-    sta zpColAddrLo
-    bcc +
-    inc zpColAddrHi
-+
-    ; 3. Cache Scheme: Did we just write to this exact memory address?
-    lda zpColAddrLo
-    cmp zpLastColLo
-    bne +
-    lda zpColAddrHi
-    cmp zpLastColHi
-    beq SkipColorWrite  ; Yes, perfectly cached. Skip memory access.
-+
-    ; Update cache pointers
-    lda zpColAddrLo
-    sta zpLastColLo
-    lda zpColAddrHi
-    sta zpLastColHi
-
-    ; 4. Color Changed Scheme: Only write if screen memory needs it
-    ldy #0
-    lda (zpColAddrLo),y
-    cmp zpColor
-    beq SkipColorWrite
-    lda zpColor
-    sta (zpColAddrLo),y
-
-SkipColorWrite:
-    rts
-
-;=========================================================
-; PLOT PIXEL 
-;=========================================================
-PlotPixel:
-    lda zpY
-    lsr
-    lsr
-    lsr
-    tax
-
-    lda Row320Lo,x
-    sta zpAddrLo
-    lda Row320Hi,x
-    sta zpAddrHi
-
-    lda zpY
-    and #7
-    clc
-    adc zpAddrLo
-    sta zpAddrLo
-    bcc +
-    inc zpAddrHi
-+
-    lda zpXLo
-    and #%11111000   
-    clc
-    adc zpAddrLo
-    sta zpAddrLo
-    
-    lda zpXHi        
-    adc zpAddrHi
-    sta zpAddrHi
-
-    lda zpAddrLo
-    clc
-    adc #<BITMAP_ADDR
-    sta zpAddrLo
-    lda zpAddrHi
-    adc #>BITMAP_ADDR
-    sta zpAddrHi
-
-    lda zpXLo        
-    and #7
-    tax
-    lda MaskTable,x
-    sta zpMask
-
-    ldy #0
-    lda (zpAddrLo),y
-    ora zpMask
-    sta (zpAddrLo),y
-
-    ; --- NEW: Sync Color with PlotPixel ---
-    jsr PlotColor
-
-    rts
-
-;=========================================================
-; DRAW LINE - BRESENHAM 
-;=========================================================
-DrawLine:
-    lda zpX2Lo
-    sec
-    sbc zpX1Lo
-    sta zpDX
-    lda zpX2Hi
-    sbc zpX1Hi
-    sta zpXDivHi   
-    bpl DX_Pos
-    
-    lda #0
-    sec
-    sbc zpDX
-    sta zpDX
-    lda #0
-    sbc zpXDivHi
-    sta zpXDivHi
-DX_Pos:
-
-    lda zpY2
-    sec
-    sbc zpY1
-    bpl DY_Pos
-    eor #$FF
-    clc
-    adc #1
-DY_Pos:
-    sta zpDY
-
-    lda zpX1Lo
-    sta zpXLo
-    lda zpX1Hi
-    sta zpXHi
-    lda zpY1
-    sta zpY
-
-    lda zpDX
-    sec
-    sbc zpDY
-    sta zpErrLo
-    lda zpXDivHi   
-    sbc #0
-    sta zpErrHi
-
-LineLoop:
-    jsr PlotPixel
-
-    lda zpXLo
-    cmp zpX2Lo
-    bne NotAtEnd
-    lda zpXHi
-    cmp zpX2Hi
-    bne NotAtEnd
-    lda zpY
-    cmp zpY2
-    beq LineDone
-NotAtEnd:
-
-    lda zpErrLo
-    asl
-    sta zpE2Lo
-    lda zpErrHi
-    rol
-    sta zpE2Hi
-
-    clc
-    lda zpE2Lo
-    adc zpDY
-    lda zpE2Hi
-    adc #0
-    bmi SkipXMove
-
-    lda zpErrLo
-    sec
-    sbc zpDY
-    sta zpErrLo
-    lda zpErrHi
-    sbc #0
-    sta zpErrHi
-
-    lda zpX1Hi
-    cmp zpX2Hi
-    bcc IncX
-    bne DecX
-    lda zpX1Lo
-    cmp zpX2Lo
-    bcc IncX
-
-DecX:
-    lda zpXLo
-    bne DecXLow
-    dec zpXHi
-DecXLow:
-    dec zpXLo
-    jmp SkipXMove
-
-IncX:
-    inc zpXLo
-    bne SkipXMove
-    inc zpXHi
-
-SkipXMove:
-    lda zpDX
-    sec
-    sbc zpE2Lo
-    lda zpXDivHi   
-    sbc zpE2Hi
-    bmi SkipYMove
-
-    lda zpErrLo
-    clc
-    adc zpDX
-    sta zpErrLo
-    lda zpErrHi
-    adc zpXDivHi
-    sta zpErrHi
-
-    lda zpY1
-    cmp zpY2
-    bcs DecY
-    inc zpY
-    jmp SkipYMove
-DecY:
-    dec zpY
-
-SkipYMove:
-    jmp LineLoop
-
-LineDone:
-    rts
-
-;=========================================================
-; FAST HORIZONTAL LINE 
-;=========================================================
-HLine:
-    lda zpY
-    lsr
-    lsr
-    lsr
-    tax
-    lda Row320Lo,x
-    sta zpAddrLo
-    lda Row320Hi,x
-    sta zpAddrHi
-
-    lda zpY
-    and #7
-    clc
-    adc zpAddrLo
-    sta zpAddrLo
-    bcc +
-    inc zpAddrHi
-+
-    lda zpAddrLo
-    clc
-    adc #<BITMAP_ADDR
-    sta zpAddrLo
-    lda zpAddrHi
-    adc #>BITMAP_ADDR
-    sta zpAddrHi
-
-    lda zpX1Lo
-    and #%11111000
-    clc
-    adc zpAddrLo
-    sta zpAddrLo
-    lda zpX1Hi
-    adc zpAddrHi
-    sta zpAddrHi
-
-    lda zpX1Hi
-    lsr
-    lda zpX1Lo
-    ror
-    lsr
-    lsr
-    sta zpXDivLo 
-
-    lda zpX2Hi
-    lsr
-    lda zpX2Lo
-    ror
-    lsr
-    lsr
-    sta zpXDivHi 
-
-    lda zpX1Lo
-    and #7
-    tax
-    lda LeftMaskTable,x
-    sta zpMask
-
-    lda zpX2Lo
-    and #7
-    tax
-    lda RightMaskTable,x
-    sta zpTemp2
-
-    lda zpXDivHi
-    sec
-    sbc zpXDivLo
-    sta zpTmp      
-    
-    beq SameByteCase
-
-    ldy #0
-    
-    lda (zpAddrLo),y
-    ora zpMask
-    sta (zpAddrLo),y
-
-NextByte:
-    lda zpAddrLo
-    clc
-    adc #8
-    sta zpAddrLo
-    bcc +
-    inc zpAddrHi
-+
-    dec zpTmp
-    beq FinalByte
-
-    lda #$FF
-    sta (zpAddrLo),y
-    jmp NextByte
-
-FinalByte:
-    lda (zpAddrLo),y
-    ora zpTemp2
-    sta (zpAddrLo),y
-    ; --- NEW: Call Color Fill ---
-    jsr HLineColor
-    rts
-
-SameByteCase:
-    ldy #0
-    lda zpMask
-    and zpTemp2
-    ora (zpAddrLo),y
-    sta (zpAddrLo),y
-    ; --- NEW: Call Color Fill ---
-    jsr HLineColor
-    rts
-
-;=========================================================
-; HLINE COLOR FILL (High Speed Block Update)
-;=========================================================
-HLineColor:
-    lda zpY
-    lsr
-    lsr
-    lsr
-    tax
-    lda ColorRowLo,x
-    sta zpColAddrLo
-    lda ColorRowHi,x
-    sta zpColAddrHi
-
-    ldy zpXDivLo
-HLineColLoop:
-    ; Read before write check
-    lda (zpColAddrLo),y
-    cmp zpColor
-    beq HLineColSkip
-    lda zpColor
-    sta (zpColAddrLo),y
-HLineColSkip:
-    cpy zpXDivHi
-    beq HLineColDone
-    iny
-    jmp HLineColLoop
-
-HLineColDone:
-    ; Sync Cache to the last horizontal cell touched
-    tya
-    clc
-    adc zpColAddrLo
-    sta zpLastColLo
-    lda zpColAddrHi
-    adc #0
-    sta zpLastColHi
-    rts
-
-;=========================================================
-; OPTIMIZED VERTICAL LINE
-;=========================================================
-VLine:
-    lda zpY1
-    cmp zpY2
-    bcc +
-    tax
-    lda zpY2
-    sta zpY1
-    stx zpY2
-+
-    lda zpY1
-    lsr
-    lsr
-    lsr
-    tax
-    lda Row320Lo,x
-    sta zpAddrLo
-    lda Row320Hi,x
-    sta zpAddrHi
-
-    lda zpY1
-    and #7
-    clc
-    adc zpAddrLo
-    sta zpAddrLo
-    bcc +
-    inc zpAddrHi
-+
-    lda zpX1Lo
-    and #%11111000
-    clc
-    adc zpAddrLo
-    sta zpAddrLo
-    lda zpX1Hi
-    adc zpAddrHi
-    sta zpAddrHi
-
-    lda zpAddrLo
-    clc
-    adc #<BITMAP_ADDR
-    sta zpAddrLo
-    lda zpAddrHi
-    adc #>BITMAP_ADDR
-    sta zpAddrHi
-
-    ; --- NEW: Setup Initial Color Pointer ---
-    lda zpY1
-    lsr
-    lsr
-    lsr
-    tax
-    lda ColorRowLo,x
-    sta zpColAddrLo
-    lda ColorRowHi,x
-    sta zpColAddrHi
-
-    lda zpX1Hi
-    lsr
-    lda zpX1Lo
-    ror
-    lsr
-    lsr
-    tay
-
-    clc
-    tya
-    adc zpColAddrLo
-    sta zpColAddrLo
-    bcc +
-    inc zpColAddrHi
-+
-    ; Check memory and cache the start point
-    ldy #0
-    lda (zpColAddrLo),y
-    cmp zpColor
-    beq +
-    lda zpColor
-    sta (zpColAddrLo),y
-+
-    lda zpColAddrLo
-    sta zpLastColLo
-    lda zpColAddrHi
-    sta zpLastColHi
-    ; -----------------------------------------
-
-    lda zpX1Lo
-    and #7
-    tax
-    lda MaskTable,x
-    sta zpMask
-
-    lda zpY2
-    sec
-    sbc zpY1
-    sta zpTmp      
-    
-    lda zpY1
-    and #7
-    sta zpTemp2    
-
-    ldy #0
-
-VLineLoop:
-    lda (zpAddrLo),y
-    ora zpMask
-    sta (zpAddrLo),y
-
-    lda zpTmp
-    beq VLineDone
-    dec zpTmp
-
-    lda zpTemp2
-    cmp #7
-    beq NextCellRow
-
-    inc zpAddrLo
-    bne +
-    inc zpAddrHi
-+
-    inc zpTemp2
-    jmp VLineLoop
-
-NextCellRow:
-    lda zpAddrLo
-    clc
-    adc #$39
-    sta zpAddrLo
-    lda zpAddrHi
-    adc #$01
-    sta zpAddrHi
-    
-    ; --- NEW: Move Color Pointer Down 1 Row (+40) ---
-    lda zpColAddrLo
-    clc
-    adc #40
-    sta zpColAddrLo
-    bcc +
-    inc zpColAddrHi
-+
-    ldy #0
-    lda (zpColAddrLo),y
-    cmp zpColor
-    beq +
-    lda zpColor
-    sta (zpColAddrLo),y
-+
-    lda zpColAddrLo
-    sta zpLastColLo
-    lda zpColAddrHi
-    sta zpLastColHi
-    ; ------------------------------------------------
-
-    lda #0
-    sta zpTemp2    
-    jmp VLineLoop
-
-VLineDone:
-    rts
-
-;=========================================================
-; TABLES FOR HORIZONTAL FILL
-;=========================================================
-
-LeftMaskTable:
-    .byte %11111111, %01111111, %00111111, %00011111
-    .byte %00001111, %00000111, %00000011, %00000001
-
-RightMaskTable:
-    .byte %10000000, %11000000, %11100000, %11110000
-    .byte %11111000, %11111100, %11111110, %11111111
-
-;=========================================================
-; TABLES
-;=========================================================
-
-Row320Lo:
-    .byte <0,<320,<640,<960,<1280,<1600,<1920,<2240,<2560,<2880
-    .byte <3200,<3520,<3840,<4160,<4480,<4800,<5120,<5440,<5760,<6080
-    .byte <6400,<6720,<7040,<7360,<7680
-
-Row320Hi:
-    .byte >0,>320,>640,>960,>1280,>1600,>1920,>2240,>2560,>2880
-    .byte >3200,>3520,>3840,>4160,>4480,>4800,>5120,>5440,>5760,>6080
-    .byte >6400,>6720,>7040,>7360,>7680
-
-; --- NEW: Color Memory Row Pointers ($0400 - $07C0) ---
-ColorRowLo:
-    .byte $00,$28,$50,$78,$A0,$C8,$F0,$18
-    .byte $40,$68,$90,$B8,$E0,$08,$30,$58
-    .byte $80,$A8,$D0,$F8,$20,$48,$70,$98
-    .byte $C0
-
-ColorRowHi:
-    .byte $04,$04,$04,$04,$04,$04,$04,$05
-    .byte $05,$05,$05,$05,$05,$06,$06,$06
-    .byte $06,$06,$06,$06,$07,$07,$07,$07
-    .byte $07
 
 MaskTable:
     .byte %10000000
