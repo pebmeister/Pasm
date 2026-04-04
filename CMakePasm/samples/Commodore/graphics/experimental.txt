@@ -914,3 +914,278 @@ MaskTable:
     .byte %00000010
     .byte %00000001
 	
+;=========================================================
+; DRAWLINEFAST (short labels, no branch range issues)
+;=========================================================
+
+DrawLnFast:
+
+    ;--- vertical check ---
+    lda zpX1Lo
+    cmp zpX2Lo
+    bne DLHChk
+    lda zpX1Hi
+    cmp zpX2Hi
+    bne DLHChk
+    jmp VLine
+
+DLHChk:
+    ;--- horizontal check ---
+    lda zpY1
+    cmp zpY2
+    bne DLStart
+    jmp HLine
+
+;---------------------------------
+; Bresenham setup
+;---------------------------------
+DLStart:
+
+    ; DX
+    lda zpX2Lo
+    sec
+    sbc zpX1Lo
+    sta zpDXLo
+    lda zpX2Hi
+    sbc zpX1Hi
+    sta zpDXHi
+    bcs DLXPos
+
+    lda #0
+    sec
+    sbc zpDXLo
+    sta zpDXLo
+    lda #0
+    sbc zpDXHi
+    sta zpDXHi
+    lda #$FF
+    sta zpXStep
+    jmp DLYCalc
+
+DLXPos:
+    lda #1
+    sta zpXStep
+
+DLYCalc:
+    lda zpY2
+    sec
+    sbc zpY1
+    sta zpDY
+    bcs DLYPos
+
+    lda #0
+    sec
+    sbc zpDY
+    sta zpDY
+    lda #$FF
+    sta zpYStep
+    jmp DLInit
+
+DLYPos:
+    lda #1
+    sta zpYStep
+
+;---------------------------------
+; Init address + mask
+;---------------------------------
+DLInit:
+
+    lda zpX1Lo
+    sta zpXLo
+    lda zpX1Hi
+    sta zpXHi
+    lda zpY1
+    sta zpY
+
+    ; row lookup
+    lda zpY
+    lsr
+    lsr
+    lsr
+    tax
+    lda Row320Lo,x
+    sta zpAddrLo
+    lda Row320Hi,x
+    sta zpAddrHi
+
+    ; y mod 8
+    lda zpY
+    and #7
+    clc
+    adc zpAddrLo
+    sta zpAddrLo
+    bcc DLNoC1
+    inc zpAddrHi
+DLNoC1:
+
+    ; x offset
+    lda zpXLo
+    and #%11111000
+    clc
+    adc zpAddrLo
+    sta zpAddrLo
+    lda zpXHi
+    adc zpAddrHi
+    sta zpAddrHi
+
+    ; + bitmap base
+    lda zpAddrLo
+    clc
+    adc #<BITMAP_ADDR
+    sta zpAddrLo
+    lda zpAddrHi
+    adc #>BITMAP_ADDR
+    sta zpAddrHi
+
+    ; mask
+    lda zpXLo
+    and #7
+    tax
+    lda MaskTable,x
+    sta zpMask
+
+    ; err = dx - dy
+    lda zpDXLo
+    sec
+    sbc zpDY
+    sta zpErrLo
+    lda zpDXHi
+    sbc #0
+    sta zpErrHi
+
+;---------------------------------
+; MAIN LOOP
+;---------------------------------
+DLLoop:
+
+    ldy #0
+    lda (zpAddrLo),y
+    ora zpMask
+    sta (zpAddrLo),y
+
+    ; end test
+    lda zpXLo
+    cmp zpX2Lo
+    bne DLCont
+    lda zpXHi
+    cmp zpX2Hi
+    bne DLCont
+    lda zpY
+    cmp zpY2
+	bne DLCont
+    rts
+
+DLCont:
+
+    ; e2 = err * 2
+    lda zpErrLo
+    asl
+    sta zpE2Lo
+    lda zpErrHi
+    rol
+    sta zpE2Hi
+
+    ;--- X move check ---
+    clc
+    lda zpE2Lo
+    adc zpDY
+    lda zpE2Hi
+    adc #0
+    bmi DLYChk2
+
+    ; err -= dy
+    lda zpErrLo
+    sec
+    sbc zpDY
+    sta zpErrLo
+    lda zpErrHi
+    sbc #0
+    sta zpErrHi
+
+    lda zpXStep
+    bmi DLDecX
+
+; INC X
+DLIncX:
+    inc zpXLo
+    bne DLShR
+    inc zpXHi
+
+DLShR:
+    lsr zpMask
+    bne DLYChk2
+
+    lda #$80
+    sta zpMask
+    lda zpAddrLo
+    clc
+    adc #8
+    sta zpAddrLo
+    bcc DLYChk2
+    inc zpAddrHi
+    jmp DLYChk2
+
+DLDecX:
+    lda zpXLo
+    bne DLDecX2
+    dec zpXHi
+DLDecX2:
+    dec zpXLo
+
+    asl zpMask
+    bne DLYChk2
+
+    lda #1
+    sta zpMask
+    lda zpAddrLo
+    sec
+    sbc #8
+    sta zpAddrLo
+    bcs DLYChk2
+    dec zpAddrHi
+
+;--- Y move ---
+DLYChk2:
+    lda zpDXLo
+    sec
+    sbc zpE2Lo
+    lda zpDXHi
+    sbc zpE2Hi
+    bmi DLLoop
+
+    ; err += dx
+    lda zpErrLo
+    clc
+    adc zpDXLo
+    sta zpErrLo
+    lda zpErrHi
+    adc zpDXHi
+    sta zpErrHi
+
+    lda zpYStep
+    bmi DLDecY
+
+; INC Y
+DLIncY:
+    inc zpY
+    lda zpAddrLo
+    clc
+    adc #1
+    sta zpAddrLo
+    bcc DLLoop
+    inc zpAddrHi
+    jmp DLLoop
+
+DLDecY:
+    dec zpY
+    lda zpAddrLo
+    sec
+    sbc #1
+    sta zpAddrLo
+    bcs DLLoop
+    dec zpAddrHi
+    jmp DLLoop
+
+DLDone:
+    rts
+	
