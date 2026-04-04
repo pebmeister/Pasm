@@ -76,8 +76,8 @@ zpTmp       = $FE
     lda #16
     jsr ClearScreenRAM
 
-    jsr Test
-    rts
+    jmp Test
+
 
 ;=========================================================
 ; Test
@@ -86,8 +86,9 @@ Test:
     jsr TestPlotPixel
     jsr TestDrawLine
 	jsr TestHLine
-    jmp TestVLine
+    jsr TestVLine
 
+	rts
 ;=========================================================
 ; TestPlotPixel
 ;=========================================================
@@ -132,7 +133,7 @@ TestPlotPixel:
 ; TestDrawLine
 ;=========================================================
 TDrawLineTests:
-    .byte 4
+    .byte 10
 TDrawLineCnt:
     .byte 0
 TDrawLineOff:
@@ -142,6 +143,16 @@ TDRAWDATA:
     .byte <275,>275,185,<12,>12,15
     .byte <5,>5,175, <300,>300,3
     .byte <305,>305,7,<9,>9,165
+	
+	; HLINE
+    .byte <25,>25,35,<300,>300,35
+    .byte <25,>25,187,<305,>305,187
+    .byte <295,>295,27,<17,>17,27
+    .byte <310,>310,198,<5,>5,198
+	
+	; VLINE
+	.byte <40,>40,30,<40,>40,188
+    .byte <265,>265,30,<265,>265,188
 
 TestDrawLine:
     lda #0
@@ -188,8 +199,8 @@ THLineCnt:
 THLineOff:
     .byte 0
 THLINEDATA:
-    .byte <25,>25,<300,>300,35
-    .byte <25,>25,<305,>305,187
+    .byte <5,>5,<300,>300,30
+    .byte <20,>20,<305,>305,177
 
 TestHLine:
     lda #0
@@ -438,8 +449,6 @@ CheckHorizontal:
     bne BresenhamStart
 	
     ; Setup HLine (Expects Y in zpY and X1 <= X2)
-    lda zpY1
-    sta zpY             
     lda zpX1Hi
     cmp zpX2Hi
     bcc DoHLine         
@@ -454,12 +463,15 @@ SwapH:
     ldx zpX2Lo
     sta zpX2Lo
     stx zpX1Lo
+	
     lda zpX1Hi
     ldx zpX2Hi
     sta zpX2Hi
     stx zpX1Hi
 
 DoHLine:
+    lda zpY1
+    sta zpY             
     jmp HLine           
 
 ;---------------------------------------------------------
@@ -621,7 +633,7 @@ LineDone:
 ; FAST HORIZONTAL LINE (FIXED & ROBUST)
 ; X1: zpX1Lo/Hi, X2: zpX2Lo/Hi, Y: zpY
 ;=========================================================
-HLine:
+HLine:	
     ;--- 1. Calculate Base Address (Row + Y-offset within cell) ---
     lda zpY
     lsr
