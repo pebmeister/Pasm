@@ -93,35 +93,39 @@ Test:
 ;=========================================================
 ; TestPlotPixel
 ;=========================================================
+TPlotTests:
+    .byte 2
+TPlotCnt:
+    .byte 0
+TPlotOff:
+    .byte 0
+TPLOTDATA:
+    .byte <50,>50,199
+    .byte <310,>310,180
+
 TestPlotPixel:
-    PPX1 = 50
-    PPX2 = 310
-    PPY1 = 199
-    PPY2 = 180
-
-    ldy #PPY1
-    sty zpY
-    lda #<PPX1
-    sta zpXLo
-    lda #>PPX1
-    sta zpXHi
+    lda #0
+    sta TPlotCnt
+    sta TPlotOff
 -
-    jsr PlotPixel
-    dec zpY
-    bne -
-
-    ldy #PPY2
-    sty zpY
-    lda #<PPX2
-    sta zpXLo
-    lda #>PPX2
-    sta zpXHi
--
-    jsr PlotPixel
-    dec zpY
-    bne -
-
+    inc TPlotCnt
+    lda TPlotTests
+    cmp TPlotCnt
+    bne +
     rts
++
+    ldy TPlotOff
+    lda TPLOTDATA,y
+    sta zpXLo
+    lda TPLOTDATA + 1,y
+    sta zpXHi
+    lda TPLOTDATA + 2,y
+    sta zpY
+    iny
+    sty TPlotOff
+    jsr PlotPixel
+    jmp -
+
 
 ;=========================================================
 ; TestDrawLine
