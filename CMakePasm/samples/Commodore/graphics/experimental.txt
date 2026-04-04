@@ -66,7 +66,6 @@ zpAddrHi    = $FC
 zpMask      = $FD
 zpTmp       = $FE
 
-
 ;=========================================================
 ; MAIN
 ;=========================================================
@@ -84,23 +83,24 @@ zpTmp       = $FE
 ; Test
 ;=========================================================
 Test:
-    ; jsr TestPlotPixel
-    ; jsr TestDrawLine
-    jsr TestHLine
-    jsr TestVLine
-    rts
+    jsr TestPlotPixel
+    jsr TestDrawLine
+	jsr TestHLine
+    jmp TestVLine
 
 ;=========================================================
 ; TestPlotPixel
 ;=========================================================
 TPlotTests:
-    .byte 2
+    .byte 4
 TPlotCnt:
     .byte 0
 TPlotOff:
     .byte 0
 TPLOTDATA:
-    .byte <50,>50,199
+    .byte <50,>50,20
+    .byte <250,>250,15
+    .byte <25,>25,190
     .byte <310,>310,180
 
 TestPlotPixel:
@@ -108,182 +108,163 @@ TestPlotPixel:
     sta TPlotCnt
     sta TPlotOff
 -
-    inc TPlotCnt
-    lda TPlotTests
-    cmp TPlotCnt
-    bne +
-    rts
-+
-    ldy TPlotOff
+    ldy TPlotOff	
     lda TPLOTDATA,y
-    sta zpXLo
-    lda TPLOTDATA + 1,y
-    sta zpXHi
-    lda TPLOTDATA + 2,y
-    sta zpY
-    iny
+	iny
+    sta zpXLo	
+    lda TPLOTDATA,y
+	iny
+    sta zpXHi	
+    lda TPLOTDATA,y
+	iny
+	sta zpY
+
     sty TPlotOff
     jsr PlotPixel
-    jmp -
-
+	
+	inc TPlotCnt
+    lda TPlotTests
+    cmp TPlotCnt
+    bne -
+    rts
 
 ;=========================================================
 ; TestDrawLine
 ;=========================================================
+TDrawLineTests:
+    .byte 4
+TDrawLineCnt:
+    .byte 0
+TDrawLineOff:
+    .byte 0
+TDRAWDATA:
+    .byte <25,>25,20,<300,>300,180
+    .byte <275,>275,185,<12,>12,15
+    .byte <5,>5,175, <300,>300,3
+    .byte <305,>305,7,<9,>9,165
 
 TestDrawLine:
-    DL_1_X1 = 25
-    DL_1_X2 = 300
-    DL_1_Y1 = 10
-    DL_1_Y2 = 180
-
-    DL_2_X1 = 311
-    DL_2_X2 = 35
-    DL_2_Y1 = 12
-    DL_2_Y2 = 180
-
-	DL_3_X1 = 10
-	DL_3_X2 = 319
-	DL_3_Y1 = 100
-	DL_3_Y2 = 100
+    lda #0
+    sta TDrawLineCnt
+    sta TDrawLineOff
+-
+	ldy TDrawLineOff
+ 
+	lda TDRAWDATA,y
+	iny
+    sta zpX1Lo
+    lda TDRAWDATA,y
+	iny
+    sta zpX1Hi
+    lda TDRAWDATA,y
+	iny
+    sta zpY1
+	lda TDRAWDATA,y
+	iny
+    sta zpX2Lo
+    lda TDRAWDATA,y
+	iny
+    sta zpX2Hi
+    lda TDRAWDATA,y
+	iny
+    sta zpY2
 	
-	DL_4_X1 = TH_2_X1
-	DL_4_X2 = TH_2_X2
-	DL_4_Y1 = TH_2_Y
-	DL_4_Y2 = TH_2_Y
+    sty TDrawLineOff
+    jsr DrawLine
 	
-; ---------------------------------	
-    lda #<DL_1_X1
-    sta zpX1Lo
-    lda #>DL_1_X1
-    sta zpX1Hi
-    lda #<DL_1_X2
-    sta zpX2Lo
-    lda #>DL_1_X2
-    sta zpX2Hi
-    lda #DL_1_Y1
-    sta zpY1
-    lda #DL_1_Y2
-    sta zpY2
-    jsr DrawLine
-; ---------------------------------	
-    lda #<DL_2_X1
-    sta zpX1Lo
-    lda #>DL_2_X1
-    sta zpX1Hi
-    lda #<DL_2_X2
-    sta zpX2Lo
-    lda #>DL_2_X2
-    sta zpX2Hi
-    lda #DL_2_Y1
-    sta zpY1
-    lda #DL_2_Y2
-    sta zpY2
-    jsr DrawLine
-; ---------------------------------	
-    lda #<DL_3_X1
-    sta zpX1Lo
-    lda #>DL_3_X1
-    sta zpX1Hi
-    lda #<DL_3_X2
-    sta zpX2Lo
-    lda #>DL_3_X2
-    sta zpX2Hi
-    lda #DL_3_Y1
-    sta zpY1
-    lda #DL_3_Y2
-    sta zpY2
-    jsr DrawLine
-;; ---------------------------------	
-;    lda #<DL_4_X1
-;    sta zpX1Lo
-;    lda #>DL_4_X1
-;    sta zpX1Hi
-;    lda #<DL_4_X2
-;    sta zpX2Lo
-;    lda #>DL_4_X2
-;    sta zpX2Hi
-;    lda #DL_4_Y1
-;    sta zpY1
-;    lda #DL_4_Y2
-;    sta zpY2
-;    jsr DrawLine
-;
-     rts
+	inc TDrawLineCnt
+    lda TDrawLineTests
+    cmp TDrawLineCnt
+    bne -
+    rts
 
 ;=========================================================
 ; TestHLine
 ;=========================================================
+THLineTests:
+    .byte 2
+THLineCnt:
+    .byte 0
+THLineOff:
+    .byte 0
+THLINEDATA:
+    .byte <25,>25,<300,>300,35
+    .byte <25,>25,<305,>305,187
 
 TestHLine:
-	TH_1_X1 = 10
-	TH_1_X2 = 319
-	TH_1_Y = 100
-	
-	TH_2_X1 = 15
-	TH_2_X2 = 310
-	TH_2_Y = 175
-	
-    lda #<TH_1_X1
-    sta zpX1Lo
-    lda #>TH_1_X1
+    lda #0
+    sta THLineCnt
+    sta THLineOff
+-
+	ldy THLineOff
+ 
+ 	lda THLINEDATA,y
+	iny
+    sta zpX1Lo	
+    lda THLINEDATA,y
+	iny
     sta zpX1Hi
-
-    lda #<TH_1_X2
-    sta zpX2Lo
-    lda #>TH_1_X2
+ 	lda THLINEDATA,y
+	iny
+    sta zpX2Lo	
+    lda THLINEDATA,y
+	iny
     sta zpX2Hi
-
-    lda #TH_1_Y
+	lda THLINEDATA,y
+	iny
     sta zpY
+	
+    sty THLineOff
     jsr HLine
 
-    lda #<TH_2_X1
-    sta zpX1Lo
-    lda #>TH_2_X1
-    sta zpX1Hi
-
-    lda #<TH_2_X2
-    sta zpX2Lo
-    lda #>TH_2_X2
-    sta zpX2Hi
-
-    lda #TH_2_Y
-    sta zpY
-    jsr HLine
-
+	inc THLineCnt
+    lda THLineTests
+    cmp THLineCnt
+    bne -
     rts
-
+	
     ;=========================================================
     ; TestVLine
     ;=========================================================
-TestVLine:
-	TV_1_X = 55
-	TV_1_Y1 = 20
-	TV_1_Y2 = 180
-	
-	TV_2_X = 315
-	TV_2_Y1 = 2
-	TV_2_Y2 = 193
-	
-	lda #<TV_1_X
-    sta zpX1Lo
-    lda #>TV_1_X
-    sta zpX1Hi
-    lda #TV_1_Y1
-    sta zpY1
-    jsr VLine
-	
-	lda #<TV_2_X
-    sta zpX1Lo
-    lda #>TV_2_X
-    sta zpX1Hi
-    lda #TV_2_Y1
-    sta zpY1
-    jsr VLine
-	
-	rts
+TVLineTests:
+    .byte 2
+TVLineCnt:
+    .byte 0
+TVLineOff:
+    .byte 0
+TVLINEDATA:
+    .byte <13,>13,30,188
+    .byte <299,>299,30,188
 
+TestVLine:
+    lda #0
+	sta TVLineCnt
+    sta TVLineOff
+-
+	ldy TVLineOff
+ 
+  	lda TVLINEDATA,y
+	iny
+    sta zpX1Lo	
+    lda TVLINEDATA,y
+	iny
+    sta zpX1Hi
+  	lda TVLINEDATA,y
+	iny
+	sta zpY1
+  	lda TVLINEDATA,y
+	iny
+	sta zpY2
+
+	sty TVLineOff
+    jsr VLine
+	
+	inc TVLineCnt
+    lda TVLineTests
+    cmp TVLineCnt
+    bne -
+    rts
+	
 ;=========================================================
 ; INIT HIRES MODE
 ;=========================================================
@@ -920,3 +901,4 @@ MaskTable:
     .byte %00000100
     .byte %00000010
     .byte %00000001
+	
