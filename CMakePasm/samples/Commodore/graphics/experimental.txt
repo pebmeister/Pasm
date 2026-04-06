@@ -19,24 +19,20 @@ COLOR_RAM       = $D800
 BITMAP_ADDR     = $2000
 BITMAP_END      = $3F40  ; BITMAP_ADDR + 8000
 
+
 ;---------------------------------------------------------
 ; ZERO PAGE
 ;---------------------------------------------------------
-;---------------------------------------------------------
-; REVISED ZERO PAGE (BASIC-SAFE)
-;---------------------------------------------------------
+;=========================================================
+; BULLETPROOF ZERO PAGE (NON-DESTRUCTIVE)
+;=========================================================
 
-
-; X/Y Current Coordinates
+; --- 1. Global Coordinates (Static) ---
 zpXLo       = $02
-zpXHi       = $03
-zpY         = $04
+zpXHi       = $1E   ; Safe area
+zpY         = $1F   ; Safe area
 
-zpErrLo     = $05
-zpErrHi     = $06
-
-; Line/HLine Parameters (X1, Y1, X2, Y2)
-; Using the FAC2 area ($61 and up)
+; --- 2. Input Parameters (Must remain intact during Calc) ---
 zpX1Lo      = $61
 zpX1Hi      = $62
 zpY1        = $63
@@ -44,27 +40,36 @@ zpX2Lo      = $64
 zpX2Hi      = $65
 zpY2        = $66
 
-; Bresenham / HLine Internal Variables
-zpDX        = $67   ; Note: Also needs $68 for 16-bit DX in HLine
-zpDY        = $69
+; --- 3. The Scratchpad (Safe Overlap) ---
+; We only overlap Bresenham variables with HLine/VLine variables.
+; These do NOT overlap with the Input Parameters above.
 
-zpE2Lo      = $6C
-zpE2Hi      = $6D
-zpTemp2     = $6E
-zpXDivLo    = $6F
-zpXDivHi    = $70
+; Bresenham / VLine / HLine shared area
+zpDXLo      = $69   
+zpDXHi      = $6A   
+zpDY        = $6B   
+zpErrLo     = $6C   
+zpErrHi     = $6D   
+zpE2Lo      = $6E   
+zpE2Hi      = $6F   
+zpXStep     = $70   
+zpYStep     = $71   
 
-; Move these away from the $70+ range
-zpXStep     = $F7
-zpYStep     = $F8
-zpDXHi      = $F9
-zpDXLo      = $FA  ; (Note: You can also just use your existing zpDX at $67)
+; Aliases for HLine/VLine (Sharing the $69+ scratchpad)
+zpXDivLo    = $69   ; Overlaps zpDXLo
+zpXDivHi    = $6A   ; Overlaps zpDXHi
+zpTemp2     = $6B   ; Overlaps zpDY
+zpTmp       = $6C   ; Overlaps zpErrLo
 
-; Primary Working Pointers (Very Safe)
+; --- 4. Working Pointers (Standard C64 Golden Area) ---
 zpAddrLo    = $FB
 zpAddrHi    = $FC
 zpMask      = $FD
-zpTmp       = $FE
+
+IGONE_SV    = $3FC
+CMDTABLE    = $57
+BASICTEXT   = $26
+WEDGE_TMP   = $14
 
 ;=========================================================
 ; MAIN
@@ -77,7 +82,6 @@ zpTmp       = $FE
     jsr ClearScreenRAM
 
     jmp Test
-
 
 ;=========================================================
 ; Test
@@ -108,7 +112,7 @@ TestPlotPixel:
     lda #0
     sta TPlotCnt
     sta TPlotOff
--
+TP_1:
     ldy TPlotOff	
     lda TPLOTDATA,y
 	iny
@@ -126,7 +130,7 @@ TestPlotPixel:
 	inc TPlotCnt
     lda TPlotTests
     cmp TPlotCnt
-    bne -
+    bne TP_1
     rts
 
 ;=========================================================
@@ -158,7 +162,7 @@ TestDrawLine:
     lda #0
     sta TDrawLineCnt
     sta TDrawLineOff
--
+TD_1:
 	ldy TDrawLineOff
  
 	lda TDRAWDATA,y
@@ -186,7 +190,7 @@ TestDrawLine:
 	inc TDrawLineCnt
     lda TDrawLineTests
     cmp TDrawLineCnt
-    bne -
+    bne TD_1
     rts
 
 ;=========================================================
@@ -206,7 +210,7 @@ TestHLine:
     lda #0
     sta THLineCnt
     sta THLineOff
--
+TestHLine_1:
 	ldy THLineOff
  
  	lda THLINEDATA,y
@@ -231,7 +235,7 @@ TestHLine:
 	inc THLineCnt
     lda THLineTests
     cmp THLineCnt
-    bne -
+    bne TestHLine_1
     rts
 	
     ;=========================================================
@@ -251,7 +255,7 @@ TestVLine:
     lda #0
 	sta TVLineCnt
     sta TVLineOff
--
+TestVLine_1:
 	ldy TVLineOff
  
   	lda TVLINEDATA,y
@@ -273,7 +277,7 @@ TestVLine:
 	inc TVLineCnt
     lda TVLineTests
     cmp TVLineCnt
-    bne -
+    bne TestVLine_1
     rts
 	
 ;=========================================================
@@ -379,9 +383,9 @@ PlotPixel:
     clc
     adc zpAddrLo
     sta zpAddrLo
-    bcc +
+    bcc PlotPixel_1
     inc zpAddrHi
-+
+PlotPixel_1:
 
     ;---------------------------------
     ; 3. Add X contribution
@@ -650,9 +654,9 @@ HLine:
     clc
     adc zpAddrLo
     sta zpAddrLo
-    bcc +
+    bcc HLine_1
     inc zpAddrHi
-+
+HLine_1:
     ; Add Bitmap Base Address
     lda zpAddrLo
     clc
@@ -728,9 +732,9 @@ NextByte:
     clc
     adc #8
     sta zpAddrLo
-    bcc +
+    bcc HLine_2
     inc zpAddrHi
-+
+HLine_2:
     ; Decrement our step counter
     dec zpTmp
     beq FinalByte
@@ -765,13 +769,13 @@ VLine:
     ;--- 1. Ensure Y1 < Y2 ---
     lda zpY1
     cmp zpY2
-    bcc +
+    bcc VLine_1
     ; Swap Y1 and Y2 if Y1 is greater
     tax
     lda zpY2
     sta zpY1
     stx zpY2
-+
+VLine_1:
     ;--- 2. Calculate Initial Address (same as PlotPixel) ---
     lda zpY1
     lsr
@@ -789,9 +793,9 @@ VLine:
     clc
     adc zpAddrLo
     sta zpAddrLo
-    bcc +
+    bcc VLine_2
     inc zpAddrHi
-+
+VLine_2:
     ; Add X contribution (X >> 3) * 8
     lda zpX1Lo
     and #%11111000
@@ -848,9 +852,9 @@ VLineLoop:
 
     ; Still inside the same 8x8 cell: just add 1
     inc zpAddrLo
-    bne +
+    bne VLine_3
     inc zpAddrHi
-+
+VLine_3:
     inc zpTemp2
     jmp VLineLoop
 
@@ -913,279 +917,4 @@ MaskTable:
     .byte %00000100
     .byte %00000010
     .byte %00000001
-	
-;=========================================================
-; DRAWLINEFAST (short labels, no branch range issues)
-;=========================================================
-
-DrawLnFast:
-
-    ;--- vertical check ---
-    lda zpX1Lo
-    cmp zpX2Lo
-    bne DLHChk
-    lda zpX1Hi
-    cmp zpX2Hi
-    bne DLHChk
-    jmp VLine
-
-DLHChk:
-    ;--- horizontal check ---
-    lda zpY1
-    cmp zpY2
-    bne DLStart
-    jmp HLine
-
-;---------------------------------
-; Bresenham setup
-;---------------------------------
-DLStart:
-
-    ; DX
-    lda zpX2Lo
-    sec
-    sbc zpX1Lo
-    sta zpDXLo
-    lda zpX2Hi
-    sbc zpX1Hi
-    sta zpDXHi
-    bcs DLXPos
-
-    lda #0
-    sec
-    sbc zpDXLo
-    sta zpDXLo
-    lda #0
-    sbc zpDXHi
-    sta zpDXHi
-    lda #$FF
-    sta zpXStep
-    jmp DLYCalc
-
-DLXPos:
-    lda #1
-    sta zpXStep
-
-DLYCalc:
-    lda zpY2
-    sec
-    sbc zpY1
-    sta zpDY
-    bcs DLYPos
-
-    lda #0
-    sec
-    sbc zpDY
-    sta zpDY
-    lda #$FF
-    sta zpYStep
-    jmp DLInit
-
-DLYPos:
-    lda #1
-    sta zpYStep
-
-;---------------------------------
-; Init address + mask
-;---------------------------------
-DLInit:
-
-    lda zpX1Lo
-    sta zpXLo
-    lda zpX1Hi
-    sta zpXHi
-    lda zpY1
-    sta zpY
-
-    ; row lookup
-    lda zpY
-    lsr
-    lsr
-    lsr
-    tax
-    lda Row320Lo,x
-    sta zpAddrLo
-    lda Row320Hi,x
-    sta zpAddrHi
-
-    ; y mod 8
-    lda zpY
-    and #7
-    clc
-    adc zpAddrLo
-    sta zpAddrLo
-    bcc DLNoC1
-    inc zpAddrHi
-DLNoC1:
-
-    ; x offset
-    lda zpXLo
-    and #%11111000
-    clc
-    adc zpAddrLo
-    sta zpAddrLo
-    lda zpXHi
-    adc zpAddrHi
-    sta zpAddrHi
-
-    ; + bitmap base
-    lda zpAddrLo
-    clc
-    adc #<BITMAP_ADDR
-    sta zpAddrLo
-    lda zpAddrHi
-    adc #>BITMAP_ADDR
-    sta zpAddrHi
-
-    ; mask
-    lda zpXLo
-    and #7
-    tax
-    lda MaskTable,x
-    sta zpMask
-
-    ; err = dx - dy
-    lda zpDXLo
-    sec
-    sbc zpDY
-    sta zpErrLo
-    lda zpDXHi
-    sbc #0
-    sta zpErrHi
-
-;---------------------------------
-; MAIN LOOP
-;---------------------------------
-DLLoop:
-
-    ldy #0
-    lda (zpAddrLo),y
-    ora zpMask
-    sta (zpAddrLo),y
-
-    ; end test
-    lda zpXLo
-    cmp zpX2Lo
-    bne DLCont
-    lda zpXHi
-    cmp zpX2Hi
-    bne DLCont
-    lda zpY
-    cmp zpY2
-	bne DLCont
-    rts
-
-DLCont:
-
-    ; e2 = err * 2
-    lda zpErrLo
-    asl
-    sta zpE2Lo
-    lda zpErrHi
-    rol
-    sta zpE2Hi
-
-    ;--- X move check ---
-    clc
-    lda zpE2Lo
-    adc zpDY
-    lda zpE2Hi
-    adc #0
-    bmi DLYChk2
-
-    ; err -= dy
-    lda zpErrLo
-    sec
-    sbc zpDY
-    sta zpErrLo
-    lda zpErrHi
-    sbc #0
-    sta zpErrHi
-
-    lda zpXStep
-    bmi DLDecX
-
-; INC X
-DLIncX:
-    inc zpXLo
-    bne DLShR
-    inc zpXHi
-
-DLShR:
-    lsr zpMask
-    bne DLYChk2
-
-    lda #$80
-    sta zpMask
-    lda zpAddrLo
-    clc
-    adc #8
-    sta zpAddrLo
-    bcc DLYChk2
-    inc zpAddrHi
-    jmp DLYChk2
-
-DLDecX:
-    lda zpXLo
-    bne DLDecX2
-    dec zpXHi
-DLDecX2:
-    dec zpXLo
-
-    asl zpMask
-    bne DLYChk2
-
-    lda #1
-    sta zpMask
-    lda zpAddrLo
-    sec
-    sbc #8
-    sta zpAddrLo
-    bcs DLYChk2
-    dec zpAddrHi
-
-;--- Y move ---
-DLYChk2:
-    lda zpDXLo
-    sec
-    sbc zpE2Lo
-    lda zpDXHi
-    sbc zpE2Hi
-    bmi DLLoop
-
-    ; err += dx
-    lda zpErrLo
-    clc
-    adc zpDXLo
-    sta zpErrLo
-    lda zpErrHi
-    adc zpDXHi
-    sta zpErrHi
-
-    lda zpYStep
-    bmi DLDecY
-
-; INC Y
-DLIncY:
-    inc zpY
-    lda zpAddrLo
-    clc
-    adc #1
-    sta zpAddrLo
-    bcc DLLoop
-    inc zpAddrHi
-    jmp DLLoop
-
-DLDecY:
-    dec zpY
-    lda zpAddrLo
-    sec
-    sbc #1
-    sta zpAddrLo
-    bcs DLLoop
-    dec zpAddrHi
-    jmp DLLoop
-
-DLDone:
-    rts
 	
