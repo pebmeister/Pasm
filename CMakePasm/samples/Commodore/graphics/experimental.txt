@@ -1,10 +1,20 @@
-
 ;=========================================================
 ; C64 HIRES GRAPHICS LIBRARY
 ; Full 320x200 bitmap support
 ; Uses Row320 tables and 16-bit X
 ;=========================================================
+;
+; bin\cl65.exe -o '..\..\Documents\grahics.prg' --start-addr '$C000' -t c64 -C '.\cfg\c64-asm.cfg' ..\..\Documents\grahics.asm
 
+;bin\ca65.exe -o '.\graphics\grahics.o' .\graphics\graphics.asm
+;bin\cl65.exe --target none '.\graphics\grahics.o' -o '.\graphics\grahics.bin'
+
+        .include "pagezero.asm"
+        .include "kernal.asm"
+        .include "basic.asm"
+        .include "macros.asm"
+
+ 
 ;---------------------------------------------------------
 ; VIC / SYSTEM SYMBOLS
 ;---------------------------------------------------------
@@ -17,7 +27,7 @@ SCREEN_RAM      = $0400
 COLOR_RAM       = $D800
 
 BITMAP_ADDR     = $2000
-BITMAP_END      = $3F40  ; BITMAP_ADDR + 8000
+BITMAP_END      = BITMAP_ADDR + 8000
 
 
 ;---------------------------------------------------------
@@ -28,325 +38,628 @@ BITMAP_END      = $3F40  ; BITMAP_ADDR + 8000
 ;=========================================================
 
 ; --- 1. Global Coordinates (Static) ---
-zpXLo       = $02
-zpXHi       = $1E   ; Safe area
-zpY         = $1F   ; Safe area
+zpXLo           = $02
+zpXHi           = $1E   ; Safe area
+zpY             = $1F   ; Safe area
 
 ; --- 2. Input Parameters (Must remain intact during Calc) ---
-zpX1Lo      = $61
-zpX1Hi      = $62
-zpY1        = $63
-zpX2Lo      = $64
-zpX2Hi      = $65
-zpY2        = $66
+zpX1Lo          = $61
+zpX1Hi          = $62
+zpY1            = $63
+zpX2Lo          = $64
+zpX2Hi          = $65
+zpY2            = $66
 
 ; --- 3. The Scratchpad (Safe Overlap) ---
 ; We only overlap Bresenham variables with HLine/VLine variables.
 ; These do NOT overlap with the Input Parameters above.
 
 ; Bresenham / VLine / HLine shared area
-zpDXLo      = $69   
-zpDXHi      = $6A   
-zpDY        = $6B   
-zpErrLo     = $6C   
-zpErrHi     = $6D   
-zpE2Lo      = $6E   
-zpE2Hi      = $6F   
-zpXStep     = $70   
-zpYStep     = $71   
+zpDXLo          = $69  
+zpDXHi          = $6A  
+zpDY            = $6B  
+zpErrLo         = $6C  
+zpErrHi         = $6D  
+zpE2Lo          = $6E  
+zpE2Hi          = $6F  
+zpXStep         = $70  
+zpYStep         = $71  
 
 ; Aliases for HLine/VLine (Sharing the $69+ scratchpad)
-zpXDivLo    = $69   ; Overlaps zpDXLo
-zpXDivHi    = $6A   ; Overlaps zpDXHi
-zpTemp2     = $6B   ; Overlaps zpDY
-zpTmp       = $6C   ; Overlaps zpErrLo
+zpXDivLo        = $69   ; Overlaps zpDXLo
+zpXDivHi        = $6A   ; Overlaps zpDXHi
+zpTemp2         = $6B   ; Overlaps zpDY
+zpTmp           = $6C   ; Overlaps zpErrLo
 
 ; --- 4. Working Pointers (Standard C64 Golden Area) ---
-zpAddrLo    = $FB
-zpAddrHi    = $FC
-zpMask      = $FD
+zpAddrLo        = $FB
+zpAddrHi        = $FC
+zpMask          = $FD
 
-IGONE_SV    = $3FC
-CMDTABLE    = $57
-BASICTEXT   = $26
-WEDGE_TMP   = $14
+CMDTABLE        = UNUSED2      ;2 bytes      *
+BASICTEXT       = RESHO        ;2 bytes      *
+CMDJUMP         = UNUSED2      ;2 bytes      *
+WEDGE_TMP       = LINNUM       ;2 bytes      *
+_CMD            = FREKZP       ;1 byte       *
+
+IGONE_SV        = $3FC
 
 ;=========================================================
 ; MAIN
 ;=========================================================
-    .org $C000
+        .org $8000
+  
+        .word @COLD_START       ; Cartridge cold-start vector
+        .word @WARM_START       ; Cartridge warm-start vector
+        .byte  $C3, $C2, $CD, $38, $30     ; CBM8O - Autostart key
 
-    jsr InitHires
-    jsr ClearBitmap
-    lda #16
-    jsr ClearScreenRAM
+@COLD_START:
+;   KERNAL RESET ROUTINE
+        stx $D016               ; SCROLX - Turn on VIC for PAL / NTSC check
+        jsr $FDA3               ; IOINIT - Init CIA chips
+        jsr $FD50               ; RANTAM - Clear/test system RAM
+        jsr $FD15               ; RESTOR - Init KERNAL RAM vectors
+        jsr $FF5B               ; CINT   - Init VIC and screen editor
 
-    jmp Test
+;   BASIC RESET  Routine
+        jsr $E453               ; Init BASIC RAM vectors
+        jsr $E3BF               ; Main BASIC RAM Init routine
+        jsr $E422               ; Power-up message / NEW command
+        ldx #$FB
+        txs                     ; Reduce stack pointer for BASIC
 
+@WARM_START:
+;   START PROGRAM HERE
+
+        lda #5                  ; CHANGE BORDER COLOUR
+        sta BORDER              ;
+
+        ;
+        ;   install wedge
+        ;
+
+SETWEDGE:
+        NEWBYTES = 3
+        sei
+
+        MOVE16 IGONE, IGONE_SV
+        MOVE16I IGONE, WEDGE
+
+        lda #0                  ; peform a NEW for basic
+        ldy #NEWBYTES
+@SW_1:
+        sta (TXTTAB),y
+        dey
+        bne @SW_1
+
+        cli
+        
+        jmp (IGONE_SV)
+
+;********************************************
+;*                                          *
+;*  WEDGE                                   *
+;*                                          *
+;* TXTPTR - pointer to BASIC text           *
+;* IGONE  - jump vector back to BASIC       *
+;*                                          *
+;* ---------------------------------------- *
+;*        PAGE ZERO USAGE                   *
+;* ---------------------------------------- *
+;*  CMDTABLE    = UNUSED2      2 bytes      *
+;*  BASICTEXT   = RESHO        2 bytes      *
+;*  CMDJUMP     = UNUSED2      2 bytes      *
+;*  WEDGE_TMP   = LINNUM       2 bytes      *
+;*  _CMD        = FREKZP       1 byte       *
+;* ---------------------------------------- *
+;*                                          *
+;********************************************
+WEDGE:        
+        ; move the address of the table to pagezero
+        MOVE16I CMDTABLE, _Commands
+        MOVE16 TXTPTR, BASICTEXT
+
+        ; init _cmd INDEX TO 0
+        ; also init y to 1
+        ldy #0
+        sty _CMD
+        iny
+
+; -------------------------------------
+
+@SkipSpace:
+        lda (BASICTEXT),y
+        cmp #' '
+        bne @MatchCmd
+        INC16 BASICTEXT
+        jmp @SkipSpace
+
+; -------------------------------------
+
+@MatchCmd:
+        lda (BASICTEXT),y
+        ; if it's a null then its the end of a command
+        beq @NextCmd
+
+        ; if its a colon let basic handle it
+        cmp #':'
+        beq @NextCmd
+
+        ; compare to the table entry
+        cmp (CMDTABLE),y
+        bne @NextCmd
+
+        ; get the next char
+        iny
+        jmp @MatchCmd
+
+; -------------------------------------
+
+@NextCmd:
+        lda (CMDTABLE),y
+        beq @ExecuteCmd
+
+        inc _CMD
+
+; -------------------------------------
+
+        ldy #0
+@CmdTableInc:
+        INC16 CMDTABLE
+        lda (CMDTABLE),y
+        bne @CmdTableInc
+        iny
+        lda (CMDTABLE),y
+        beq @ExitToBasic
+        INC16 CMDTABLE
+        iny
+        jmp @MatchCmd
+
+; -------------------------------------
+
+@ExecuteCmd:
+        dey
+        sty WEDGE_TMP
+        lda #0
+        sta WEDGE_TMP + 1
+
+        ADD16 BASICTEXT, WEDGE_TMP, BASICTEXT
+        MOVE16 BASICTEXT, TXTPTR
+
+        ; multiply _CMD by two to get jump offset
+        lda _CMD
+        asl
+
+        ; move offset to x
+        ; move jump entry to
+        ; pagezero jump
+        tax
+
+        lda _Jump,x
+        sta CMDJUMP
+        lda _Jump + 1,x
+        sta CMDJUMP + 1
+
+        jsr @Jump
+
+; -------------------------------------
+
+@Cleanup:
+        jsr CHRGOT
+        beq @Exit2
+        jsr CHRGET
+        jmp @Cleanup
+
+; -------------------------------------
+
+@Exit2:
+        DEC16 TXTPTR
+
+; -------------------------------------
+@ExitToBasic:
+        jmp (IGONE_SV)
+
+@Jump:
+        ; execute the command
+        jmp (CMDJUMP)
+
+; -------------------------------------
+; each command has
+; 1st byte space or 0 for end of table
+; 0 terminates the string entry
+; -------------------------------------
+_Commands:
+		.byte " HGROFF", 0
+        .byte " HGR", 0
+		.byte " HLINE", 0
+        .byte " TEST", 0
+        .byte 0
+
+ ; offsets to commands
+_Jump:
+
+        .word HgrOff
+        .word Hgr
+        .word HgrLine
+        .word Test
+		
+		
+;=========================================================
+; Hgr
+;=========================================================
+Hgr:
+		jsr InitHires
+		jsr ClearBitmap
+		lda #16
+		jsr ClearScreenRAM
+		rts
+
+;=========================================================
+; HgrOff
+;=========================================================
+HgrOff:
+		jsr RestoreNormal
+		rts
+
+; --- Temporary Buffers (Safe RAM) ---
+TEMP_X1 = $02A0 ; 2 bytes
+TEMP_Y1 = $02A2 ; 1 byte
+TEMP_X2 = $02A3 ; 2 bytes
+TEMP_Y2 = $02A5 ; 1 byte
+
+; --- ROM Constants ---
+;CHRGET = $0073
+;FRMNUM = $AD8A
+;GETADR = $B7F7
+GETBYT = $B79E
+;CHKCOM = $AEFD
+SYNERR = $AF08
+TOK_TO = $A4
+
+HgrLine:
+    jsr CHRGET       ; Advance past command name
+
+    ; 1. Parse X1 (0-65535)
+    jsr FRMNUM       ; Evaluate expression (uses FAC1 $61-$66)
+    jsr GETADR       ; Convert to 16-bit in $14/$15
+    lda $14
+    sta TEMP_X1
+    lda $15
+    sta TEMP_X1+1
+	
+
+    ; 2. Parse Y1 (0-255)
+    jsr CHKCOM       ; Check for ","
+	
+    jsr GETBYT       ; Result in .X
+    stx TEMP_Y1
+	
+    ; 3. Parse "TO" keyword
+    jsr CHRGET       ; Get next token
+    cmp #TOK_TO      ; Is it "TO"?
+    beq @GetSecondPoint
+    jmp SYNERR       ; No, trigger ?SYNTAX ERROR
+
+@GetSecondPoint:
+	rts
+	
+
+    ; 4. Parse X2 (0-65535)
+    jsr CHRGET       ; Advance past "TO"
+    jsr FRMNUM
+    jsr GETADR
+    lda $14
+    sta TEMP_X2
+    lda $15
+    sta TEMP_X2+1
+
+    ; 5. Parse Y2 (0-255)
+    jsr CHKCOM       ; Check for ","
+    jsr GETBYT       ; Result in .X
+    stx TEMP_Y2
+
+    ; --- PARSING COMPLETE ---
+    ; Now move everything to your Zero Page workspace ($61+)
+    ; Since parsing is over, we can safely overwrite the FAC.
+
+    lda TEMP_X1
+    sta zpX1Lo
+    lda TEMP_X1+1
+    sta zpX1Hi
+    lda TEMP_Y1
+    sta zpY1
+
+    lda TEMP_X2
+    sta zpX2Lo
+    lda TEMP_X2+1
+    sta zpX2Hi
+    lda TEMP_Y2
+    sta zpY2
+
+    ; 6. Execute
+    jsr DrawLine
+    rts
+	
 ;=========================================================
 ; Test
 ;=========================================================
 Test:
-    jsr TestPlotPixel
-    jsr TestDrawLine
-	jsr TestHLine
-    jsr TestVLine
-
-	rts
+        jsr TestPlotPixel        
+        jsr TestDrawLine        
+        jsr TestHLine
+        jsr TestVLine
+        rts
+		
 ;=========================================================
 ; TestPlotPixel
 ;=========================================================
 TPlotTests:
-    .byte 4
-TPlotCnt:
-    .byte 0
-TPlotOff:
-    .byte 0
+        .byte 4
+TPlotCnt = $C000
+TPlotOff = $C001
+        
 TPLOTDATA:
-    .byte <50,>50,20
-    .byte <250,>250,15
-    .byte <25,>25,190
-    .byte <310,>310,180
+        .byte <50,>50,20
+        .byte <250,>250,15
+        .byte <25,>25,190
+        .byte <310,>310,180
 
 TestPlotPixel:
-    lda #0
-    sta TPlotCnt
-    sta TPlotOff
+        lda #0
+        sta TPlotCnt
+        sta TPlotOff
 TP_1:
-    ldy TPlotOff	
-    lda TPLOTDATA,y
-	iny
-    sta zpXLo	
-    lda TPLOTDATA,y
-	iny
-    sta zpXHi	
-    lda TPLOTDATA,y
-	iny
-	sta zpY
+        ldy TPlotOff
+        lda TPLOTDATA,y
+        iny
+        sta zpXLo
+        lda TPLOTDATA,y
+        iny
+        sta zpXHi
+        lda TPLOTDATA,y
+        iny
+        sta zpY
 
-    sty TPlotOff
-    jsr PlotPixel
-	
-	inc TPlotCnt
-    lda TPlotTests
-    cmp TPlotCnt
-    bne TP_1
-    rts
+        sty TPlotOff
+        jsr PlotPixel
+
+        inc TPlotCnt
+        lda TPlotTests
+        cmp TPlotCnt
+        bne TP_1
+        rts
 
 ;=========================================================
 ; TestDrawLine
 ;=========================================================
 TDrawLineTests:
-    .byte 10
-TDrawLineCnt:
-    .byte 0
-TDrawLineOff:
-    .byte 0
+        .byte 10
+TDrawLineCnt = $C000
+TDrawLineOff = $C001
 TDRAWDATA:
-    .byte <25,>25,20,<300,>300,180
-    .byte <275,>275,185,<12,>12,15
-    .byte <5,>5,175, <300,>300,3
-    .byte <305,>305,7,<9,>9,165
-	
-	; HLINE
-    .byte <25,>25,35,<300,>300,35
-    .byte <25,>25,187,<305,>305,187
-    .byte <295,>295,27,<17,>17,27
-    .byte <310,>310,198,<5,>5,198
-	
-	; VLINE
-	.byte <40,>40,30,<40,>40,188
-    .byte <265,>265,30,<265,>265,188
+        .byte <25,>25,20,<300,>300,180
+        .byte <275,>275,185,<12,>12,15
+        .byte <5,>5,175, <300,>300,3
+        .byte <305,>305,7,<9,>9,165
+
+; HLINE
+        .byte <25,>25,35,<300,>300,35
+        .byte <25,>25,187,<305,>305,187
+        .byte <295,>295,27,<17,>17,27
+        .byte <310,>310,198,<5,>5,198
+
+; VLINE
+        .byte <40,>40,30,<40,>40,188
+        .byte <265,>265,30,<265,>265,188
 
 TestDrawLine:
-    lda #0
-    sta TDrawLineCnt
-    sta TDrawLineOff
+        lda #0
+        sta TDrawLineCnt
+        sta TDrawLineOff
 TD_1:
-	ldy TDrawLineOff
- 
-	lda TDRAWDATA,y
-	iny
-    sta zpX1Lo
-    lda TDRAWDATA,y
-	iny
-    sta zpX1Hi
-    lda TDRAWDATA,y
-	iny
-    sta zpY1
-	lda TDRAWDATA,y
-	iny
-    sta zpX2Lo
-    lda TDRAWDATA,y
-	iny
-    sta zpX2Hi
-    lda TDRAWDATA,y
-	iny
-    sta zpY2
-	
-    sty TDrawLineOff
-    jsr DrawLine
-	
-	inc TDrawLineCnt
-    lda TDrawLineTests
-    cmp TDrawLineCnt
-    bne TD_1
-    rts
+        ldy TDrawLineOff
+
+        lda TDRAWDATA,y
+        iny
+        sta zpX1Lo
+        lda TDRAWDATA,y
+        iny
+        sta zpX1Hi
+        lda TDRAWDATA,y
+        iny
+        sta zpY1
+        lda TDRAWDATA,y
+        iny
+        sta zpX2Lo
+        lda TDRAWDATA,y
+        iny
+        sta zpX2Hi
+        lda TDRAWDATA,y
+        iny
+        sta zpY2
+
+        sty TDrawLineOff
+        jsr DrawLine
+
+        inc TDrawLineCnt
+        lda TDrawLineTests
+        cmp TDrawLineCnt
+        bne TD_1
+        rts
 
 ;=========================================================
 ; TestHLine
 ;=========================================================
 THLineTests:
-    .byte 2
-THLineCnt:
-    .byte 0
-THLineOff:
-    .byte 0
+        .byte 2
+THLineCnt = $C000
+THLineOff = $C001
 THLINEDATA:
-    .byte <5,>5,<300,>300,30
-    .byte <20,>20,<305,>305,177
+        .byte <5,>5,<300,>300,30
+        .byte <20,>20,<305,>305,177
 
 TestHLine:
-    lda #0
-    sta THLineCnt
-    sta THLineOff
-TestHLine_1:
-	ldy THLineOff
- 
- 	lda THLINEDATA,y
-	iny
-    sta zpX1Lo	
-    lda THLINEDATA,y
-	iny
-    sta zpX1Hi
- 	lda THLINEDATA,y
-	iny
-    sta zpX2Lo	
-    lda THLINEDATA,y
-	iny
-    sta zpX2Hi
-	lda THLINEDATA,y
-	iny
-    sta zpY
-	
-    sty THLineOff
-    jsr HLine
+        lda #0
+        sta THLineCnt
+        sta THLineOff
+TH_1:
+        ldy THLineOff
 
-	inc THLineCnt
-    lda THLineTests
-    cmp THLineCnt
-    bne TestHLine_1
-    rts
-	
+        lda THLINEDATA,y
+        iny
+        sta zpX1Lo
+        lda THLINEDATA,y
+        iny
+        sta zpX1Hi
+        lda THLINEDATA,y
+        iny
+        sta zpX2Lo
+        lda THLINEDATA,y
+        iny
+        sta zpX2Hi
+        lda THLINEDATA,y
+        iny
+        sta zpY
+
+        sty THLineOff
+        jsr HLine
+
+        inc THLineCnt
+        lda THLineTests
+        cmp THLineCnt
+        bne TH_1
+        rts
+
     ;=========================================================
     ; TestVLine
     ;=========================================================
 TVLineTests:
-    .byte 2
-TVLineCnt:
-    .byte 0
-TVLineOff:
-    .byte 0
+        .byte 2
+TVLineCnt = $C000
+TVLineOff = $C001
 TVLINEDATA:
-    .byte <13,>13,30,188
-    .byte <299,>299,30,188
+        .byte <13,>13,30,188
+        .byte <299,>299,30,188
 
 TestVLine:
-    lda #0
-	sta TVLineCnt
-    sta TVLineOff
-TestVLine_1:
-	ldy TVLineOff
- 
-  	lda TVLINEDATA,y
-	iny
-    sta zpX1Lo	
-    lda TVLINEDATA,y
-	iny
-    sta zpX1Hi
-  	lda TVLINEDATA,y
-	iny
-	sta zpY1
-  	lda TVLINEDATA,y
-	iny
-	sta zpY2
+        lda #0
+        sta TVLineCnt
+        sta TVLineOff
+        TV_1:
+        ldy TVLineOff
 
-	sty TVLineOff
-    jsr VLine
-	
-	inc TVLineCnt
-    lda TVLineTests
-    cmp TVLineCnt
-    bne TestVLine_1
-    rts
-	
+        lda TVLINEDATA,y
+        iny
+        sta zpX1Lo
+        lda TVLINEDATA,y
+        iny
+        sta zpX1Hi
+        lda TVLINEDATA,y
+        iny
+        sta zpY1
+        lda TVLINEDATA,y
+        iny
+        sta zpY2
+
+        sty TVLineOff
+        jsr VLine
+
+        inc TVLineCnt
+        lda TVLineTests
+        cmp TVLineCnt
+        bne TV_1
+        rts
+
 ;=========================================================
 ; INIT HIRES MODE
 ;=========================================================
 
 InitHires:
-    lda VIC_BANK
-    and #%11111100
-    ora #%00000011
-    sta VIC_BANK
+        lda VIC_BANK
+        and #%11111100
+        ora #%00000011
+        sta VIC_BANK
 
-    lda VIC_MEM
-    and #%11110000
-    ora #%00001000
-    sta VIC_MEM
+        lda VIC_MEM
+        and #%11110000
+        ora #%00001000
+        sta VIC_MEM
 
-    lda VIC_CTRL1
-    ora #%00100000
-    sta VIC_CTRL1
-    rts
+        lda VIC_CTRL1
+        ora #%00100000
+        sta VIC_CTRL1
+        rts
 
+;=========================================================
+; RESTORE NORMAL MODE
+;=========================================================
+RestoreNormal:
+        ; 1. Clear Bit 5 to disable Hires/Bitmap mode
+        lda VIC_CTRL1
+        and #%11011111   ; Force bit 5 to 0
+        sta VIC_CTRL1
+
+        ; 2. Reset Memory Pointers (Standard: Screen $0400, Chars $1000)
+        ; High nibble %0001 (Screen at $0400)
+        ; Low nibble %010x (Chars at $1000)
+        lda #%00010100   ; Value $14 (decimal 20)
+        sta VIC_MEM
+
+        ; 3. Reset VIC Bank to Bank 0 ($0000-$3FFF)
+        ; In VIC_BANK ($DD00), %11 is Bank 0, %00 is Bank 3
+        lda VIC_BANK
+        ora #%00000011   ; Set bits 0 and 1 to 1 for Bank 0
+        sta VIC_BANK
+
+        rts
+		
 ;=========================================================
 ; CLEAR BITMAP
 ;=========================================================
 
 ClearBitmap:
-    lda #<BITMAP_ADDR
-    sta zpAddrLo
-    lda #>BITMAP_ADDR
-    sta zpAddrHi
+        lda #<BITMAP_ADDR
+        sta zpAddrLo
+        lda #>BITMAP_ADDR
+        sta zpAddrHi
 
-    lda #$00
-    ldx #$20
+        lda #$00
+        ldx #$20
 
 ClearLoopPage:
-    ldy #$00
+        ldy #$00
 ClearLoopByte:
-    sta (zpAddrLo),y
-    iny
-    bne ClearLoopByte
-    inc zpAddrHi
-    dex
-    bne ClearLoopPage
-    rts
+        sta (zpAddrLo),y
+        iny
+        bne ClearLoopByte
+        inc zpAddrHi
+        dex
+        bne ClearLoopPage
+        rts
 
 ;=========================================================
 ; ClearScreenRAM
 ;=========================================================
 ClearScreenRAM:
-    sta zpTmp
-    lda #<$0400
-    sta zpAddrLo
-    lda #>$0400
-    sta zpAddrHi
+        sta zpTmp
+        lda #<$0400
+        sta zpAddrLo
+        lda #>$0400
+        sta zpAddrHi
 
-    lda zpTmp        ; color index
-    ldx #$04
+        lda zpTmp        ; color index
+        ldx #$04
 
 ScreenPage:
-    ldy #$00
+        ldy #$00
 ScreenLoop:
-    sta (zpAddrLo),y
-    iny
-    bne ScreenLoop
-    inc zpAddrHi
-    dex
-    bne ScreenPage
-    rts
+        sta (zpAddrLo),y
+        iny
+        bne ScreenLoop
+        inc zpAddrHi
+        dex
+        bne ScreenPage
+        rts
 
 ;=========================================================
 ; PLOT PIXEL (CORRECTED - FULL 16-BIT X)
@@ -360,77 +673,77 @@ ScreenLoop:
 ; zpErrHi    = temp high byte for X>>3
 
 PlotPixel:
-    ;---------------------------------
-    ; 1. Row320 lookup (y >> 3)
-    ;---------------------------------
-    lda zpY
-    lsr
-    lsr
-    lsr
-    tax
+        ;---------------------------------
+        ; 1. Row320 lookup (y >> 3)
+        ;---------------------------------
+        lda zpY
+        lsr
+        lsr
+        lsr
+        tax
 
-    lda Row320Lo,x
-    sta zpAddrLo
-    lda Row320Hi,x
-    sta zpAddrHi
+        lda Row320Lo,x
+        sta zpAddrLo
+        lda Row320Hi,x
+        sta zpAddrHi
 
-    ;---------------------------------
-    ; 2. Add (y & 7)
-    ; This finds the byte row within the 8x8 cell
-    ;---------------------------------
-    lda zpY
-    and #7
-    clc
-    adc zpAddrLo
-    sta zpAddrLo
-    bcc PlotPixel_1
-    inc zpAddrHi
+        ;---------------------------------
+        ; 2. Add (y & 7)
+        ; This finds the byte row within the 8x8 cell
+        ;---------------------------------
+        lda zpY
+        and #7
+        clc
+        adc zpAddrLo
+        sta zpAddrLo
+        bcc PlotPixel_1
+        inc zpAddrHi
 PlotPixel_1:
 
-    ;---------------------------------
-    ; 3. Add X contribution
-    ; Column offset = (X & $FFF8)
-    ;---------------------------------
-    lda zpXLo
-    and #%11111000   ; Strip pixel bits to get byte offset
-    clc
-    adc zpAddrLo
-    sta zpAddrLo
+        ;---------------------------------
+        ; 3. Add X contribution
+        ; Column offset = (X & $FFF8)
+        ;---------------------------------
+        lda zpXLo
+        and #%11111000   ; Strip pixel bits to get byte offset
+        clc
+        adc zpAddrLo
+        sta zpAddrLo
 
-    lda zpXHi        ; Add high byte of X to high byte of address
-    adc zpAddrHi
-    sta zpAddrHi
+        lda zpXHi        ; Add high byte of X to high byte of address
+        adc zpAddrHi
+        sta zpAddrHi
 
-    ;---------------------------------
-    ; 4. Add BITMAP_ADDR (Full 16-bit)
-    ; Now works regardless of where BITMAP_ADDR is
-    ;---------------------------------
-    lda zpAddrLo
-    clc
-    adc #<BITMAP_ADDR
-    sta zpAddrLo
-    lda zpAddrHi
-    adc #>BITMAP_ADDR
-    sta zpAddrHi
+        ;---------------------------------
+        ; 4. Add BITMAP_ADDR (Full 16-bit)
+        ; Now works regardless of where BITMAP_ADDR is
+        ;---------------------------------
+        lda zpAddrLo
+        clc
+        adc #<BITMAP_ADDR
+        sta zpAddrLo
+        lda zpAddrHi
+        adc #>BITMAP_ADDR
+        sta zpAddrHi
 
-    ;---------------------------------
-    ; 5. Mask from X & 7
-    ;---------------------------------
-    lda zpXLo        ; Use original X low byte
-    and #7
-    tax
-    lda MaskTable,x
-    sta zpMask
+        ;---------------------------------
+        ; 5. Mask from X & 7
+        ;---------------------------------
+        lda zpXLo        ; Use original X low byte
+        and #7
+        tax
+        lda MaskTable,x
+        sta zpMask
 
-    ;---------------------------------
-    ; 6. Set pixel bit
-    ;---------------------------------
-    ldy #0
-    lda (zpAddrLo),y
-    ora zpMask
-    sta (zpAddrLo),y
+        ;---------------------------------
+        ; 6. Set pixel bit
+        ;---------------------------------
+        ldy #0
+        lda (zpAddrLo),y
+        ora zpMask
+        sta (zpAddrLo),y
 
-    rts
+        rts
 ;=========================================================
 ; DRAW LINE - BRESENHAM (16-bit X, 8-bit Y)
 ; Optimized to auto-call HLine/VLine for axis-aligned lines.
@@ -444,22 +757,22 @@ DrawLine:
     lda zpX1Hi
     cmp zpX2Hi
     bne CheckHorizontal
-    jmp VLine           
+    jmp VLine          
 
 CheckHorizontal:
     ;--- 2. Check if Horizontal (Y1 == Y2) ---
     lda zpY1
     cmp zpY2
     bne BresenhamStart
-	
+
     ; Setup HLine (Expects Y in zpY and X1 <= X2)
     lda zpX1Hi
     cmp zpX2Hi
-    bcc DoHLine         
-    bne SwapH           
+    bcc DoHLine        
+    bne SwapH          
     lda zpX1Lo
     cmp zpX2Lo
-    bcc DoHLine         
+    bcc DoHLine        
     beq DoHLine
 
 SwapH:
@@ -467,7 +780,7 @@ SwapH:
     ldx zpX2Lo
     sta zpX2Lo
     stx zpX1Lo
-	
+
     lda zpX1Hi
     ldx zpX2Hi
     sta zpX2Hi
@@ -475,8 +788,8 @@ SwapH:
 
 DoHLine:
     lda zpY1
-    sta zpY             
-    jmp HLine           
+    sta zpY            
+    jmp HLine          
 
 ;---------------------------------------------------------
 ; Main Diagonal Algorithm
@@ -632,12 +945,12 @@ SkipYMove:
 
 LineDone:
     rts
-	
+
 ;=========================================================
 ; FAST HORIZONTAL LINE (FIXED & ROBUST)
 ; X1: zpX1Lo/Hi, X2: zpX2Lo/Hi, Y: zpY
 ;=========================================================
-HLine:	
+HLine:
     ;--- 1. Calculate Base Address (Row + Y-offset within cell) ---
     lda zpY
     lsr
@@ -880,6 +1193,33 @@ NextCellRow:
 VLineDone:
     rts
 
+;********************************************
+;
+;  RangeCheckXY
+;
+;  Check LINNUM and x range
+;
+;*******************************************
+
+RangeCheckXY:
+        cpx # 200
+        bcs RangeError
+
+        lda LINNUM + 1
+        beq @Exit
+        cmp #2
+        bcs RangeError
+
+
+        lda LINNUM
+        cmp # 320 - 256
+        bcs RangeError
+@Exit:
+        rts
+RangeError:
+        ldx # ILLEGALQUANITY
+        jmp ERROR
+		
 ;=========================================================
 ; TABLES FOR HORIZONTAL FILL
 ;=========================================================
@@ -917,4 +1257,4 @@ MaskTable:
     .byte %00000100
     .byte %00000010
     .byte %00000001
-	
+
