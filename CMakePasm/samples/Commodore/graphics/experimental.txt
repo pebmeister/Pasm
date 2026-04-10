@@ -1258,3 +1258,73 @@ MaskTable:
     .byte %00000010
     .byte %00000001
 
+#include <iostream>
+
+// Helper function to plot pixels in all 8 octants
+void draw8Points(int xc, int yc, int x, int y) {
+    std::cout << "(" << xc + x << ", " << yc + y << ")\n";
+    std::cout << "(" << xc - x << ", " << yc + y << ")\n";
+    std::cout << "(" << xc + x << ", " << yc - y << ")\n";
+    std::cout << "(" << xc - x << ", " << yc - y << ")\n";
+    std::cout << "(" << xc + y << ", " << yc + x << ")\n";
+    std::cout << "(" << xc - y << ", " << yc + x << ")\n";
+    std::cout << "(" << xc + y << ", " << yc - x << ")\n";
+    std::cout << "(" << xc - y << ", " << yc - x << ")\n";
+}
+
+void bresenhamCircle(int xc, int yc, int r) {
+    int x = 0, y = r;
+    int d = 3 - (2 * r); // Initial decision parameter
+
+    draw8Points(xc, yc, x, y);
+
+    while (y >= x) {
+        x++;
+
+        if (d > 0) {
+            y--;
+            d = d + 4 * (x - y) + 10;
+        } else {
+            d = d + 4 * x + 6;
+        }
+       
+        draw8Points(xc, yc, x, y);
+    }
+}
+
+int main() {
+    int xc = 50, yc = 50, r = 10;
+    bresenhamCircle(xc, yc, r);
+    return 0;
+}
+
+zp_cir_XC_Lo = $02
+zp_cir_XC_Hi = $03
+zp_cir_YC = $04
+cir_R = $C000
+
+
+zp_cir_X_Lo = $06
+zp_cir_X_Hi = $07
+zp_cir_Y = $08
+zp_cir_D_Lo = $09
+zp_cir_D_Hi = $0A
+
+main:
+   lda #0
+   sta zp_cir_XC_Hi
+   sta cir_R + 1
+   lda #50
+   sta zp_cir_XC_Lo
+   sta zp_cir_YC
+   lda #10
+   sta cir_R
+   jsr BresenhamCircle
+   rts
+
+BresenhamCircle:
+   lda #0
+   sta zp_cir_X_Lo
+   sta zp_cir_X_Hi
+   lda cir_R
+   sta 
