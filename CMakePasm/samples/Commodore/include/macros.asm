@@ -120,7 +120,7 @@
 ;*  destroys a, y                           *
 ;*                                          *
 ;********************************************
-        .macro STORE
+        .macro STOREM
 
         ldy #\3 -1
         lda \1
@@ -144,7 +144,7 @@
 ;*  destroys a, y                           *
 ;*                                          *
 ;********************************************
-        .macro STOREI
+        .macro STOREMI
 
         lda #\1
         ldy #\3 -1
