@@ -56,7 +56,7 @@
 ;*                                          *
 ;*  store a variable                        *
 ;*                                          *
-;*  \1  Source                              *
+;*  \1  Source 8 bit                        *
 ;*  \2  Destination                         *
 ;*                                          *
 ;*                                          *
@@ -66,7 +66,6 @@
         .macro STORE16
         lda \1
         sta \2
-        lda \1 + 1
         sta \2 + 1
         .endm
 
