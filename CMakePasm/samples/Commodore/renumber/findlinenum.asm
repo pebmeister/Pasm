@@ -15,7 +15,7 @@ FINDLINENUM
         ;
         ;   init lastidx
         ;
-        STOREI $FF, LASTIDX, 2
+        STORE16I $FF, LASTIDX
 
         ;
         ;   convert maxidx to bytes
@@ -25,7 +25,7 @@ FINDLINENUM
         ;
         ;   init minidx
         ;
-        STOREI 0, MINIDX, 2
+        STORE16I 0, MINIDX
 
 -
         ;
