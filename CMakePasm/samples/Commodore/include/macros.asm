@@ -657,16 +657,17 @@
 ;*  \1  Variable                            *
 ;*  \2  bits to shift                       *
 ;*                                          *
-;*  destroys    nothing                     *
+;*  destroys    x                           *
 ;*                                          *
 ;********************************************
         .macro RSHIFT8
-        .var n
-        n = \2
-        .while n > 0
-            lsr \1
-            n = n -1
-        .wend
+        ldx #\2
+        beq @RSH8Exit
+@RSHLoop
+        lsr \1
+        dex
+        bne @RSHLoop
+@RH8Exit
         .endm
 
 ;********************************************
@@ -678,18 +679,18 @@
 ;*  \1  Variable                            *
 ;*  \2  bits to shift                       *
 ;*                                          *
-;*  destroys    nothing                     *
+;*  destroys    x.                          *
 ;*                                          *
 ;********************************************
         .macro RSHIFT16
-        .var n
-        n = \2
-        .while n > 0
-            lsr \1 + 1
-            ror \1
-
-            n = n -1
-        .wend
+        ldx #\2
+        beq @RSH16Exit
+@RSH16Loop
+        lsr \1 + 1
+        ror \1
+        dex
+        bne @RSH16Loop
+@RSH16Exit
         .endm
 
 ;********************************************
@@ -701,20 +702,20 @@
 ;*  \1  Variable                            *
 ;*  \2  bits to shift                       *
 ;*                                          *
-;*  destroys    nothing                     *
+;*  destroys   x                            *
 ;*                                          *
 ;********************************************
         .macro RSHIFT32
-        .var n
-        n = \2
-        .while n > 0
-            lsr \1 + 3
-            ror \1 + 2
-            ror \1 + 1
-            ror \1
-
-            n = n -1
-        .wend
+        ldx # \2
+        beq @RSH32Exit
+@RSH32Loop
+        lsr \1 + 3
+        ror \1 + 2
+        ror \1 + 1
+        ror \1
+        dex
+        bne @RSH32Loop
+ @RSH32Exit
         .endm
 
 ;********************************************
@@ -726,16 +727,17 @@
 ;*  \1  Variable                            *
 ;*  \2  btits to shift                      *
 ;*                                          *
-;*  destroys    nothing                     *
+;*  destroys    x                           *
 ;*                                          *
 ;********************************************
         .macro LSHIFT8
-        .var n
-        n = \2
-        .while n > 0
-            asl \1
-            n = n -1
-        .wend
+        ldx #\2
+        beq @LSH8Exit
+@LSH8Loop
+        asl \1
+        dex
+        bne @LSH8Loop
+ @LSH8Exit
         .endm
 
 ;********************************************
@@ -747,17 +749,18 @@
 ;*  \1  Variable                            *
 ;*  \2  bits to shift                       *
 ;*                                          *
-;*  destroys    nothing                     *
+;*  destroys    x.                          *
 ;*                                          *
 ;********************************************
         .macro LSHIFT16
-        .var n
-        n = \2
-        .while n > 0
-            asl \1
-            rol \1 + 1
-            n = n -1
-        .wend
+        ldx # \2
+        beq @LSH16Exit
+@LS16Loop
+        asl \1
+        rol \1 + 1
+        dex
+        bne @LS16Loop
+@LSH16Exit
         .endm
 
 ;********************************************
@@ -773,15 +776,16 @@
 ;*                                          *
 ;********************************************
         .macro LSHIFT32
-        .var n
-        n = \2
-        .while n > 0
-            asl \1
-            rol \1 + 1
-            rol \1 + 2
-            rol \1 + 3
-            n = n -1
-        .wend
+        ldx #\2
+        beq @LSH32Exit
+@LSH32Loop
+        asl \1
+        rol \1 + 1
+        rol \1 + 2
+        rol \1 + 3
+        dex
+        bne @LS32Loop32
+@LSH32Exit
         .endm
 ;********************************************
 ;*                                          *
