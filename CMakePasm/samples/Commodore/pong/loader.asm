@@ -34,7 +34,7 @@
         jmp EXECADDR            ;   start it
 
                                 ;   enter your (short!) text here
-MSG     .db " "
+MSG     .byte " "
 NAME    .byte "PONG",0           ;   enter name of prg-to-load here
 
         NAMELEN = * - NAME - 1
