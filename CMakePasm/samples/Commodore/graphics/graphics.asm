@@ -308,17 +308,44 @@ HGROn
 HGRCls
         ldx #0
         lda #0
-        .var n = 8000/255, i
 @_ClrLoop
-        .for i = 0 .to n -1
-            sta BITMAPBASE + ($0100 * i),x
-        .next i
+        sta BITMAPBASE + ($0100 * 0),x
+        sta BITMAPBASE + ($0100 * 1),x
+        sta BITMAPBASE + ($0100 * 2),x
+        sta BITMAPBASE + ($0100 * 3),x
+        sta BITMAPBASE + ($0100 * 4),x
+        sta BITMAPBASE + ($0100 * 5),x
+        sta BITMAPBASE + ($0100 * 6),x
+        sta BITMAPBASE + ($0100 * 7),x
+        sta BITMAPBASE + ($0100 * 8),x
+        sta BITMAPBASE + ($0100 * 9),x
+        sta BITMAPBASE + ($0100 * 10),x
+        sta BITMAPBASE + ($0100 * 11),x
+        sta BITMAPBASE + ($0100 * 12),x
+        sta BITMAPBASE + ($0100 * 13),x
+        sta BITMAPBASE + ($0100 * 14),x
+        sta BITMAPBASE + ($0100 * 15),x
+        sta BITMAPBASE + ($0100 * 16),x
+        sta BITMAPBASE + ($0100 * 17),x
+        sta BITMAPBASE + ($0100 * 18),x
+        sta BITMAPBASE + ($0100 * 19),x
+        sta BITMAPBASE + ($0100 * 20),x
+        sta BITMAPBASE + ($0100 * 21),x
+        sta BITMAPBASE + ($0100 * 22),x
+        sta BITMAPBASE + ($0100 * 23),x
+        sta BITMAPBASE + ($0100 * 24),x
+        sta BITMAPBASE + ($0100 * 25),x
+        sta BITMAPBASE + ($0100 * 26),x
+        sta BITMAPBASE + ($0100 * 27),x
+        sta BITMAPBASE + ($0100 * 28),x
+        sta BITMAPBASE + ($0100 * 29),x
+        sta BITMAPBASE + ($0100 * 30),x
         inx
         bne @_ClrLoop
 @_ClrLoop2
-        sta BITMAPBASE + ($0100 * n),x
+        sta BITMAPBASE + ($0100 * 31),x
         inx
-        cpx #8000-n*255
+        cpx #8000 -($0100 * 31)
         bne @_ClrLoop2
 
         jmp ClearColor
@@ -1362,7 +1389,8 @@ HGRCircle2
         bne @ContinueWhile
         lda CURX
         cmp CURY
-        bcs @Exit
+        bcc @ContinueWhile
+        jmp @Exit
 
 @ContinueWhile
         ; if (pk <= 0)
@@ -3092,3 +3120,4 @@ HGRTest
         .byte "EXIT",0
         .byte 0
         rts
+
