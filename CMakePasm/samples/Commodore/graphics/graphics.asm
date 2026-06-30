@@ -99,12 +99,7 @@
         MOVE16 IGONE, IGONE_SV
         MOVE16I IGONE, WEDGE
 
-        lda #0                  ; peform a NEW for basic
-        ldy #NEWBYTES
--
-        sta (TXTTAB),y
-        dey
-        bne -
+		jsr SCRTCH           	; Call the BASIC "NEW" routine
 
         cli
 
