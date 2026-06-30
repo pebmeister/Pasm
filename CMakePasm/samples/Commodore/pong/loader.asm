@@ -35,7 +35,7 @@
 
                                 ;   enter your (short!) text here
 MSG     .db " "
-NAME    .str "PONG",0           ;   enter name of prg-to-load here
+NAME    .byte "PONG",0           ;   enter name of prg-to-load here
 
         NAMELEN = * - NAME - 1
         EXECADDR = $C000        ;   set to the 1st instruction's address of prg-to-load
