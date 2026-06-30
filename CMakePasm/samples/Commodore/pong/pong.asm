@@ -1108,9 +1108,8 @@ Start
 
         dec RAutoCnt
         lda RAutoCnt
-		beq @AutoRightContinue
+        beq @AutoRightContinue
         jmp @AutoRightExit
-
 @AutoRightContinue
 
         BEQ16I RAutoFireCnt, 0, @ResetAutoCnt
